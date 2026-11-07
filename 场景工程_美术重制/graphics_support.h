@@ -182,6 +182,9 @@ uniform int useTexture;
 uniform int materialKind;
 uniform float sceneTime;
 uniform vec3 cloudParams;
+uniform vec3 camRight;
+uniform vec3 camUp;
+uniform vec3 camBack;
 varying vec3 eyePosition;
 varying vec3 eyeNormal;
 varying vec2 textureCoord;
@@ -193,19 +196,17 @@ void main(){
     if(materialKind==8 && renderDepth==0){
         vec2 uv=gl_FragCoord.xy/max(cloudParams.yz,vec2(1.0));
         vec2 ndc=uv*2.0-1.0;
-        float above=ndc.y-cloudParams.x;
         float aspect=max(cloudParams.y/max(cloudParams.z,1.0),.5);
-        vec2 cuv=vec2(ndc.x*aspect*1.35,above*2.1)+vec2(sceneTime*.008,sceneTime*.002);
-        float n=noise(cuv*1.2)+.55*noise(cuv*2.3+4.2)+.28*noise(cuv*4.4+1.7);
-        n/=1.83;
-        float puff=smoothstep(.46,.78,n);
-        puff*=smoothstep(-.04,.14,above)*(1.0-smoothstep(.62,1.2,above));
-        float bank=exp(-pow(above/.18,2.0));
-        float wisp=.55+.45*noise(vec2(ndc.x*aspect*2.4+sceneTime*.012,above*5.0));
-        float veil=bank*wisp*smoothstep(-.22,.06,above);
-        vec3 cloudCol=mix(vec3(.95,.82,.70),vec3(.99,.96,.92),clamp(n,0.0,1.0));
-        vec3 mistCol=vec3(.73,.82,.87);
-        float alpha=clamp(puff*.5+veil*.5,0.0,.62);
+        vec3 rd=normalize(camRight*(ndc.x*aspect*.4142)+camUp*(ndc.y*.4142)-camBack);
+        float az=atan(rd.x,rd.z)+sceneTime*.01;
+        vec2 cuv=vec2(az*1.8,rd.y*7.0);
+        float n=noise(cuv)*.62+noise(cuv*2.1+3.7)*.38;
+        float puff=smoothstep(.55,.72,n);
+        puff*=smoothstep(.02,.08,rd.y)*(1.0-smoothstep(.5,.8,rd.y));
+        float band=exp(-pow((rd.y-.06)/.05,2.0))*smoothstep(0.0,.04,rd.y);
+        vec3 cloudCol=mix(vec3(.98,.90,.80),vec3(1.0,.97,.93),clamp(n,0.0,1.0));
+        vec3 mistCol=vec3(.70,.78,.84);
+        float alpha=clamp(puff*.62+band*.28,0.0,.62);
         gl_FragColor=vec4(mix(mistCol,cloudCol,puff),alpha);
         return;
     }
@@ -292,18 +293,15 @@ void main(){
     float specStrength=materialKind==1?.03:(materialKind==7?.035:.010);
     vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
     lit+=specColor*specular*visibility*specStrength;
-    float fog=1.0-exp(-max(length(eyePosition)-10.0,0.0)*(materialKind==4?.026:(materialKind==1?.005:.007)));
+    float fog=1.0-exp(-max(length(eyePosition)-10.0,0.0)*(materialKind==4?.008:(materialKind==1?.005:.007)));
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;
-    float mist=(materialKind==4?.10:.04)*(1.0-exp(-length(eyePosition)*.028))*exp(-max(worldHeight,0.0)*1.15);
+    float mist=(materialKind==4?0.0:.04)*(1.0-exp(-length(eyePosition)*.028))*exp(-max(worldHeight,0.0)*1.15);
     fog=1.0-(1.0-fog)*(1.0-mist);
-    vec3 fogColor=materialKind==1?vec3(.60,.70,.76):(materialKind==4?vec3(.76,.82,.87):vec3(.82,.78,.74));
-    lit=mix(lit,fogColor,clamp(fog,0.0,materialKind==4?.58:.24));
+    vec3 fogColor=materialKind==1?vec3(.60,.70,.76):(materialKind==4?vec3(.46,.54,.60):vec3(.82,.78,.74));
+    lit=mix(lit,fogColor,clamp(fog,0.0,materialKind==4?.16:.24));
     if(materialKind==4){
-        float base=exp(-pow((worldHeight-1.1)/2.2,2.0));
-        vec2 mv=textureCoord*vec2(9.0,4.5)+vec2(sceneTime*.006,0.0);
-        float w=noise(mv)+.5*noise(mv*2.2+8.0);
-        float beside=base*smoothstep(.32,.72,w);
-        lit=mix(lit,vec3(.78,.84,.88),clamp(beside,0.0,.48));
+        float base=exp(-pow(max(worldHeight,0.0)/.7,2.0));
+        lit=mix(lit,vec3(.52,.62,.68),base*.22);
     }
     float opacity=materialKind==1?.86:1.0;
     if(reflectionPass==1){

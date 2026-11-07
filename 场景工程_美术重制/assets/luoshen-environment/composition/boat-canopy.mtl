@@ -1,0 +1,14 @@
+newmtl bamboo
+Kd 0.67 0.51 0.31
+Ks 0.03 0.03 0.03
+Ns 12
+
+newmtl bamboo_light
+Kd 0.77 0.62 0.4
+Ks 0.03 0.03 0.03
+Ns 12
+
+newmtl rim
+Kd 0.45 0.32 0.18
+Ks 0.03 0.03 0.03
+Ns 12

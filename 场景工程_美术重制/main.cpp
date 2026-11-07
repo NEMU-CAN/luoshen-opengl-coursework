@@ -363,6 +363,14 @@ int wmain(int argc,wchar_t** argv){
             editable(rocks[i-1],"foreground-"+number,u8"前景岩石 "+number,
                      {rock.position+glm::vec3(0,.20f,0),rock.yaw,rock.scale*1.4f});
         }
+        const auto& connectors=scene_layout::shoreConnectors;
+        std::array<SceneModel, scene_layout::shoreConnectors.size()> connectorModels;
+        for(size_t i=0;i<connectors.size();++i){
+            const auto& rock=connectors[i];
+            connectorModels[i]=loadModel(std::string("imported-props/riverbank-rocks/")+rock.asset+".obj",true);
+            editable(connectorModels[i],"shore-connector-"+std::to_string(i+1),
+                     u8"左岸接坡石 "+std::to_string(i+1),{rock.pose.position,rock.pose.yaw,rock.pose.scale});
+        }
         for(int i=0;i<int(scene_layout::bankRocks.size());++i){
             const auto& rock=scene_layout::bankRocks[i];
             auto number=std::to_string(i+1);

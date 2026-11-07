@@ -31,7 +31,7 @@ struct ShadowMap {
     }
     void begin(){
         active(0x84C2);glBindTexture(GL_TEXTURE_2D,0);active(0x84C0);bind(0x8D40,framebuffer);glViewport(0,0,size,size);
-        glDepthMask(GL_TRUE);glClear(GL_DEPTH_BUFFER_BIT);glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);glEnable(GL_POLYGON_OFFSET_FILL);glPolygonOffset(3.f,8.f);
+        glDepthMask(GL_TRUE);glClear(GL_DEPTH_BUFFER_BIT);glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);glEnable(GL_POLYGON_OFFSET_FILL);glPolygonOffset(3.4f,9.f);
         pUniform1i(depthLocation,1);glMatrixMode(GL_PROJECTION);glLoadMatrixf(glm::value_ptr(lightProjection));
     }
     void end(int w,int h,const glm::mat4& camera,bool enabled){

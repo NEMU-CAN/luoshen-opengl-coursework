@@ -203,19 +203,18 @@ void main(){
         float sunClear=smoothstep(.05,.18,ang);
         float drift=sceneTime*.012;
         float wx=rd.x*rd.x, wz=rd.z*rd.z, wsum=max(wx+wz,1e-3);
-        vec2 scale=vec2(2.4,2.4);
-        float nx=noise(rd.yz*scale+vec2(drift,1.3));
-        float nz=noise(rd.xy*scale+vec2(4.2,drift));
-        float n=(nx*wx+nz*wz)/wsum;
-        float puff=smoothstep(.46,.62,n);
-        puff*=smoothstep(.08,.2,rd.y)*(1.0-smoothstep(.62,.9,rd.y))*sunClear;
-        float skyBand=exp(-pow((rd.y-.05)/.04,2.0))*smoothstep(.01,.05,rd.y)*sunClear;
+        float fieldXY=exp(-dot(rd.xy-vec2(-.37,.22),rd.xy-vec2(-.37,.22))*85.0)
+            +exp(-dot(rd.xy-vec2(.43,.22),rd.xy-vec2(.43,.22))*100.0);
+        vec2 yz=rd.yz+vec2(0.0,drift);
+        float fieldYZ=exp(-dot(yz-vec2(.22,-.91),yz-vec2(.22,-.91))*85.0)
+            +exp(-dot(yz-vec2(.22,-.87),yz-vec2(.22,-.87))*100.0);
+        float puff=smoothstep(.25,.7,(fieldXY*wz+fieldYZ*wx)/wsum)*sunClear;
         float upper=smoothstep(.02,.2,rd.y);
         vec3 apricot=mix(vec3(.95,.78,.62),vec3(.97,.83,.70),smoothstep(0.0,.4,rd.y));
         float warmA=upper*.88*sunClear;
-        vec3 cloudCol=mix(vec3(.98,.92,.84),vec3(1.0,.97,.94),clamp(n,0.0,1.0));
+        vec3 cloudCol=vec3(.99,.94,.88);
         vec3 rgb=mix(apricot,cloudCol,clamp(puff,0.0,1.0));
-        float alpha=max(warmA,clamp(puff*.5+skyBand*.16,0.0,.55));
+        float alpha=max(warmA,puff*.7);
         gl_FragColor=vec4(rgb,alpha);
         return;
     }

@@ -291,7 +291,7 @@ void main(){
         lit=color.rgb*(vec3(.60,.66,.74)+vec3(.10,.11,.12)*diffuse);
     }else{
         float shaped=diffuse*.75+fold*.25;
-        lit=color.rgb*(vec3(.26,.20,.18)+vec3(.68,.40,.18)*shaped*visibility);
+        lit=color.rgb*(vec3(.26,.20,.18)+vec3(.58,.36,.20)*shaped*visibility);
         float fill=max(dot(N,normalize(vec3(-.2,.72,.48))),0.0);
         lit+=color.rgb*vec3(.04,.05,.07)*fill;
         float up=max(dot(N,normalize(worldUpEye)),0.0);
@@ -309,9 +309,9 @@ void main(){
     vec3 fogColor=materialKind==1?vec3(.60,.70,.76):(materialKind==4?vec3(.46,.54,.60):vec3(.82,.78,.74));
     lit=mix(lit,fogColor,clamp(fog,0.0,materialKind==4?.16:.24));
     if(materialKind==4){
-        float foot=exp(-pow((worldHeight-1.3)/1.7,2.0));
-        float side=.7+.3*noise(textureCoord*vec2(1.4,.7));
-        lit=mix(lit,vec3(.66,.75,.82),clamp(foot*side,0.0,.5));
+        float foot=exp(-pow((worldHeight-1.1)/2.05,2.0));
+        float side=.72+.28*noise(textureCoord*vec2(1.4,.7));
+        lit=mix(lit,vec3(.70,.78,.84),clamp(foot*side,0.0,.62));
     }
     float opacity=materialKind==1?.86:1.0;
     if(reflectionPass==1){

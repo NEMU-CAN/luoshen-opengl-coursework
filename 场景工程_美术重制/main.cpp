@@ -138,27 +138,39 @@ void drawWater(){
     vertex(-70,0,-80,-7,-8);vertex(-70,0,50,-7,5);vertex(70,0,50,7,5);vertex(70,0,-80,7,-8);
     glEnd();
 }
-// Each ridge is a continuous terrain patch, with depth and curved silhouettes.
+// Sample the same ridges when building geometry and planting distant trees.
+float ridgeHeight(float x,float z,int row){
+    float centerZ=-29-row*17.f;
+    float depth=std::exp(-std::pow((z-centerZ)/8.f,2.f));
+    float peaks=0;
+    const float centers[]={-35.f,-16.f,12.f,31.f,48.f};
+    const float heights[]={5.f,6.7f,9.f,6.2f,8.2f};
+    const float widths[]={12.f,11.f,13.f,12.f,14.f};
+    for(int k=0;k<5;++k){
+        float ridge=std::exp(-std::pow((x-centers[k]+row*3.f)/widths[k]*1.25f,2.f));
+        peaks=glm::max(peaks,heights[k]*ridge);
+    }
+    return -.3f+depth*peaks*(.86f+.065f*std::sin(x*.47f+z*.31f)+.055f*std::sin(x*.91f-z*.46f));
+}
+float ridgeSurface(float x,float z,int row){
+    // Interpolate on the exact two triangles used by the 2 m ridge grid.
+    float originZ=-43-row*17.f;
+    if(x<-70.f||x>70.f||z<originZ||z>originZ+28.f)return -.3f;
+    float ax=std::floor((x+70.f)*.5f)*2.f-70.f;
+    float az=std::floor((z-originZ)*.5f)*2.f+originZ;
+    float u=(x-ax)*.5f,v=(z-az)*.5f;
+    float a=ridgeHeight(ax,az,row),c=ridgeHeight(ax+2,az+2,row);
+    if(u<=v)return (1-v)*a+(v-u)*ridgeHeight(ax,az+2,row)+u*c;
+    return (1-u)*a+(u-v)*ridgeHeight(ax+2,az,row)+v*c;
+}
 std::vector<SceneModel> buildMountains(){
     std::vector<SceneModel> models;
     for(int row=2;row>=0;--row){
         float centerZ=-29-row*17.f;
-        auto height=[&](float x,float z){
-            float depth=std::exp(-std::pow((z-centerZ)/8.f,2.f));
-            float peaks=0;
-            const float centers[]={-35.f,-16.f,12.f,31.f,48.f};
-            const float heights[]={5.f,6.7f,9.f,6.2f,8.2f};
-            const float widths[]={12.f,11.f,13.f,12.f,14.f};
-            for(int k=0;k<5;++k){
-                float ridge=std::exp(-std::pow((x-centers[k]+row*3.f)/widths[k]*1.25f,2.f));
-                peaks=glm::max(peaks,heights[k]*ridge);
-            }
-            return -.3f+depth*peaks*(.86f+.065f*std::sin(x*.47f+z*.31f)+.055f*std::sin(x*.91f-z*.46f));
-        };
-        std::vector<SceneVertex> vertices;vertices.reserve(28*140*6);
+        std::vector<SceneVertex> vertices;vertices.reserve(14*70*6);
         for(int iz=0;iz<14;++iz)for(int ix=0;ix<70;++ix){
             float x=-70+ix*2.f,z=centerZ-14+iz*2.f;
-            auto p=[&](float xx,float zz){return glm::vec3(xx,height(xx,zz),zz);};
+            auto p=[&](float xx,float zz){return glm::vec3(xx,ridgeHeight(xx,zz,row),zz);};
             auto tri=[&](glm::vec3 a,glm::vec3 b,glm::vec3 c){
                 auto n=glm::normalize(glm::cross(b-a,c-a));
                 if(n.y<0)n=-n;
@@ -278,13 +290,15 @@ void marker(glm::vec3 p,glm::vec3 color){
     for(int i=0;i<=40;++i){float a=i*6.2831853f/40;vertex(p.x+.4f*std::cos(a),p.y,p.z+.4f*std::sin(a),0,0);}glEnd();
 }
 
+#include "environment_effects.h"
+
 int wmain(int argc,wchar_t** argv){
     SetConsoleOutputCP(CP_UTF8);
     try {
         wchar_t module[32768];GetModuleFileNameW(nullptr,module,32768);
         auto exe=std::filesystem::path(module).parent_path();std::filesystem::current_path(exe);
         for(auto candidate:{exe/"assets/luoshen-environment",exe.parent_path()/"assets/luoshen-environment",exe.parent_path().parent_path()/"assets/luoshen-environment"})
-            if(std::filesystem::exists(candidate/"tree/tree_small_lod1.obj")){assetRoot=candidate;break;}
+            if(std::filesystem::exists(candidate/"boat-medieval/wooden-rowboat.obj")){assetRoot=candidate;break;}
         if(assetRoot.empty())throw std::runtime_error("Asset folder not found beside executable or project.");
         bool capture=argc>1&&std::wstring(argv[1])==L"--capture";
         bool noShadows=argc>1&&std::wstring(argv[1])==L"--capture-no-shadows";
@@ -322,7 +336,8 @@ int wmain(int argc,wchar_t** argv){
         glEnable(GL_DEPTH_TEST);glDisable(GL_CULL_FACE);
         std::cout<<"GL version: "<<glGetString(GL_VERSION)<<"\nPhong shader linked successfully\n";
         ShadowMap shadows;shadows.init(program);
-        auto boat=loadModel("boat-medieval/wooden-rowboat.obj");auto tree=loadModel("tree/tree_small_lod1.obj");
+        auto boat=loadModel("boat-medieval/wooden-rowboat.obj");
+        auto pine=loadModel("composition/river-pine.obj");auto distantBank=loadModel("composition/distant-bank.obj");
         auto canopy=loadModel("composition/boat-canopy.obj");auto blossom=loadModel("composition/blossom-frame.obj");auto ledge=loadModel("composition/river-ledge.obj");
         auto caozhi=loadModel("../luoshen-characters/caozhi/caozhi.obj");
         auto luoshen=loadModel("../luoshen-characters/luoshen/luoshen.obj");
@@ -366,7 +381,13 @@ int wmain(int argc,wchar_t** argv){
             auto goddess=farewellPosition(animationTime);goddess.y+=.012f*std::sin(float(animationTime)*1.3f);
             auto drawCasters=[&](const glm::mat4& view){
             drawModel(blossom,view,scene_layout::blossomPosition,scene_layout::blossomYaw,scene_layout::blossomScale);
-            drawModel(tree,view,glm::vec3(-14.f,terrainHeight(-14,-24),-24.f),35,.50f);
+            drawModel(distantBank,view,scene_layout::distantBankPosition,0,1);
+            for(const auto& p:scene_layout::riverPines){
+                auto position=p.position;
+                if(position.x<0)position.y=terrainHeight(position.x,position.z)-.015f;
+                for(int row=0;row<3;++row)position.y=glm::max(position.y,ridgeSurface(position.x,position.z,row)-.06f);
+                drawModel(pine,view,position,p.yaw,p.scale);
+            }
             for(const auto& r:scene_layout::ledges)drawModel(ledge,view,r.position,r.yaw,r.scale);
             drawModel(rocks[2],view,glm::vec3(-4.8f,-.02f,-11.f),40,.22f);
             drawModel(rocks[4],view,glm::vec3(-5.1f,-.04f,-14.f),-15,.18f);
@@ -398,6 +419,7 @@ int wmain(int argc,wchar_t** argv){
             glLoadMatrixf(glm::value_ptr(view));drawReeds();drawModel(meadow,view,glm::vec3(0),0,1);
             drawCasters(view);
             glLoadMatrixf(glm::value_ptr(view));
+            environment_effects::drawWaterPetals(animationTime,goddess);
             if(markers){
                 marker(scene_layout::caozhiPosition,glm::vec3(.2f,.3f,.5f));
                 marker(goddess,glm::vec3(.8f,.5f,.25f));
@@ -432,7 +454,7 @@ int wmain(int argc,wchar_t** argv){
         glDeleteTextures(1,&overlay);
         glDeleteTextures(1,&titleOverlay);
         auto release=[](SceneModel& m){for(auto b:m.batches)sceneDeleteBuffers(1,&b.buffer);};
-        release(boat);release(tree);release(blossom);release(ledge);release(canopy);release(caozhi);release(luoshen);release(meadow);for(auto& mountain:mountainModels)release(mountain);for(auto& r:rocks)release(r);glDeleteLists(groundList,1);
+        release(boat);release(blossom);release(ledge);release(canopy);release(pine);release(distantBank);release(caozhi);release(luoshen);release(meadow);for(auto& mountain:mountainModels)release(mountain);for(auto& r:rocks)release(r);glDeleteLists(groundList,1);
         shadows.destroy();pDeleteProgram(program);glfwDestroyWindow(window);glfwTerminate();CoUninitialize();
         return 0;
     }catch(const std::exception& e){std::cerr<<"ERROR: "<<e.what()<<'\n';return 1;}

@@ -2,6 +2,7 @@
 #include "graphics_support.h"
 #include "mesh_data.h"
 #include "scene_motion.h"
+#include "scene_layout.h"
 #include <map>
 #include <chrono>
 #include <cstddef>
@@ -32,10 +33,10 @@ glm::mat4 worldPrefix(1);
 GLuint groundColor=0,groundNormal=0;
 std::map<std::string,GLuint> textures;
 std::filesystem::path assetRoot;
-bool paused=false,markers=false,captureRequested=false;
+bool paused=false,markers=false,captureRequested=false,mainShot=true;
 double animationTime=0;
-float yaw=8.0f,pitch=7.0f,distanceToTarget=11.0f;
-glm::vec3 target(-.8f,1.45f,-.6f);
+float yaw=scene_layout::mainYaw,pitch=scene_layout::mainPitch,distanceToTarget=scene_layout::mainDistance;
+glm::vec3 target=scene_layout::mainTarget;
 bool leftDown=false,rightDown=false;double lastX=0,lastY=0;
 
 GLuint loadMaterialTexture(const SceneMaterial& mat) {
@@ -144,23 +145,26 @@ std::vector<SceneModel> buildMountains(){
         float centerZ=-29-row*17.f;
         auto height=[&](float x,float z){
             float depth=std::exp(-std::pow((z-centerZ)/8.f,2.f));
-            float peaks=4.3f*std::exp(-std::pow((x+21-row*4)/9.f,2.f))
-                +6.7f*std::exp(-std::pow((x-26+row*8)/13.f,2.f))
-                +2.7f*std::exp(-std::pow((x+45)/11.f,2.f));
-            return -.3f+depth*peaks*(.97f+.025f*std::sin(x*.34f+z*.18f)+.008f*std::sin(x*1.1f));
+            float peaks=0;
+            const float centers[]={-35.f,-16.f,12.f,31.f,48.f};
+            const float heights[]={5.f,6.7f,9.f,6.2f,8.2f};
+            const float widths[]={12.f,11.f,13.f,12.f,14.f};
+            for(int k=0;k<5;++k){
+                float ridge=std::exp(-std::pow((x-centers[k]+row*3.f)/widths[k]*1.25f,2.f));
+                peaks=glm::max(peaks,heights[k]*ridge);
+            }
+            return -.3f+depth*peaks*(.86f+.065f*std::sin(x*.47f+z*.31f)+.055f*std::sin(x*.91f-z*.46f));
         };
         std::vector<SceneVertex> vertices;vertices.reserve(28*140*6);
-        for(int iz=0;iz<28;++iz)for(int ix=0;ix<140;++ix){
-            float x=-70+ix,z=centerZ-14+iz;
+        for(int iz=0;iz<14;++iz)for(int ix=0;ix<70;++ix){
+            float x=-70+ix*2.f,z=centerZ-14+iz*2.f;
             auto p=[&](float xx,float zz){return glm::vec3(xx,height(xx,zz),zz);};
             auto tri=[&](glm::vec3 a,glm::vec3 b,glm::vec3 c){
-                for(auto v:{a,b,c}){
-                    float dx=(height(v.x+.15f,v.z)-height(v.x-.15f,v.z))/.3f;
-                    float dz=(height(v.x,v.z+.15f)-height(v.x,v.z-.15f))/.3f;
-                    auto n=glm::normalize(glm::vec3(-dx,1,-dz));vertices.push_back({v,n,glm::vec2(v.x*.12f,v.z*.12f)});
-                }
+                auto n=glm::normalize(glm::cross(b-a,c-a));
+                if(n.y<0)n=-n;
+                for(auto v:{a,b,c})vertices.push_back({v,n,glm::vec2(v.x*.12f,v.z*.12f)});
             };
-            tri(p(x,z),p(x,z+1),p(x+1,z+1));tri(p(x,z),p(x+1,z+1),p(x+1,z));
+            tri(p(x,z),p(x,z+2),p(x+2,z+2));tri(p(x,z),p(x+2,z+2),p(x+2,z));
         }
         GpuBatch batch;batch.kind=4;batch.color=glm::vec3(.16f+row*.13f,.31f+row*.105f,.35f+row*.09f);batch.count=static_cast<GLsizei>(vertices.size());
         sceneGenBuffers(1,&batch.buffer);sceneBindBuffer(SCENE_ARRAY_BUFFER,batch.buffer);
@@ -174,11 +178,11 @@ SceneModel buildMeadow(){
     auto random=[](float n){return glm::fract(std::sin(n*127.1f+31.7f)*43758.5453f);};
     for(int group=0;group<3;++group){
         std::vector<SceneVertex> vertices;
-        for(int i=group;i<11000;i+=3){
+        for(int i=group;i<2800;i+=3){
             float x=-13+random(float(i)+1)*10,z=-12+random(float(i)+4)*22;
-            if(x>bank(z)-.38f)continue;
+            if(x>bank(z)-.75f)continue;
             if(std::sin(x*1.7f+std::sin(z*.8f))+std::cos(z*1.3f)<-.45f)continue;
-            if(glm::length(glm::vec2(x+4.3f,z-1))<.65f)continue;
+            if(glm::length(glm::vec2(x-scene_layout::caozhiPosition.x,z-scene_layout::caozhiPosition.z))<1.0f)continue;
             float y=terrainHeight(x,z);
             for(int blade=0;blade<6;++blade){
                 float a=random(i*7.f+blade)*6.2831853f,h=.075f+.13f*random(i*9.f+blade);
@@ -195,7 +199,7 @@ SceneModel buildMeadow(){
     }return model;
 }
 void drawReeds(){
-    for(int i=0;i<210;++i){
+    for(int i=0;i<90;++i){
         float z=-15+i*.15f+.40f*std::sin(i*1.8f);float x=bank(z)-.12f-.75f*(.5f+.5f*std::sin(i*2.7f));
         if(std::sin(z*.9f)<-.1f)continue;
         float height=.16f+.23f*(.5f+.5f*std::sin(i*5.1f));
@@ -236,7 +240,7 @@ void sky(int w,int h){
     }
     glEnable(GL_DEPTH_TEST);
 }
-void resetView(){yaw=8;pitch=7;distanceToTarget=11;target=glm::vec3(-.8f,1.45f,-.6f);}
+void resetView(){mainShot=true;yaw=scene_layout::mainYaw;pitch=scene_layout::mainPitch;distanceToTarget=scene_layout::mainDistance;target=scene_layout::mainTarget;}
 void mouseButton(GLFWwindow* w,int button,int action,int){
     if(button==GLFW_MOUSE_BUTTON_LEFT)leftDown=action==GLFW_PRESS;
     if(button==GLFW_MOUSE_BUTTON_RIGHT)rightDown=action==GLFW_PRESS;
@@ -244,10 +248,10 @@ void mouseButton(GLFWwindow* w,int button,int action,int){
 }
 void mouseMove(GLFWwindow*,double x,double y){
     float dx=float(x-lastX),dy=float(y-lastY);lastX=x;lastY=y;
-    if(leftDown){yaw-=dx*.25f;pitch=glm::clamp(pitch+dy*.22f,5.0f,80.0f);}
-    if(rightDown){float a=glm::radians(yaw);target+=glm::vec3(-std::cos(a)*dx,dy*.45f,std::sin(a)*dx)*distanceToTarget*.0015f;}
+    if(leftDown){mainShot=false;yaw-=dx*.25f;pitch=glm::clamp(pitch+dy*.22f,5.0f,80.0f);}
+    if(rightDown){mainShot=false;float a=glm::radians(yaw);target+=glm::vec3(-std::cos(a)*dx,dy*.45f,std::sin(a)*dx)*distanceToTarget*.0015f;}
 }
-void scroll(GLFWwindow*,double,double dy){distanceToTarget=glm::clamp(distanceToTarget*std::exp(float(-dy)*.1f),5.0f,65.0f);}
+void scroll(GLFWwindow*,double,double dy){mainShot=false;distanceToTarget=glm::clamp(distanceToTarget*std::exp(float(-dy)*.1f),5.0f,65.0f);}
 void keyboard(GLFWwindow* w,int key,int,int action,int){
     if(action!=GLFW_PRESS)return;
     if(key==GLFW_KEY_ESCAPE)glfwSetWindowShouldClose(w,1);
@@ -257,9 +261,9 @@ void keyboard(GLFWwindow* w,int key,int,int action,int){
     if(key==GLFW_KEY_R){resetView();animationTime=0;paused=false;}
     if(key==GLFW_KEY_F9)captureRequested=true;
     if(key==GLFW_KEY_1)resetView();
-    if(key==GLFW_KEY_2){yaw=48;pitch=29;distanceToTarget=23;target=glm::vec3(-1,1,-3);}
-    if(key==GLFW_KEY_3){yaw=4;pitch=10;distanceToTarget=6;target=farewellPosition(animationTime)+glm::vec3(0,1.4f,0);}
-    if(key==GLFW_KEY_4){yaw=48;pitch=12;distanceToTarget=7;target=glm::vec3(-4.3f,1.55f,1);}
+    if(key==GLFW_KEY_2){mainShot=false;yaw=48;pitch=29;distanceToTarget=23;target=glm::vec3(-1,1,-3);}
+    if(key==GLFW_KEY_3){mainShot=false;yaw=4;pitch=10;distanceToTarget=6;target=farewellPosition(animationTime)+glm::vec3(0,1.4f,0);}
+    if(key==GLFW_KEY_4){mainShot=false;yaw=25;pitch=9;distanceToTarget=6;target=scene_layout::caozhiPosition+glm::vec3(0,1.2f,0);}
 }
 void saveFrame(const std::filesystem::path& path,int w,int h){
     int stride=(w*3+3)&~3;std::vector<unsigned char> data(size_t(stride)*h);
@@ -319,6 +323,7 @@ int wmain(int argc,wchar_t** argv){
         std::cout<<"GL version: "<<glGetString(GL_VERSION)<<"\nPhong shader linked successfully\n";
         ShadowMap shadows;shadows.init(program);
         auto boat=loadModel("boat-medieval/wooden-rowboat.obj");auto tree=loadModel("tree/tree_small_lod1.obj");
+        auto canopy=loadModel("composition/boat-canopy.obj");auto blossom=loadModel("composition/blossom-frame.obj");auto ledge=loadModel("composition/river-ledge.obj");
         auto caozhi=loadModel("../luoshen-characters/caozhi/caozhi.obj");
         auto luoshen=loadModel("../luoshen-characters/luoshen/luoshen.obj");
         SceneMaterial groundMat;groundMat.colorMap=assetRoot/"ground/color.png";groundColor=loadMaterialTexture(groundMat);
@@ -349,28 +354,27 @@ int wmain(int argc,wchar_t** argv){
             if(glfwGetKey(window,GLFW_KEY_D)==GLFW_PRESS)target.x+=speed;
             if(glfwGetKey(window,GLFW_KEY_W)==GLFW_PRESS)target.z-=speed;
             if(glfwGetKey(window,GLFW_KEY_S)==GLFW_PRESS)target.z+=speed;
+            if(glfwGetKey(window,GLFW_KEY_A)==GLFW_PRESS||glfwGetKey(window,GLFW_KEY_D)==GLFW_PRESS||glfwGetKey(window,GLFW_KEY_W)==GLFW_PRESS||glfwGetKey(window,GLFW_KEY_S)==GLFW_PRESS)mainShot=false;
             int w,h;glfwGetFramebufferSize(window,&w,&h);if(w==0||h==0){glfwWaitEvents();continue;}
             glViewport(0,0,w,h);glStencilMask(0xff);glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);sky(w,h);
             auto projection=glm::perspective(glm::radians(45.0f),float(w)/h,.1f,160.0f);
             float a=glm::radians(yaw),b=glm::radians(pitch);
-            glm::vec3 eye=target+distanceToTarget*glm::vec3(std::sin(a)*std::cos(b),std::sin(b),std::cos(a)*std::cos(b));
-            auto view=glm::lookAt(eye,target,glm::vec3(0,1,0));
+            float pullback=mainShot?glm::smoothstep(0.f,45.f,float(animationTime)):0.f;
+            auto shotTarget=target+glm::vec3(1.2f*pullback,0,0);
+            glm::vec3 eye=shotTarget+(distanceToTarget+2.f*pullback)*glm::vec3(std::sin(a)*std::cos(b),std::sin(b),std::cos(a)*std::cos(b));
+            auto view=glm::lookAt(eye,shotTarget,glm::vec3(0,1,0));
             auto goddess=farewellPosition(animationTime);goddess.y+=.012f*std::sin(float(animationTime)*1.3f);
             auto drawCasters=[&](const glm::mat4& view){
-            // Position / yaw / uniform scale are intentionally explicit for students.
-            drawModel(tree,view,glm::vec3(-8.0f,terrainHeight(-8,-3.5f),-3.5f),-28,1.5f);
-            drawModel(tree,view,glm::vec3(-10.3f,terrainHeight(-10.3f,-10.5f),-10.5f),54,1.18f,glm::vec3(.94f,1,.94f));
-            for(int i=0;i<12;++i){
-                int group=i/4;float z=(group==0?-10.f:group==1?-1.f:7.f)+.9f*std::sin(i*2.1f);float x=bank(z)-.30f+.65f*std::sin(i*1.9f);
-                drawModel(rocks[i%6],view,glm::vec3(x,-.04f,z),float(i*43),.18f+.27f*float((i*7)%5)/4);
-            }
-            drawModel(rocks[3],view,glm::vec3(-5.0f,terrainHeight(-5,3.6f)-.09f,3.6f),-30,.68f);
-            drawModel(rocks[1],view,glm::vec3(-7.8f,terrainHeight(-7.8f,5.5f)-.07f,5.5f),68,.61f);
+            drawModel(blossom,view,scene_layout::blossomPosition,scene_layout::blossomYaw,scene_layout::blossomScale);
+            drawModel(tree,view,glm::vec3(-14.f,terrainHeight(-14,-24),-24.f),35,.50f);
+            for(const auto& r:scene_layout::ledges)drawModel(ledge,view,r.position,r.yaw,r.scale);
+            drawModel(rocks[2],view,glm::vec3(-4.8f,-.02f,-11.f),40,.22f);
+            drawModel(rocks[4],view,glm::vec3(-5.1f,-.04f,-14.f),-15,.18f);
             float bob=.018f*std::sin(float(animationTime)*.85f);
-            // The boat is empty background scenery. Luo Shen moves independently.
-            drawModel(boat,view,glm::vec3(-2.3f,.025f+bob,-15.5f),-24,.36f);
-            drawModel(caozhi,view,glm::vec3(-4.3f,terrainHeight(-4.3f,1)+.006f,1.0f),15,1.6f);
-            drawModel(luoshen,view,goddess,-25,1.6f);
+            drawModel(boat,view,scene_layout::boatPosition+glm::vec3(0,bob,0),scene_layout::boatYaw,scene_layout::boatScale);
+            drawModel(canopy,view,scene_layout::boatPosition+glm::vec3(0,.25f+bob,0),scene_layout::boatYaw,scene_layout::boatScale);
+            drawModel(caozhi,view,scene_layout::caozhiPosition,scene_layout::caozhiYaw,scene_layout::caozhiScale);
+            drawModel(luoshen,view,goddess,scene_layout::luoshenYaw,scene_layout::luoshenScale);
             };
             pUseProgram(program);uniform1f(timeLocation,float(animationTime));shadows.begin();drawCasters(shadows.lightView);shadows.end(w,h,view,!noShadows);
             glMatrixMode(GL_PROJECTION);glLoadMatrixf(glm::value_ptr(projection));
@@ -386,9 +390,7 @@ int wmain(int argc,wchar_t** argv){
             glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);glDepthMask(GL_TRUE);
             glStencilMask(0);glStencilFunc(GL_EQUAL,1,0xff);glStencilOp(GL_KEEP,GL_KEEP,GL_KEEP);
             glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);reflectionPass=true;
-            drawModel(caozhi,view,glm::vec3(-4.3f,terrainHeight(-4.3f,1)+.006f,1),15,1.6f);
-            drawModel(luoshen,view,goddess,-25,1.6f);
-            drawModel(tree,view,glm::vec3(-8.0f,terrainHeight(-8,-3.5f),-3.5f),-28,1.5f);
+            drawCasters(view);
             reflectionPass=false;glDisable(GL_BLEND);glDisable(GL_STENCIL_TEST);
             glLoadMatrixf(glm::value_ptr(view));glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);drawWater();glDisable(GL_BLEND);
             for(const auto& mountain:mountainModels)drawModel(mountain,view,glm::vec3(0),0,1);material(glm::vec3(.85f,.90f,.81f),2,groundColor);
@@ -397,7 +399,7 @@ int wmain(int argc,wchar_t** argv){
             drawCasters(view);
             glLoadMatrixf(glm::value_ptr(view));
             if(markers){
-                marker(glm::vec3(-4.3f,.23f,1),glm::vec3(.2f,.3f,.5f));
+                marker(scene_layout::caozhiPosition,glm::vec3(.2f,.3f,.5f));
                 marker(goddess,glm::vec3(.8f,.5f,.25f));
                 material(glm::vec3(.85f,.65f,.3f));glLineWidth(2);glBegin(GL_LINE_STRIP);
                 for(int i=0;i<=100;++i){auto p=farewellPosition(i*.45);glVertex3f(p.x,.07f,p.z);}glEnd();
@@ -430,7 +432,7 @@ int wmain(int argc,wchar_t** argv){
         glDeleteTextures(1,&overlay);
         glDeleteTextures(1,&titleOverlay);
         auto release=[](SceneModel& m){for(auto b:m.batches)sceneDeleteBuffers(1,&b.buffer);};
-        release(boat);release(tree);release(caozhi);release(luoshen);release(meadow);for(auto& mountain:mountainModels)release(mountain);for(auto& r:rocks)release(r);glDeleteLists(groundList,1);
+        release(boat);release(tree);release(blossom);release(ledge);release(canopy);release(caozhi);release(luoshen);release(meadow);for(auto& mountain:mountainModels)release(mountain);for(auto& r:rocks)release(r);glDeleteLists(groundList,1);
         shadows.destroy();pDeleteProgram(program);glfwDestroyWindow(window);glfwTerminate();CoUninitialize();
         return 0;
     }catch(const std::exception& e){std::cerr<<"ERROR: "<<e.what()<<'\n';return 1;}

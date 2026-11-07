@@ -56,4 +56,30 @@ for j in range(8):m.face([(0,0,-1.35),rings[0][j+1],rings[0][j]],'bamboo')
 for z in [-1.35,1.35]:
  for j in range(8):m.tube(rings[0 if z<0 else 1][j],rings[0 if z<0 else 1][j+1],.022,.022,'rim',4)
 m.write('boat-canopy',{'bamboo':(.67,.51,.31),'bamboo_light':(.77,.62,.40),'rim':(.45,.32,.18)})
-print('Generated blossom-frame, river-ledge and boat-canopy OBJ/MTL')
+# Open, asymmetrical pine silhouette with flattened cloud-like crowns.
+m=Mesh()
+pine_branches=[((0,0,0),(.08,.9,.02),.15,.11),((.08,.9,.02),(.26,1.75,0),.11,.065),((.26,1.75,0),(.10,2.55,.03),.065,.018),((.08,.9,.02),(-.55,1.58,.08),.07,.032),((-.55,1.58,.08),(-1.05,1.72,.05),.032,.012),((.26,1.75,0),(.93,2.05,-.06),.05,.018),((.26,1.75,0),(-.26,2.22,-.43),.04,.012),((.08,.9,.02),(.48,1.48,.53),.04,.012)]
+for a,b,r1,r2 in pine_branches:m.tube(a,b,r1,r2,'pine_bark',5)
+crowns=[(-1.05,1.83,.06,.68),(-.53,1.91,.12,.66),(.03,2.68,.03,.73),(.62,2.18,-.09,.73),(1.09,2.14,-.04,.53),(-.28,2.34,-.43,.61),(.49,1.60,.53,.62)]
+for k,(x,y,z,r) in enumerate(crowns):
+ rng=random.Random(500+k);ring=[]
+ for j in range(7):
+  t=j*math.tau/7;rr=r*(.83+rng.random()*.24);ring.append((x+rr*math.cos(t),y+rng.uniform(-.03,.025),z+rr*.60*math.sin(t)))
+ upper=[(px,py+.075,pz) for px,py,pz in ring]
+ lower=[(x+(px-x)*.79,py-.115,z+(pz-z)*.83) for px,py,pz in ring]
+ top=(x-.15*r,y+.21,z-.04);bottom=(x+.06,y-.15,z)
+ for j in range(7):
+  n=(j+1)%7
+  m.face([top,upper[n],upper[j]],'pine_light' if (j+k)%3==0 else 'pine_green')
+  m.face([upper[j],upper[n],lower[n],lower[j]],'pine_green')
+  m.face([bottom,lower[j],lower[n]],'pine_shadow')
+m.write('river-pine',{'pine_bark':(.30,.29,.21),'pine_green':(.24,.35,.28),'pine_light':(.34,.43,.32),'pine_shadow':(.18,.28,.25)})
+# A real distant right bank supports the trees, rather than planting them on water.
+m=Mesh();outline=[(-3.1,-8),(-4.0,-3),(-3.8,4),(-1.5,9),(2.4,8),(4.1,2),(3.8,-6),(1.2,-9)]
+outline.reverse()
+top=[(x,.38,z) for x,z in outline];bottom=[(x*.94,-.04,z*.97) for x,z in outline]
+for j in range(8):
+ m.face([(0,.50,0),top[(j+1)%8],top[j]],'bank_top')
+ m.face([top[j],top[(j+1)%8],bottom[(j+1)%8],bottom[j]],'bank_rock')
+m.write('distant-bank',{'bank_top':(.37,.43,.33),'bank_rock':(.35,.43,.40)})
+print('Generated composition OBJ/MTL: blossom, ledge, canopy, pine, distant bank')

@@ -1,0 +1,9 @@
+newmtl bank_top
+Kd 0.37 0.43 0.33
+Ks 0.03 0.03 0.03
+Ns 12
+
+newmtl bank_rock
+Kd 0.35 0.43 0.4
+Ks 0.03 0.03 0.03
+Ns 12

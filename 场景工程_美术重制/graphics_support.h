@@ -198,11 +198,13 @@ void main(){
         vec2 ndc=uv*2.0-1.0;
         float aspect=max(cloudParams.y/max(cloudParams.z,1.0),.5);
         vec3 rd=normalize(camRight*(ndc.x*aspect*.4142)+camUp*(ndc.y*.4142)-camBack);
-        vec3 sunDir=normalize(vec3(-.15,-.018,-1.0));
+        vec3 sunDir=normalize(vec3(-.15,.022,-1.0));
         float ang=acos(clamp(dot(rd,sunDir),-1.0,1.0));
         float lift=smoothstep(0.0,.42,rd.y);
         vec3 sky=mix(vec3(.98,.72,.54),vec3(.95,.64,.48),lift);
-        float disc=1.0-smoothstep(.015,.019,ang);
+        float foot=smoothstep(.05,-.04,rd.y);
+        sky=mix(sky,vec3(.68,.76,.82),foot*.72);
+        float disc=1.0-smoothstep(.036,.040,ang);
         sky=mix(sky,vec3(1.0,.93,.80),disc);
         gl_FragColor=vec4(sky,1.0);
         return;
@@ -295,11 +297,7 @@ void main(){
     float fog=1.0-exp(-max(length(eyePosition)-22.0,0.0)*(materialKind==4?.004:(materialKind==1?.003:.004)));
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;
     vec3 fogColor=materialKind==1?vec3(.60,.70,.76):(materialKind==4?vec3(.50,.58,.64):vec3(.90,.80,.68));
-    lit=mix(lit,fogColor,clamp(fog,0.0,materialKind==4?.08:.06));
-    if(materialKind==4){
-        float foot=exp(-pow((worldHeight-1.6)/2.3,2.0));
-        lit=mix(lit,vec3(.70,.78,.84),clamp(foot,0.0,.5));
-    }
+    lit=mix(lit,fogColor,clamp(fog,0.0,materialKind==4?.05:.06));
     float opacity=materialKind==1?.86:1.0;
     if(reflectionPass==1){
         float depth=max(-worldHeight,0.0);

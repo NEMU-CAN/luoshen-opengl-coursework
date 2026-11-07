@@ -197,29 +197,29 @@ void main(){
     if(materialKind==1){
         float wave=sin(textureCoord.x*9.0+sceneTime*.65)+sin(textureCoord.y*17.0+textureCoord.x*3.0-sceneTime*.43);
         N=normalize(N+vec3(.035*wave,0,.055*cos(textureCoord.y*12.0+sceneTime*.5)));
-        color.rgb=mix(vec3(.075,.235,.275),vec3(.16,.36,.39),.5+.045*wave);
+        color.rgb=mix(vec3(.13,.09,.07),vec3(.58,.36,.20),.40+.05*wave);
         float lines=pow(.5+.5*sin(textureCoord.y*39.0+sin(textureCoord.x*8.0+sceneTime*.2)*3.0),18.0);
         color.rgb+=lines*.010;
         vec2 waterWorld=textureCoord*10.0;
         float band=exp(-pow((waterWorld.x-.15*waterWorld.y)/(.14+.035*abs(waterWorld.y)),2.0));
         float glimmer=pow(.5+.5*sin(waterWorld.y*31.0+sin(waterWorld.x*17.0+sceneTime*.5)*2.0-sceneTime*.8),16.0)*pow(.5+.5*sin(waterWorld.x*83.0+waterWorld.y*47.0+sceneTime*.6),9.0);
-        color.rgb+=vec3(.24,.16,.07)*band*glimmer;
+        color.rgb+=vec3(.32,.18,.07)*band*glimmer;
         float grazing=pow(1.0-max(dot(N,normalize(-eyePosition)),0.0),3.0);
-        color.rgb=mix(color.rgb,vec3(.53,.64,.62),grazing*.60);
+        color.rgb=mix(color.rgb,vec3(.88,.72,.52),grazing*.48);
         vec2 rippleOffset=textureCoord*10.0-goddessPosition.xz;
         float angle=atan(rippleOffset.y,rippleOffset.x);
         float radius=length(rippleOffset*vec2(.94,1.08))+.035*sin(angle*3.0+sceneTime*.2);
         float arcs=smoothstep(.20,.65,.5+.5*sin(angle*3.0+radius*2.0-sceneTime*.25));
-        color.rgb+=vec3(.035,.046,.04)*pow(.5+.5*cos(radius*18.0-sceneTime*1.5),14.0)*exp(-radius*1.9)*arcs;
+        color.rgb+=vec3(.06,.04,.02)*pow(.5+.5*cos(radius*18.0-sceneTime*1.5),14.0)*exp(-radius*1.9)*arcs;
     }
     if(materialKind==2){
         float patch=.5+.5*sin(textureCoord.x*2.0+sin(textureCoord.y*1.8))*cos(textureCoord.y*2.4);
         color.rgb*=mix(vec3(.80,.84,.72),vec3(1.04,.99,.88),patch);
         color.rgb*=.97+.04*hash(floor(textureCoord*90.0));
         vec2 ground=textureCoord/0.4;
-        color.rgb=mix(color.rgb,vec3(.19,.28,.18),.60);
+        color.rgb=mix(color.rgb,vec3(.34,.26,.16),.32);
         float shore=-3.5+.65*sin(ground.y*.16)+.35*sin(ground.y*.53+.8)+.12*sin(ground.y*1.4)-ground.x;
-        color.rgb=mix(color.rgb,vec3(.25,.26,.20),.4*exp(-max(shore,0.0)*2.0));
+        color.rgb=mix(color.rgb,vec3(.40,.30,.18),.35*exp(-max(shore,0.0)*2.0));
         float shade=exp(-dot((ground-vec2(-8.0,-3.5))/vec2(2.0,2.7),(ground-vec2(-8.0,-3.5))/vec2(2.0,2.7)));
         color.rgb*=1.0-.22*shade;
         vec2 contact=(ground-vec2(-4.3,1.0))/vec2(.55,.4);
@@ -234,37 +234,40 @@ void main(){
         vec3 mapped=texture2D(normalMap,textureCoord).xyz*2.0-1.0;
         mapped.xy*=.55;N=normalize(mat3(T*inv,B*inv,N)*normalize(mapped));
     }
-    vec3 L=normalize(lightPositionEye-eyePosition),V=normalize(-eyePosition),R=reflect(-L,N);
+    // main.cpp still places the sun at world (-12, 16, 9). Slide it down to y=5.5
+    // along world up so the direction stays fixed when the camera moves.
+    vec3 sunEye=lightPositionEye-10.5*worldUpEye;
+    vec3 L=normalize(sunEye-eyePosition),V=normalize(-eyePosition),R=reflect(-L,N);
     float diffuse=max(dot(N,L),0.0);
-    float specular=diffuse>0.0?pow(max(dot(R,V),0.0),materialKind==1?105.0:(materialKind==7?70.0:35.0)):0.0;
+    float shininess=materialKind==1?96.0:(materialKind==7?56.0:42.0);
+    float specular=diffuse>0.0?pow(max(dot(R,V),0.0),shininess):0.0;
     float visibility=1.0;
     vec3 sc=shadowCoord.xyz/shadowCoord.w;
     if(shadowsEnabled==1 && reflectionPass==0 && materialKind!=1 && materialKind!=4 && sc.x>0.0 && sc.x<1.0 && sc.y>0.0 && sc.y<1.0 && sc.z>0.0 && sc.z<1.0){
-        float bias=max(.0008,.0018*(1.0-max(dot(N,L),0.0)));float sum=0.0;
+        float bias=max(.0011,.0026*(1.0-diffuse));float sum=0.0;
         // Four hardware-filtered depth comparisons soften the edge with fewer fetches.
         sum+=shadowTap(sc,vec2(.35,.45),bias);
         sum+=shadowTap(sc,vec2(-.45,.25),bias);
         sum+=shadowTap(sc,vec2(.25,-.35),bias);
         sum+=shadowTap(sc,vec2(-.35,-.45),bias);
-        visibility=.18+.82*sum/4.0;
+        visibility=.46+.54*sum/4.0;
     }
-    vec3 lit=color.rgb*(vec3(.31,.36,.39)+vec3(.88,.70,.49)*diffuse*visibility);
-    float fill=max(dot(N,normalize(vec3(.6,.4,1.0))),0.0);
-    lit+=color.rgb*vec3(.12,.19,.23)*fill;
-    lit+=vec3(1.0,.85,.65)*specular*visibility*(materialKind==1?.18:(materialKind==7?.18:.035));
-    // Broad cool ridge tones keep distant scenery subordinate to the figures.
-    if(materialKind==4)lit=color.rgb*(.85+.15*max(dot(N,normalize(vec3(-.6,1.0,.3))),0.0));
-    float fog=1.0-exp(-max(length(eyePosition)-8.0,0.0)*(materialKind==4?.019:.022));
+    vec3 lit=color.rgb*(vec3(.22,.15,.11)+vec3(.74,.45,.20)*diffuse*visibility);
+    float fill=max(dot(N,normalize(vec3(-.15,.65,.55))),0.0);
+    lit+=color.rgb*vec3(.06,.04,.03)*fill;
+    float specStrength=materialKind==1?.10:(materialKind==7?.08:.018);
+    lit+=vec3(1.0,.78,.46)*specular*visibility*specStrength;
+    float fog=1.0-exp(-max(length(eyePosition)-10.0,0.0)*(materialKind==4?.012:.007));
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;
-    float mist=.20*(1.0-exp(-length(eyePosition)*.045))*exp(-max(worldHeight,0.0)*.8);
+    float mist=.05*(1.0-exp(-length(eyePosition)*.028))*exp(-max(worldHeight,0.0)*1.35);
     fog=1.0-(1.0-fog)*(1.0-mist);
-    vec3 fogColor=materialKind==1?vec3(.57,.67,.64):vec3(.74,.72,.65);
-    lit=mix(lit,fogColor,clamp(fog,0.0,.86));
+    vec3 fogColor=materialKind==1?vec3(.78,.62,.46):vec3(.86,.72,.56);
+    lit=mix(lit,fogColor,clamp(fog,0.0,.38));
     float opacity=materialKind==1?.86:1.0;
     if(reflectionPass==1){
         float depth=max(-worldHeight,0.0);
-        lit=mix(lit,vec3(.38,.48,.46),.50);
-        opacity=.72*exp(-depth*.65);
+        lit=mix(lit,vec3(.70,.50,.34),.32);
+        opacity=.64*exp(-depth*.65);
     }
     gl_FragColor=vec4(lit,opacity);
 }

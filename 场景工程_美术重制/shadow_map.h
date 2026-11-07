@@ -25,12 +25,13 @@ struct ShadowMap {
         if(status(0x8D40)!=0x8CD5)throw std::runtime_error("Shadow framebuffer incomplete");
         bind(0x8D40,0);glDrawBuffer(GL_BACK);glReadBuffer(GL_BACK);
         depthLocation=pGetUniformLocation(program,"renderDepth");matrixLocation=pGetUniformLocation(program,"shadowFromEye");enabledLocation=pGetUniformLocation(program,"shadowsEnabled");pUniform1i(pGetUniformLocation(program,"shadowMap"),2);
-        lightView=glm::lookAt(glm::vec3(-12,16,9),glm::vec3(-3,0,-2),glm::vec3(0,1,0));lightProjection=glm::ortho(-10.f,10.f,-10.f,10.f,.1f,48.f);
+        // Same sun as the shader: world (-12, 5.5, 9), aimed at the folded bank and the two figures.
+        lightView=glm::lookAt(glm::vec3(-12.f,5.5f,9.f),glm::vec3(-4.2f,.5f,-2.8f),glm::vec3(0,1,0));lightProjection=glm::ortho(-13.f,13.f,-13.f,13.f,.2f,64.f);
         std::cout<<"Shadow framebuffer COMPLETE "<<size<<"x"<<size<<"\n";
     }
     void begin(){
         active(0x84C2);glBindTexture(GL_TEXTURE_2D,0);active(0x84C0);bind(0x8D40,framebuffer);glViewport(0,0,size,size);
-        glDepthMask(GL_TRUE);glClear(GL_DEPTH_BUFFER_BIT);glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);glEnable(GL_POLYGON_OFFSET_FILL);glPolygonOffset(2,4);
+        glDepthMask(GL_TRUE);glClear(GL_DEPTH_BUFFER_BIT);glColorMask(GL_FALSE,GL_FALSE,GL_FALSE,GL_FALSE);glEnable(GL_POLYGON_OFFSET_FILL);glPolygonOffset(2.2f,5.f);
         pUniform1i(depthLocation,1);glMatrixMode(GL_PROJECTION);glLoadMatrixf(glm::value_ptr(lightProjection));
     }
     void end(int w,int h,const glm::mat4& camera,bool enabled){

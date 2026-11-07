@@ -210,9 +210,9 @@ void main(){
         float puff=smoothstep(.46,.62,n);
         puff*=smoothstep(.08,.2,rd.y)*(1.0-smoothstep(.62,.9,rd.y))*sunClear;
         float skyBand=exp(-pow((rd.y-.05)/.04,2.0))*smoothstep(.01,.05,rd.y)*sunClear;
-        float upper=smoothstep(.05,.48,rd.y);
-        vec3 apricot=mix(vec3(.94,.76,.60),vec3(.97,.82,.68),smoothstep(0.0,.55,rd.y));
-        float warmA=upper*.66*sunClear;
+        float upper=smoothstep(.02,.2,rd.y);
+        vec3 apricot=mix(vec3(.95,.78,.62),vec3(.97,.83,.70),smoothstep(0.0,.4,rd.y));
+        float warmA=upper*.88*sunClear;
         vec3 cloudCol=mix(vec3(.98,.92,.84),vec3(1.0,.97,.94),clamp(n,0.0,1.0));
         vec3 rgb=mix(apricot,cloudCol,clamp(puff,0.0,1.0));
         float alpha=max(warmA,clamp(puff*.5+skyBand*.16,0.0,.55));

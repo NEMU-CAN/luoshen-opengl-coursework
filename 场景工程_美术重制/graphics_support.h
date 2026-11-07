@@ -200,7 +200,8 @@ void main(){
         vec3 rd=normalize(camRight*(ndc.x*aspect*.4142)+camUp*(ndc.y*.4142)-camBack);
         vec3 sunDir=normalize(vec3(-.15,.05,-1.0));
         float ang=acos(clamp(dot(rd,sunDir),-1.0,1.0));
-        float sunClear=smoothstep(.05,.18,ang);
+        // Clouds stay off the disc. The sky color does not: the old hole let the blue zenith show beside the sun.
+        float sunClear=smoothstep(.10,.24,ang);
         float drift=sceneTime*.012;
         float wx=rd.x*rd.x, wz=rd.z*rd.z, wsum=max(wx+wz,1e-3);
         float fieldXY=exp(-dot(rd.xy-vec2(-.37,.22),rd.xy-vec2(-.37,.22))*85.0)
@@ -209,12 +210,13 @@ void main(){
         float fieldYZ=exp(-dot(yz-vec2(.22,-.91),yz-vec2(.22,-.91))*85.0)
             +exp(-dot(yz-vec2(.22,-.87),yz-vec2(.22,-.87))*100.0);
         float puff=smoothstep(.25,.7,(fieldXY*wz+fieldYZ*wx)/wsum)*sunClear;
-        float upper=smoothstep(.02,.2,rd.y);
-        vec3 apricot=mix(vec3(.95,.78,.62),vec3(.97,.83,.70),smoothstep(0.0,.4,rd.y));
-        float warmA=upper*.88*sunClear;
-        vec3 cloudCol=vec3(.99,.94,.88);
-        vec3 rgb=mix(apricot,cloudCol,clamp(puff,0.0,1.0));
-        float alpha=max(warmA,puff*.7);
+        float halo=exp(-ang*ang/(.18*.18));
+        vec3 apricot=mix(vec3(.98,.66,.40),vec3(.95,.58,.38),smoothstep(0.0,.5,rd.y));
+        vec3 skyCol=mix(apricot,vec3(.99,.46,.24),halo);
+        float skyA=smoothstep(.012,.04,ang)*.97;
+        vec3 cloudCol=vec3(1.0,.88,.74);
+        vec3 rgb=mix(skyCol,cloudCol,clamp(puff,0.0,1.0)*.7);
+        float alpha=max(skyA,puff*.5);
         gl_FragColor=vec4(rgb,alpha);
         return;
     }
@@ -304,10 +306,10 @@ void main(){
     lit+=specColor*specular*visibility*specStrength;
     float fog=1.0-exp(-max(length(eyePosition)-10.0,0.0)*(materialKind==4?.008:(materialKind==1?.005:.007)));
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;
-    float mist=(materialKind==4?0.0:.04)*(1.0-exp(-length(eyePosition)*.028))*exp(-max(worldHeight,0.0)*1.15);
+    float mist=(materialKind==4?0.0:.015)*(1.0-exp(-length(eyePosition)*.028))*exp(-max(worldHeight,0.0)*1.15);
     fog=1.0-(1.0-fog)*(1.0-mist);
-    vec3 fogColor=materialKind==1?vec3(.60,.70,.76):(materialKind==4?vec3(.46,.54,.60):vec3(.82,.78,.74));
-    lit=mix(lit,fogColor,clamp(fog,0.0,materialKind==4?.16:.24));
+    vec3 fogColor=materialKind==1?vec3(.60,.70,.76):(materialKind==4?vec3(.46,.54,.60):vec3(.86,.72,.58));
+    lit=mix(lit,fogColor,clamp(fog,0.0,materialKind==4?.16:.12));
     if(materialKind==4){
         float foot=exp(-pow((worldHeight-1.1)/2.05,2.0));
         float side=.72+.28*noise(textureCoord*vec2(1.4,.7));

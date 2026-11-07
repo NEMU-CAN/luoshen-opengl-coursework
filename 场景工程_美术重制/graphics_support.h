@@ -206,8 +206,11 @@ void main(){
         sky=mix(sky,vec3(.68,.76,.82),foot*.72);
         float disc=1.0-smoothstep(.036,.040,ang);
         float below=dot(sunDir,camUp)-dot(rd,camUp);
-        disc*=step(below,.012);
-        sky=mix(sky,vec3(1.0,.93,.80),disc);
+        float cut=step(below,.012);
+        disc*=cut;
+        float halo=(1.0-smoothstep(.040,.10,ang))*step(below,.016);
+        sky=mix(sky,vec3(.99,.78,.60),halo*.35);
+        sky=mix(sky,vec3(.99,.90,.76),disc*.78);
         gl_FragColor=vec4(sky,1.0);
         return;
     }
@@ -269,7 +272,8 @@ void main(){
         color.rgb=mix(color.rgb,vec3(color.r*.82,color.g,min(color.b+.06,color.g)),teal*.4);
     }
     if(materialKind==0 && useTexture==0){
-        float lift=1.0-smoothstep(.40,.70,max(color.r,color.g));
+        float peak=max(color.r,color.g);
+        float lift=smoothstep(.22,.30,peak)*(1.0-smoothstep(.42,.70,peak));
         color.rgb=mix(color.rgb,color.rgb*.5+vec3(.46,.44,.39),lift);
     }
     // main.cpp still places the sun at world (-12, 16, 9). Slide it down to y=5.5

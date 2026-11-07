@@ -186,7 +186,7 @@ varying vec3 eyeNormal;
 varying vec2 textureCoord;
 varying vec4 shadowCoord;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-float shadowTap(vec3 sc,vec2 offset,float bias){return shadow2D(shadowMap,vec3(sc.xy+offset*2.0/2048.0,sc.z-bias)).r;}
+float shadowTap(vec3 sc,vec2 offset,float bias){return shadow2D(shadowMap,vec3(sc.xy+offset*6.0/2048.0,sc.z-bias)).r;}
 void main(){
     vec4 color=vec4(baseColor,1.0);
     if(useTexture==1)color*=texture2D(texture0,textureCoord);
@@ -197,29 +197,29 @@ void main(){
     if(materialKind==1){
         float wave=sin(textureCoord.x*9.0+sceneTime*.65)+sin(textureCoord.y*17.0+textureCoord.x*3.0-sceneTime*.43);
         N=normalize(N+vec3(.035*wave,0,.055*cos(textureCoord.y*12.0+sceneTime*.5)));
-        color.rgb=mix(vec3(.13,.09,.07),vec3(.58,.36,.20),.40+.05*wave);
+        color.rgb=mix(vec3(.18,.32,.38),vec3(.40,.54,.60),.48+.04*wave);
         float lines=pow(.5+.5*sin(textureCoord.y*39.0+sin(textureCoord.x*8.0+sceneTime*.2)*3.0),18.0);
-        color.rgb+=lines*.010;
+        color.rgb+=vec3(.55,.62,.66)*lines*.012;
         vec2 waterWorld=textureCoord*10.0;
         float band=exp(-pow((waterWorld.x-.15*waterWorld.y)/(.14+.035*abs(waterWorld.y)),2.0));
         float glimmer=pow(.5+.5*sin(waterWorld.y*31.0+sin(waterWorld.x*17.0+sceneTime*.5)*2.0-sceneTime*.8),16.0)*pow(.5+.5*sin(waterWorld.x*83.0+waterWorld.y*47.0+sceneTime*.6),9.0);
-        color.rgb+=vec3(.32,.18,.07)*band*glimmer;
+        color.rgb+=vec3(.36,.22,.12)*band*glimmer;
         float grazing=pow(1.0-max(dot(N,normalize(-eyePosition)),0.0),3.0);
-        color.rgb=mix(color.rgb,vec3(.88,.72,.52),grazing*.48);
+        color.rgb=mix(color.rgb,vec3(.52,.62,.68),grazing*.32);
         vec2 rippleOffset=textureCoord*10.0-goddessPosition.xz;
         float angle=atan(rippleOffset.y,rippleOffset.x);
         float radius=length(rippleOffset*vec2(.94,1.08))+.035*sin(angle*3.0+sceneTime*.2);
         float arcs=smoothstep(.20,.65,.5+.5*sin(angle*3.0+radius*2.0-sceneTime*.25));
-        color.rgb+=vec3(.06,.04,.02)*pow(.5+.5*cos(radius*18.0-sceneTime*1.5),14.0)*exp(-radius*1.9)*arcs;
+        color.rgb+=vec3(.05,.07,.08)*pow(.5+.5*cos(radius*18.0-sceneTime*1.5),14.0)*exp(-radius*1.9)*arcs;
     }
     if(materialKind==2){
         float patch=.5+.5*sin(textureCoord.x*2.0+sin(textureCoord.y*1.8))*cos(textureCoord.y*2.4);
         color.rgb*=mix(vec3(.80,.84,.72),vec3(1.04,.99,.88),patch);
         color.rgb*=.97+.04*hash(floor(textureCoord*90.0));
         vec2 ground=textureCoord/0.4;
-        color.rgb=mix(color.rgb,vec3(.34,.26,.16),.32);
+        color.rgb=mix(color.rgb,vec3(.26,.32,.28),.42);
         float shore=-3.5+.65*sin(ground.y*.16)+.35*sin(ground.y*.53+.8)+.12*sin(ground.y*1.4)-ground.x;
-        color.rgb=mix(color.rgb,vec3(.40,.30,.18),.35*exp(-max(shore,0.0)*2.0));
+        color.rgb=mix(color.rgb,vec3(.30,.33,.30),.30*exp(-max(shore,0.0)*2.0));
         float shade=exp(-dot((ground-vec2(-8.0,-3.5))/vec2(2.0,2.7),(ground-vec2(-8.0,-3.5))/vec2(2.0,2.7)));
         color.rgb*=1.0-.22*shade;
         vec2 contact=(ground-vec2(-4.3,1.0))/vec2(.55,.4);
@@ -239,35 +239,43 @@ void main(){
     vec3 sunEye=lightPositionEye-10.5*worldUpEye;
     vec3 L=normalize(sunEye-eyePosition),V=normalize(-eyePosition),R=reflect(-L,N);
     float diffuse=max(dot(N,L),0.0);
-    float shininess=materialKind==1?96.0:(materialKind==7?56.0:42.0);
+    float shininess=materialKind==1?120.0:(materialKind==7?48.0:28.0);
     float specular=diffuse>0.0?pow(max(dot(R,V),0.0),shininess):0.0;
     float visibility=1.0;
     vec3 sc=shadowCoord.xyz/shadowCoord.w;
     if(shadowsEnabled==1 && reflectionPass==0 && materialKind!=1 && materialKind!=4 && sc.x>0.0 && sc.x<1.0 && sc.y>0.0 && sc.y<1.0 && sc.z>0.0 && sc.z<1.0){
-        float bias=max(.0011,.0026*(1.0-diffuse));float sum=0.0;
-        // Four hardware-filtered depth comparisons soften the edge with fewer fetches.
-        sum+=shadowTap(sc,vec2(.35,.45),bias);
-        sum+=shadowTap(sc,vec2(-.45,.25),bias);
-        sum+=shadowTap(sc,vec2(.25,-.35),bias);
-        sum+=shadowTap(sc,vec2(-.35,-.45),bias);
-        visibility=.46+.54*sum/4.0;
+        float bias=max(.0018,.0045*(1.0-diffuse));float sum=0.0;
+        // Wider hardware-filtered taps. The low sun was leaving blotchy edges on the folded rock.
+        sum+=shadowTap(sc,vec2(1.15,.85),bias);
+        sum+=shadowTap(sc,vec2(-1.25,.55),bias);
+        sum+=shadowTap(sc,vec2(.65,-1.15),bias);
+        sum+=shadowTap(sc,vec2(-.85,-1.05),bias);
+        visibility=.42+.58*sum/4.0;
     }
-    vec3 lit=color.rgb*(vec3(.22,.15,.11)+vec3(.74,.45,.20)*diffuse*visibility);
-    float fill=max(dot(N,normalize(vec3(-.15,.65,.55))),0.0);
-    lit+=color.rgb*vec3(.06,.04,.03)*fill;
-    float specStrength=materialKind==1?.10:(materialKind==7?.08:.018);
-    lit+=vec3(1.0,.78,.46)*specular*visibility*specStrength;
-    float fog=1.0-exp(-max(length(eyePosition)-10.0,0.0)*(materialKind==4?.012:.007));
+    vec3 lit;
+    if(materialKind==1){
+        lit=color.rgb*(vec3(.62,.70,.74)+vec3(.10,.14,.16)*diffuse);
+    }else if(materialKind==4){
+        lit=color.rgb*(vec3(.55,.62,.68)+vec3(.14,.12,.10)*diffuse);
+    }else{
+        lit=color.rgb*(vec3(.30,.34,.38)+vec3(.56,.36,.18)*diffuse*visibility);
+        float fill=max(dot(N,normalize(vec3(-.15,.65,.55))),0.0);
+        lit+=color.rgb*vec3(.05,.07,.09)*fill;
+    }
+    float specStrength=materialKind==1?.07:(materialKind==7?.05:.016);
+    vec3 specColor=materialKind==1?vec3(1.0,.90,.72):vec3(1.0,.84,.70);
+    lit+=specColor*specular*visibility*specStrength;
+    float fog=1.0-exp(-max(length(eyePosition)-10.0,0.0)*(materialKind==4?.020:(materialKind==1?.006:.008)));
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;
-    float mist=.05*(1.0-exp(-length(eyePosition)*.028))*exp(-max(worldHeight,0.0)*1.35);
+    float mist=.06*(1.0-exp(-length(eyePosition)*.030))*exp(-max(worldHeight,0.0)*1.2);
     fog=1.0-(1.0-fog)*(1.0-mist);
-    vec3 fogColor=materialKind==1?vec3(.78,.62,.46):vec3(.86,.72,.56);
-    lit=mix(lit,fogColor,clamp(fog,0.0,.38));
+    vec3 fogColor=materialKind==1?vec3(.58,.68,.72):(materialKind==4?vec3(.72,.78,.82):vec3(.80,.76,.72));
+    lit=mix(lit,fogColor,clamp(fog,0.0,materialKind==4?.50:.28));
     float opacity=materialKind==1?.86:1.0;
     if(reflectionPass==1){
         float depth=max(-worldHeight,0.0);
-        lit=mix(lit,vec3(.70,.50,.34),.32);
-        opacity=.64*exp(-depth*.65);
+        lit=mix(lit,vec3(.78,.62,.50),.14);
+        opacity=.70*exp(-depth*.65);
     }
     gl_FragColor=vec4(lit,opacity);
 }

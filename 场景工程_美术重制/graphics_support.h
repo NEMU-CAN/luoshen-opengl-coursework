@@ -204,7 +204,7 @@ void main(){
         vec3 sky=mix(vec3(.98,.64,.46),vec3(.96,.71,.55),lift);
         float core=1.0-smoothstep(.012,.030,ang);
         float edge=exp(-ang*ang/(.045*.045))*(1.0-core);
-        sky=mix(sky,vec3(1.0,.96,.88),clamp(core+edge*.28,0.0,1.0));
+        sky=mix(sky,vec3(1.0,.84,.66),clamp(core+edge*.22,0.0,1.0));
         gl_FragColor=vec4(sky,1.0);
         return;
     }
@@ -214,16 +214,16 @@ void main(){
     if(renderDepth==1){gl_FragColor=vec4(1.0);return;}
     if(materialKind==6){gl_FragColor=vec4(.035,.065,.06,.24);return;}
     vec3 N=normalize(eyeNormal);if(!gl_FrontFacing)N=-N;
+    float sunBand=0.0;
     if(materialKind==1){
         float wave=sin(textureCoord.x*9.0+sceneTime*.65)+sin(textureCoord.y*17.0+textureCoord.x*3.0-sceneTime*.43);
         N=normalize(N+vec3(.035*wave,0,.055*cos(textureCoord.y*12.0+sceneTime*.5)));
-        color.rgb=mix(vec3(.18,.32,.38),vec3(.40,.54,.60),.48+.04*wave);
+        color.rgb=mix(vec3(.24,.42,.50),vec3(.52,.66,.74),.58+.03*wave);
         float lines=pow(.5+.5*sin(textureCoord.y*39.0+sin(textureCoord.x*8.0+sceneTime*.2)*3.0),18.0);
         color.rgb+=vec3(.55,.62,.66)*lines*.012;
         vec2 waterWorld=textureCoord*10.0;
-        float band=exp(-pow((waterWorld.x-.15*waterWorld.y)/(.07+.02*abs(waterWorld.y)),2.0));
-        float glimmer=pow(.5+.5*sin(waterWorld.y*31.0+sin(waterWorld.x*17.0+sceneTime*.5)*2.0-sceneTime*.8),16.0)*pow(.5+.5*sin(waterWorld.x*83.0+waterWorld.y*47.0+sceneTime*.6),9.0);
-        color.rgb+=vec3(.18,.11,.06)*band*glimmer;
+        float sunX=-.9+.15*waterWorld.y;
+        sunBand=exp(-pow((waterWorld.x-sunX)/(.9+.015*abs(waterWorld.y)),2.0));
         float grazing=pow(1.0-max(dot(N,normalize(-eyePosition)),0.0),3.0);
         color.rgb=mix(color.rgb,vec3(.52,.62,.68),grazing*.32);
         vec2 rippleOffset=textureCoord*10.0-goddessPosition.xz;
@@ -276,12 +276,13 @@ void main(){
     float fold=smoothstep(.08,.82,diffuse);
     vec3 lit;
     if(materialKind==1){
-        lit=color.rgb*(vec3(.64,.72,.76)+vec3(.08,.12,.14)*diffuse);
+        lit=color.rgb*(vec3(.82,.88,.92)+vec3(.12,.14,.16)*diffuse);
+        lit=mix(lit,vec3(.90,.55,.34),sunBand*.58);
     }else if(materialKind==4){
-        lit=color.rgb*(vec3(.60,.66,.74)+vec3(.10,.11,.12)*diffuse);
+        lit=color.rgb*(vec3(.78,.84,.90)+vec3(.16,.16,.16)*diffuse);
     }else{
         float shaped=diffuse*.75+fold*.25;
-        lit=color.rgb*(vec3(.26,.20,.18)+vec3(.58,.36,.20)*shaped*visibility);
+        lit=color.rgb*(vec3(.36,.28,.24)+vec3(.66,.44,.26)*shaped*visibility);
         float fill=max(dot(N,normalize(vec3(-.2,.72,.48))),0.0);
         lit+=color.rgb*vec3(.04,.05,.07)*fill;
         float up=max(dot(N,normalize(worldUpEye)),0.0);

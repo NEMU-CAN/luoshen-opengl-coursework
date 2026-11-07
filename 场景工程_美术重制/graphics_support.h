@@ -181,13 +181,34 @@ uniform vec3 baseColor;
 uniform int useTexture;
 uniform int materialKind;
 uniform float sceneTime;
+uniform vec3 cloudParams;
 varying vec3 eyePosition;
 varying vec3 eyeNormal;
 varying vec2 textureCoord;
 varying vec4 shadowCoord;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}
 float shadowTap(vec3 sc,vec2 offset,float bias){return shadow2D(shadowMap,vec3(sc.xy+offset*8.0/2048.0,sc.z-bias)).r;}
 void main(){
+    if(materialKind==8 && renderDepth==0){
+        vec2 uv=gl_FragCoord.xy/max(cloudParams.yz,vec2(1.0));
+        vec2 ndc=uv*2.0-1.0;
+        float above=ndc.y-cloudParams.x;
+        float aspect=max(cloudParams.y/max(cloudParams.z,1.0),.5);
+        vec2 cuv=vec2(ndc.x*aspect*1.35,above*2.1)+vec2(sceneTime*.008,sceneTime*.002);
+        float n=noise(cuv*1.2)+.55*noise(cuv*2.3+4.2)+.28*noise(cuv*4.4+1.7);
+        n/=1.83;
+        float puff=smoothstep(.46,.78,n);
+        puff*=smoothstep(-.04,.14,above)*(1.0-smoothstep(.62,1.2,above));
+        float bank=exp(-pow(above/.18,2.0));
+        float wisp=.55+.45*noise(vec2(ndc.x*aspect*2.4+sceneTime*.012,above*5.0));
+        float veil=bank*wisp*smoothstep(-.22,.06,above);
+        vec3 cloudCol=mix(vec3(.95,.82,.70),vec3(.99,.96,.92),clamp(n,0.0,1.0));
+        vec3 mistCol=vec3(.73,.82,.87);
+        float alpha=clamp(puff*.5+veil*.5,0.0,.62);
+        gl_FragColor=vec4(mix(mistCol,cloudCol,puff),alpha);
+        return;
+    }
     vec4 color=vec4(baseColor,1.0);
     if(useTexture==1)color*=texture2D(texture0,textureCoord);
     if(color.a<0.44)discard;
@@ -263,6 +284,10 @@ void main(){
         lit=color.rgb*(vec3(.24,.32,.40)+vec3(.40,.26,.15)*fold*visibility);
         float fill=max(dot(N,normalize(vec3(-.2,.72,.48))),0.0);
         lit+=color.rgb*vec3(.03,.06,.11)*fill;
+        float up=max(dot(N,normalize(worldUpEye)),0.0);
+        lit+=color.rgb*vec3(.05,.035,.02)*up*fold;
+        float rim=pow(1.0-max(dot(N,V),0.0),2.6);
+        lit+=vec3(.07,.04,.028)*rim*(.25+.75*fold);
     }
     float specStrength=materialKind==1?.03:(materialKind==7?.035:.010);
     vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
@@ -273,6 +298,13 @@ void main(){
     fog=1.0-(1.0-fog)*(1.0-mist);
     vec3 fogColor=materialKind==1?vec3(.60,.70,.76):(materialKind==4?vec3(.76,.82,.87):vec3(.82,.78,.74));
     lit=mix(lit,fogColor,clamp(fog,0.0,materialKind==4?.58:.24));
+    if(materialKind==4){
+        float base=exp(-pow((worldHeight-1.1)/2.2,2.0));
+        vec2 mv=textureCoord*vec2(9.0,4.5)+vec2(sceneTime*.006,0.0);
+        float w=noise(mv)+.5*noise(mv*2.2+8.0);
+        float beside=base*smoothstep(.32,.72,w);
+        lit=mix(lit,vec3(.78,.84,.88),clamp(beside,0.0,.48));
+    }
     float opacity=materialKind==1?.86:1.0;
     if(reflectionPass==1){
         float depth=max(-worldHeight,0.0);

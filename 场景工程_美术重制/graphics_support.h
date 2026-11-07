@@ -198,13 +198,15 @@ void main(){
         vec2 ndc=uv*2.0-1.0;
         float aspect=max(cloudParams.y/max(cloudParams.z,1.0),.5);
         vec3 rd=normalize(camRight*(ndc.x*aspect*.4142)+camUp*(ndc.y*.4142)-camBack);
-        vec3 sunDir=normalize(vec3(-.15,.022,-1.0));
+        vec3 sunDir=normalize(vec3(-.15,.055,-1.0));
         float ang=acos(clamp(dot(rd,sunDir),-1.0,1.0));
         float lift=smoothstep(0.0,.42,rd.y);
         vec3 sky=mix(vec3(.98,.72,.54),vec3(.95,.64,.48),lift);
         float foot=smoothstep(.05,-.04,rd.y);
         sky=mix(sky,vec3(.68,.76,.82),foot*.72);
         float disc=1.0-smoothstep(.036,.040,ang);
+        float below=dot(sunDir,camUp)-dot(rd,camUp);
+        disc*=step(below,.012);
         sky=mix(sky,vec3(1.0,.93,.80),disc);
         gl_FragColor=vec4(sky,1.0);
         return;

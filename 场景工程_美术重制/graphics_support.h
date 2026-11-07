@@ -200,10 +200,11 @@ void main(){
         vec3 rd=normalize(camRight*(ndc.x*aspect*.4142)+camUp*(ndc.y*.4142)-camBack);
         vec3 sunDir=normalize(vec3(-.15,.05,-1.0));
         float ang=acos(clamp(dot(rd,sunDir),-1.0,1.0));
-        float lift=smoothstep(-.04,.48,rd.y);
-        vec3 sky=mix(vec3(.96,.74,.56),vec3(.94,.78,.64),lift);
-        float sun=exp(-ang*ang/(.022*.022));
-        sky=mix(sky,vec3(.99,.92,.80),sun);
+        float lift=smoothstep(-.02,.55,rd.y);
+        vec3 sky=mix(vec3(.98,.64,.46),vec3(.96,.71,.55),lift);
+        float core=1.0-smoothstep(.012,.030,ang);
+        float edge=exp(-ang*ang/(.045*.045))*(1.0-core);
+        sky=mix(sky,vec3(1.0,.96,.88),clamp(core+edge*.28,0.0,1.0));
         gl_FragColor=vec4(sky,1.0);
         return;
     }

@@ -1,0 +1,1143 @@
+{
+  "protected_object_names": [
+    "MODEL_skirt",
+    "MODEL_far_wide_sleeve",
+    "MODEL_torso",
+    "MODEL_near_wide_sleeve",
+    "MODEL_hands_pose_placeholder",
+    "Primary_same_as_stage1",
+    "Area",
+    "Area.001",
+    "HEAD_Swept_front_hair",
+    "HEAD_High_bun",
+    "HEAD_Nape_hair",
+    "HEAD_Ear",
+    "REFERENCE_ONLY",
+    "HEAD_Face",
+    "COSTUME_Ivory_pibo",
+    "COSTUME_Vermilion_pibo",
+    "COSTUME_Vermilion_pibo_gold_edge",
+    "COSTUME_Red_waist_wrap",
+    "COSTUME_Gold_waist_band",
+    "COSTUME_Waist_tie",
+    "COSTUME_Waist_tie_gold_edge",
+    "COSTUME_Waist_knot",
+    "COSTUME_Bun_red_binding",
+    "COSTUME_Flower_outer_0",
+    "COSTUME_Flower_outer_1",
+    "COSTUME_Flower_outer_2",
+    "COSTUME_Flower_outer_3",
+    "COSTUME_Flower_outer_4",
+    "COSTUME_Flower_outer_5",
+    "COSTUME_Flower_outer_6",
+    "COSTUME_Flower_inner_0",
+    "COSTUME_Flower_inner_1",
+    "COSTUME_Flower_inner_2",
+    "COSTUME_Flower_inner_3",
+    "COSTUME_Flower_inner_4",
+    "COSTUME_Flower_heart",
+    "COSTUME_Hairpin_right",
+    "COSTUME_Hairpin_right_branch",
+    "COSTUME_Hairpin_left",
+    "COSTUME_Hairpin_left_branch"
+  ],
+  "local_edits": {
+    "near": {
+      "support": "HEAD_Ear",
+      "anchor_world": [
+        0.09854781627655029,
+        -0.11216122657060623,
+        1.4698760509490967
+      ],
+      "translation_world": [
+        -0.0033798962831497192,
+        0.032838769257068634,
+        -0.00048542022705078125
+      ]
+    },
+    "far": {
+      "support": "HEAD_Face",
+      "anchor_world": [
+        -0.031480029225349426,
+        -0.12832000851631165,
+        1.4809982776641846
+      ],
+      "translation_world": [
+        0.016230814158916473,
+        0.0716799944639206,
+        0.008468151092529297
+      ]
+    }
+  },
+  "source": {
+    "objects": {
+      "MODEL_skirt": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "d29e33f4901fc1798d58f61d61eb0f82e8cc32b8a73370dff19da81c7a165ffb",
+        "faces": "2c4c7fdc64e58200f4d9f6c5e6a602a6008a0c37d68b2f7271ccd71fa4a4769e",
+        "uv": "4ebe3f06ec7100454bcd4c75775ea22b41c32d14e402f0d3a755dc54295d9a34",
+        "materials": "eadd556c26af8f9c56443e3070caff8e52203f44468ecb482346449988c7c691",
+        "triangles": 288
+      },
+      "MODEL_far_wide_sleeve": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "62afc8f5182553062723db7732dde7b63cea09b0af924ed90dac783c7cf9667e",
+        "faces": "c56ea128577f6212c3b5a1e4e201faa8437791fd7e428035e24218e03af08021",
+        "uv": "1d0921919d1c8c1c6d83a4dedee8f414ce2be74e3b5df28a001234264555d5ef",
+        "materials": "aebb21d1e00791e888e212be1efbc0a71c76552a681d80bcce495b0e6e737f79",
+        "triangles": 168
+      },
+      "MODEL_torso": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "b81d9e490c1af8d448039bf3ad5e3a0cfec33727944a93846309c772a0dd44d0",
+        "faces": "caf0b48896df6c525b94e8cd65239b5faccdd329c497773c50d9fb8dafe926ad",
+        "uv": "c322a4326c4ec4984d68ebedfdf6de1a0c413f87bdd64d9112a13b866da91d76",
+        "materials": "a8ba381bee3bd80f56e3f0c2e2473d1bc08b65ba28aa3e2624d4f22a9125e548",
+        "triangles": 168
+      },
+      "MODEL_near_wide_sleeve": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "d1b3f6b6440e600c2f04000c5929860a3756da9b72546c8e46e065905acd6f4b",
+        "faces": "027a9c9daa897d6765460f1ede73e4d5624ab712ec90d3ce1c7f5bbbf0a1dd0b",
+        "uv": "12ddcd187bdbc515ac0a432022289d3d89a36fab3187065a01702f735d350593",
+        "materials": "9875cc8e9b688c143538091c56c45f386c2fba04fa929a6175e5b0d7b73926a1",
+        "triangles": 328
+      },
+      "MODEL_hands_pose_placeholder": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "f78cd730b60897d4f39a8a30851d9150d8bbf9e9c5813907e6a65889cc93334d",
+        "faces": "8848b02c90eb1a5bfb8466908b3458e63bac5ae7eb3212a14aef56426ee5f2ea",
+        "uv": "aeded0454a8f727d5889897916feb68f3faaca71131a5d4eec2493d5fcac2046",
+        "materials": "e232ef87a86242e4c4ee0ca54de7510ee4021e940ee59d6b1af392914f317adb",
+        "triangles": 448
+      },
+      "Primary_same_as_stage1": {
+        "type": "CAMERA",
+        "matrix": "462e6e406012350de59ef96e399f9de9f3fbc158f7fd2aec71c8269d249d5fbb",
+        "parent": null
+      },
+      "Area": {
+        "type": "LIGHT",
+        "matrix": "322c2b8001aae3ea48d2916364b153a90023392c6390d9feab9603ae64840a64",
+        "parent": null
+      },
+      "Area.001": {
+        "type": "LIGHT",
+        "matrix": "74af1cdf281785635731499a66c3628d70d0e5a2ea9a4a029a1f2995d1970ee7",
+        "parent": null
+      },
+      "HEAD_Neck": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "e605f7590b6f0395486b01f273c3b3caf16f41e375a71aaa61fc2d9512a2efc8",
+        "faces": "dbaf5e42b06b42baced69b6637b81e959b967c0c6b2fc91f5dc14de14928f1a6",
+        "uv": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "materials": "e46e8346c987badf74d5b79bedf7aec619ebbb26b171c4b48cbe0aea0cf430e6",
+        "triangles": 36
+      },
+      "HEAD_Swept_front_hair": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "844af00037bb4a1c570a233ec13567b20ac61f4d46b4a8257c7913b278dc0b76",
+        "faces": "8629a5a2da586ce0b005bf13a5b958a0220607b1d52b7cec9b971427766f6b97",
+        "uv": "0d8c239317b42009d94689bbd4e116bc92ec166ba9cec533fb507f22bf924bb1",
+        "materials": "9ce05830eb7fcff20112120dff54c9e39990bd17b195a54ce8217669eb2658a4",
+        "triangles": 94
+      },
+      "HEAD_High_bun": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "fd04425d253c7c8eb3deb63b4ee429e49d9d25b9c5234ee8d1998ed68da09f33",
+        "faces": "e7ab8a3ec464fbbf6dc0fbcf6a6b0c52fbf984c247e5ec81a3b6f581b4bc25c9",
+        "uv": "3eb870478dd58d4a67dd8f3ce6ba7f08d3b801697c0dd3d0f21c7203ab485592",
+        "materials": "7cfad52c176354bb313461461f43731e6d64577d9cbe61ddc7bb4cf0dbb99583",
+        "triangles": 160
+      },
+      "HEAD_Nape_hair": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "663adbb86e81a86ef1bc035f9ef947090d55ce674f96e6bf6dd5373a954f0f2f",
+        "faces": "3d587e0996d232ce37ff42547878f9ccbc45650cfea6e5197fe7fb07c886294a",
+        "uv": "bd7d98ff672213837db6709359c60b68a7ed7f89a76ee28ec4e4ba2b1d43f311",
+        "materials": "ca10a4ed10c4971835091797b78a9189e9bae1f9a10a8093ec150fe45a38a9ca",
+        "triangles": 192
+      },
+      "HEAD_Ear": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "f0450c9c62720d3ddb4a498c2227e64a77d81bf073b0db6b2e5fd6e11106adf6",
+        "faces": "984f52ca200ae3b84b86583185886b306096d2bc350580b5651bf3e610255340",
+        "uv": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "materials": "30ca9b88a2f8c0be5f9d47d7b88a169049cebf3b7c7cc5645fa24a9755418040",
+        "triangles": 22
+      },
+      "REFERENCE_ONLY": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "d73908b0829fc961baed2ad2dafb3a77fe73f163464e1dd6ca08fb7aed2c37a6",
+        "faces": "abb6d52e629caf5a149b3be55226f134dc1656e5a8c60490ed45b851ab8a6b7e",
+        "uv": "12201e89b8a9e08910e25eae288fa2ff9a7ee2b110621f95564cf8e5af558aff",
+        "materials": "3a2f82302a91c6d2a70f2264e8d0faad4a8d138c5f1569dc8a07fc1f1cc92822",
+        "triangles": 2
+      },
+      "HEAD_Face": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "23d851aa24541019bbad58b1408e0c5469ea22df1bdafb60866a2fda7f3c491f",
+        "faces": "c6d71a2807b86b1dfad6e9f7199d5ca442daa8cd2f5ecdbed9a89a65e09034fe",
+        "uv": "820554a4f6075c1b1068db73319222a0fff29bede7ead3312d058a5208f4b8c7",
+        "materials": "f63147f9e5806bc11e1bf50f3b7c52bec112acde25c362643a2de9d0dac09a22",
+        "triangles": 106
+      },
+      "COSTUME_Ivory_pibo": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "feed18c69e627b1b4d635d0138cce77bbbeccd172a2a289aeb26bdde874282c7",
+        "faces": "856358dc6338b22cb0a44030db3b48a272b662d9083975a7984ff45f787e1ad2",
+        "uv": "713ad340784b3e4ef2d93a65310654ff7c0511adccaacd16ca73aeae5f1f08af",
+        "materials": "c07e626404599cc40211e779f33c6cd185ede4b88a17ad8e443994940d115646",
+        "triangles": 60
+      },
+      "COSTUME_Vermilion_pibo": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "ad0827be27c92f644f280f3f0a8b71d39e530505fe1cf54904eff761f69efd61",
+        "faces": "8354a343bd55664b628447ccbebbba8fd7e7f0daa5b8b92d0bf71c59ae7c19db",
+        "uv": "063142adc211ac89b74d5ec116b09db29e944a4f420aa13edc171bac24234e40",
+        "materials": "a2a2f15e1e503d54503e1d9da47f58239f659e5355d18973f8493e74f4f1c1fd",
+        "triangles": 64
+      },
+      "COSTUME_Vermilion_pibo_gold_edge": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "c9a8c181d0c419a119521cb3f3787948c3666c9ddd340a800c1fd122e22fa583",
+        "faces": "856358dc6338b22cb0a44030db3b48a272b662d9083975a7984ff45f787e1ad2",
+        "uv": "1aff4503079e49055e1ad0d7f939b9d6bc0dfa48126e3e80a0ba1d03e973cb45",
+        "materials": "86713d2e8473a7b22667f87c2cc3f4f9a0404816e9530b8acc104b31ed600766",
+        "triangles": 60
+      },
+      "COSTUME_Red_waist_wrap": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "543126eb27568d6dd7a300cb204fe528c7e8f0ffe5eca4c4a4efb83ee26334e1",
+        "faces": "588f35cfe85aeb36afbf5829dc793e4fff87cd494de2107d76c283aef77e10d0",
+        "uv": "25917c1bea04c45f0929b5bed32fc45680823bddb06344396d234ca3687ea16f",
+        "materials": "3230a8d791bfc87d2003bf7738ec4c86653cdf6f19c03d4c7a09a9f780726107",
+        "triangles": 80
+      },
+      "COSTUME_Gold_waist_band": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "9d5fe6b6db8fb33f91ddb76e797e42d67604069a09e3d4e2b9a8f00fdd2461d3",
+        "faces": "588f35cfe85aeb36afbf5829dc793e4fff87cd494de2107d76c283aef77e10d0",
+        "uv": "ccc5ba4a7d415b9a5c13f0ac3741b7199658ab7fdcd284a23accaf7995ecbca0",
+        "materials": "358b493a00a45630f8c2e2dfae7179a210d27ca97523dcd9381aa9501cd622ea",
+        "triangles": 80
+      },
+      "COSTUME_Waist_tie": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "3f842e3b494a90b3e368ea5afbedde32b3a96ae475545b0b8647b4d19934b620",
+        "faces": "9319b1fd59ef32c83e163f45d44c761ba7e75d9398a0d5cba6258b5c617c7a87",
+        "uv": "59767d1f456f50d5b6e9f2243646a1085d00d22048a1474c33ef259186941734",
+        "materials": "3add65da25f6421b3b37a6c336532d2ef39777107a88b38ea2ed203b79608dc4",
+        "triangles": 28
+      },
+      "COSTUME_Waist_tie_gold_edge": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "992e921873f5d283d0092e0a0f083337088eb87a8c3d7ce5685d2a7f24796132",
+        "faces": "9319b1fd59ef32c83e163f45d44c761ba7e75d9398a0d5cba6258b5c617c7a87",
+        "uv": "dedea121074c90ea10119f519a6c466ed213f1f04b2b81c179aea57b52b2f344",
+        "materials": "005d651a1fd34c609ab9137d9f94bb4e1a71a4b68fb41c68f8cb7668986ffbd6",
+        "triangles": 28
+      },
+      "COSTUME_Waist_knot": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "71f89f8196336b86d63bf6c84b8a93abab86dfdcc572ccee69096ea0ae41d253",
+        "faces": "c1044a26e2b451a8d56f88d8e8fb19e417518615ce7f6278ff334f53feb75aff",
+        "uv": "11bd02c3e0fd651647f0b7b9e4df60ee5a1988fe67e84c855a04ef2c5e8394ed",
+        "materials": "970eb6b8a74e8ebadfe337d9080def4074c9d26fbef6f01f70560244400f411b",
+        "triangles": 8
+      },
+      "COSTUME_Bun_red_binding": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "cc68ed4f29836d5405268f4f45e41469a5e5ede1af3c9cf09e2501b256f02be7",
+        "faces": "b641a71e023f35df77818b2776d0b5da7170ef663f58a5b933cabe8ba91e6e4f",
+        "uv": "4b107c0ec223f93f2ae0e3a1bdcfc87c1f859a002898d93f9ef7731bdc5e46e2",
+        "materials": "3add65da25f6421b3b37a6c336532d2ef39777107a88b38ea2ed203b79608dc4",
+        "triangles": 28
+      },
+      "COSTUME_Flower_outer_0": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "3e0210b0c03a7479770315c8f62d15e4ec0402dbb987960b1dfb7fb1ab640c55",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "da7f8dafcd06605dfa824d023eb6e07cf0a55af202ac615f835b0c14346fe78a",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_outer_1": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "6266c76ec004894f27b3998b89b2abec1b410e990fa38517602c14e2d1f28de5",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "65f855b9705b120f237b10ff9c8410d2237b570417d6794a2d3761e7f019c57b",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_outer_2": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "d76e73dc5a29b4bf829dcfd34da57ce79f8416cf6180087837b440057757c0fa",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "b9e0950a3b2d89bf3e89602616e4a42bdd131ad1a0bc06d5a7d7f9eb244dc97e",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_outer_3": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "aef68ad80ba9632aee1cf355337369a41055116a4c1fb7e41288c3bf9c22f592",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "12c0e814ddd89889bd67e28b4f8f48b3f7377ee3fe7f7dcedf5396b57f03f2f8",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_outer_4": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "ad04ca3e3ae32617a7812f21b3999ca64aa75280e9be5ae95fc985ab4b79ec0d",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "0379b5ea4088f532a42430dc6ff576c752b8d34589c5f908064766804de8fa06",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_outer_5": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "48991df607794cbacd9444290d184da8a1ee37d9326fd6c7947459a887c2c264",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "38ee669a0c615e93fdbe97ff491f6ee9b97dddf3599a809cfaccbde7eed31ac7",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_outer_6": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "acedb09d92deba2470a8041753ea65371aebe3e8e6a380927356fa5d79fdf1a8",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "46f4dade39fee294f01cfbc3862e0f0f246e3b2b27d56d1ce66d89742bb4bc98",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_inner_0": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "4ff62f556b63a11b7688b5ff7a08da38b26b4e2d0306d06aee5db35f1f289392",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "047251ff26eb92df6e5de1e5d05b586ba80d6373ee3330d5f61597f23d65c158",
+        "materials": "67c82aa6699c8475bde6d6759c6ca442bd08757fde550e93f96927e5e2ada39c",
+        "triangles": 20
+      },
+      "COSTUME_Flower_inner_1": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "d583bdfa3536995a2a373d5f3bdd2f11ee053151d28f568e7d0895082407fb4f",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "ea06639c3d685611f1be8a4db837e1ab430fabaadbce684f4aaa02246a83832a",
+        "materials": "67c82aa6699c8475bde6d6759c6ca442bd08757fde550e93f96927e5e2ada39c",
+        "triangles": 20
+      },
+      "COSTUME_Flower_inner_2": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "cde4cf188cdfea2c45a1cae16a3fe8fb4509068069565734396cce2f8095bed0",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "49477f4489d4381dc79929ed8240361982326ac9bec586c93deef1fd4295bbef",
+        "materials": "67c82aa6699c8475bde6d6759c6ca442bd08757fde550e93f96927e5e2ada39c",
+        "triangles": 20
+      },
+      "COSTUME_Flower_inner_3": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "dbbeb5ab26b55fdeb9f99814bc57fd589076d5ef3bf4716793614bcd8203b8bd",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "9001582c80e0c2fad9ce0f541a4f436190b40c232db1a7ce69ec68ebf6cbf7de",
+        "materials": "67c82aa6699c8475bde6d6759c6ca442bd08757fde550e93f96927e5e2ada39c",
+        "triangles": 20
+      },
+      "COSTUME_Flower_inner_4": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "25abd2c3e3f25a37e0188a49e3a488b60241d7d3c59e63db711514e47c410e92",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "c3ea628ff9bec216f59c360e4462ace66745b65b9396daab91eff3cad22db00c",
+        "materials": "67c82aa6699c8475bde6d6759c6ca442bd08757fde550e93f96927e5e2ada39c",
+        "triangles": 20
+      },
+      "COSTUME_Flower_heart": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "4816d2aa913b72e472b2eb0c50ca27b3b15c5329c2edb0d60b72044b73fab199",
+        "faces": "c1044a26e2b451a8d56f88d8e8fb19e417518615ce7f6278ff334f53feb75aff",
+        "uv": "6ae62b8672b401ce01990920bd19ecaaf0053b394f556546fcdfc45941f08920",
+        "materials": "eb9246126f6eedf24e79cb5eda9d0d9f1888c2bfb8e7c5754f1490b2278ad8ad",
+        "triangles": 8
+      },
+      "COSTUME_Hairpin_right": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "5f4b60f47c5e1dbf37ad51f3d2c5c8043a873b4858399ae029f3b167fa85f64a",
+        "faces": "7478bbf808d2fe00bdeca7a0ca6cd85ae013470fc41b3dcef935fec9bec7ba9a",
+        "uv": "a950c8ebe2e55ad84e94b56b99cbf92eb9c509e33b360abc604f84b1661a2f2c",
+        "materials": "65b5743df86b02a1d8a93eaffb9f0ec341caee5ec9fb3a1b7d59db43d5fb1569",
+        "triangles": 12
+      },
+      "COSTUME_Hairpin_right_branch": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "b15eccd4494ca930b50f65501a1ea967b9d4ac287960539752a35796c5ccdbca",
+        "faces": "7478bbf808d2fe00bdeca7a0ca6cd85ae013470fc41b3dcef935fec9bec7ba9a",
+        "uv": "285196805c56e728254affc4b13d4085770bec7b2507f76856286950f5e5acfa",
+        "materials": "65b5743df86b02a1d8a93eaffb9f0ec341caee5ec9fb3a1b7d59db43d5fb1569",
+        "triangles": 12
+      },
+      "COSTUME_Hairpin_left": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "f4219a02ff2550a4f67926bb54ddf5a5bc072ac1478bfbb880693d7ea2ed4d6a",
+        "faces": "7478bbf808d2fe00bdeca7a0ca6cd85ae013470fc41b3dcef935fec9bec7ba9a",
+        "uv": "c47209ce62f656d0f06044e9506517da4493d79826547baec1d9e2acef2d08b3",
+        "materials": "65b5743df86b02a1d8a93eaffb9f0ec341caee5ec9fb3a1b7d59db43d5fb1569",
+        "triangles": 12
+      },
+      "COSTUME_Hairpin_left_branch": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "fa5ee102e28c7b5af06cdf9111fe1c6e805d5df7a3c630749a7d4c9086fd4072",
+        "faces": "7478bbf808d2fe00bdeca7a0ca6cd85ae013470fc41b3dcef935fec9bec7ba9a",
+        "uv": "b3aa2c8a7e12b7194fc9d10a5858591bc6a2ceea75fad2533a8539d6045bafe0",
+        "materials": "65b5743df86b02a1d8a93eaffb9f0ec341caee5ec9fb3a1b7d59db43d5fb1569",
+        "triangles": 12
+      },
+      "COSTUME_Earring_chain_near": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "1fcf68dd9479dcc3436c8ccf1fdae0212b3843ddadf77e68bcac9f6f0501be13",
+        "faces": "7478bbf808d2fe00bdeca7a0ca6cd85ae013470fc41b3dcef935fec9bec7ba9a",
+        "uv": "f5f583cc193063a102a27de0679b82d271d490a88a704c17528e1acb4eecdf1e",
+        "materials": "65b5743df86b02a1d8a93eaffb9f0ec341caee5ec9fb3a1b7d59db43d5fb1569",
+        "triangles": 12
+      },
+      "COSTUME_Earring_drop_near": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "8775fd86ab51a38001b176e34866906767a6963476d8238a684379025a2f88b1",
+        "faces": "c1044a26e2b451a8d56f88d8e8fb19e417518615ce7f6278ff334f53feb75aff",
+        "uv": "b19e845baf96e96bac46fe40f1c346f2f61f4cfe69541e3c0550bd54a58301fa",
+        "materials": "eb9246126f6eedf24e79cb5eda9d0d9f1888c2bfb8e7c5754f1490b2278ad8ad",
+        "triangles": 8
+      },
+      "COSTUME_Earring_chain_far": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "ca04ae1c345aca47a219f4cbcf5bae8cfc4da93c6d67fc71a346ea05f8252cb3",
+        "faces": "7478bbf808d2fe00bdeca7a0ca6cd85ae013470fc41b3dcef935fec9bec7ba9a",
+        "uv": "34d3c7508a10bcfb0b7d4fd9f35815b8f839fd5b86e44a016b20a30580df57c4",
+        "materials": "65b5743df86b02a1d8a93eaffb9f0ec341caee5ec9fb3a1b7d59db43d5fb1569",
+        "triangles": 12
+      },
+      "COSTUME_Earring_drop_far": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "2aef66379786fd274a286843ed634118288d5b7134b44b9b3edbbfaa6db3c631",
+        "faces": "c1044a26e2b451a8d56f88d8e8fb19e417518615ce7f6278ff334f53feb75aff",
+        "uv": "1fe8e925667e325812a5755021d7f72aac271dccdd98717c67731aa37adaf6f5",
+        "materials": "eb9246126f6eedf24e79cb5eda9d0d9f1888c2bfb8e7c5754f1490b2278ad8ad",
+        "triangles": 8
+      }
+    },
+    "materials": {
+      "Costume_gold_metal": "d78769134cf4c175b98489cc2d614fa823bc4dd3cc43d73f29b8f86fb8dbebc4",
+      "Costume_ivory": "27fd6ea067096838c62fea75eedf45e27fdbad32f19911e61f07eba942771c9d",
+      "Costume_jade": "15c5414040b9721c4275a0873a2fbc22e85a0bcf0a8198a0ef91bc66127d38ad",
+      "Costume_lining": "367781bed1e3fdf5a861534875bc81707f1079102dbba1e5c2337e585323475e",
+      "Costume_pattern_far_wide_sleeve": "1d21a6e46c0aae7737f2a1a72c0bce88ccdbae6308e060c2386ab863635c9813",
+      "Costume_pattern_near_wide_sleeve": "cc3ee5a148904523a94f342293497f446f2d9b14ca4d492ba1b1ca6623b8544e",
+      "Costume_pattern_skirt": "c8a120f5d63486fdaa722600662882613f0a1fc76202ccfe7e74345b024df77a",
+      "Costume_pattern_torso": "59e537b1f94dff971b2491cb8d2078f2d4d839ff10ba4df7f9b48f3262d0853e",
+      "Costume_red": "6444e2a99b21a9c71dcadb089ab54b52bf7e9eb2adae9ac850bb0e4bb5d2592f",
+      "Ink_brown_hair": "0bb1fec41f0b9bac4aa98e6e8cc9830cf820399714bb6e9a67e62f06082291cd",
+      "Reference_image": "f529593ed920ec0b6be009ec3789c84b1c4ec39fdec017fcb48d495cb02d1a38",
+      "Warm_ivory_skin": "46280159770bbf957a4fb1da518e08a8157179998c251f4e0c32854e4bac9b10"
+    },
+    "packed_images": {
+      "cloth-gold.png": "38cb9d5d20eb3117e14a33dc022847716cc6fd2d47ea1147e165b3d16e0b3c8c",
+      "cloth-ivory.png": "e7f566949b09dd3bcea6c1afeea5825f44a377f57f88ecb2701a0eec87bcf506",
+      "cloth-jade.png": "afaed9408232c3e4bb68001534edcd86474a184ed85376b99eb0c555d72726e4",
+      "cloth-jade_inner.png": "fb338452298a27b7ff1af0ebd02db3944a5f1fe155023267e5ba576058491307",
+      "cloth-lining.png": "e18f904432488d4e44a4f27515ec56fe73024c65314e1a4b49b8ce59b7716ee7",
+      "cloth-red.png": "735d8916476647e49687bb72b23f35cd7db5023fbefa7b9274714754f360ec3b",
+      "dress-collar.png": "dee1e38aa51b94697ba130263a124c81380a7c21f8eb481e668a1a78edffaec0",
+      "dress-far-sleeve.png": "7672eeeee12589569fb7e3f321cc2e88641527c8cc91f8cd8b45adff849a411a",
+      "dress-near-sleeve.png": "926b600cb21ad905cd869edac8680f725a23c81ad5ea26d10262c03a47745656",
+      "dress-skirt.png": "6e6862323c4c724cac30665e88c5d6c5ee2322faf62a4a29dbacd08d2b41eda1",
+      "face-albedo.png": "16410709393ee655c03285252a5d7dc7058f59586c91d81d4530ef7e83c3310c",
+      "target.png": "23826014d5db1abc1e5c8c5cf36e8dcc115f13b699e8ffd8ec4cba893cad7a8b"
+    }
+  },
+  "delivered": {
+    "objects": {
+      "MODEL_skirt": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "d29e33f4901fc1798d58f61d61eb0f82e8cc32b8a73370dff19da81c7a165ffb",
+        "faces": "2c4c7fdc64e58200f4d9f6c5e6a602a6008a0c37d68b2f7271ccd71fa4a4769e",
+        "uv": "4ebe3f06ec7100454bcd4c75775ea22b41c32d14e402f0d3a755dc54295d9a34",
+        "materials": "eadd556c26af8f9c56443e3070caff8e52203f44468ecb482346449988c7c691",
+        "triangles": 288
+      },
+      "MODEL_far_wide_sleeve": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "62afc8f5182553062723db7732dde7b63cea09b0af924ed90dac783c7cf9667e",
+        "faces": "c56ea128577f6212c3b5a1e4e201faa8437791fd7e428035e24218e03af08021",
+        "uv": "1d0921919d1c8c1c6d83a4dedee8f414ce2be74e3b5df28a001234264555d5ef",
+        "materials": "aebb21d1e00791e888e212be1efbc0a71c76552a681d80bcce495b0e6e737f79",
+        "triangles": 168
+      },
+      "MODEL_torso": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "b81d9e490c1af8d448039bf3ad5e3a0cfec33727944a93846309c772a0dd44d0",
+        "faces": "caf0b48896df6c525b94e8cd65239b5faccdd329c497773c50d9fb8dafe926ad",
+        "uv": "c322a4326c4ec4984d68ebedfdf6de1a0c413f87bdd64d9112a13b866da91d76",
+        "materials": "a8ba381bee3bd80f56e3f0c2e2473d1bc08b65ba28aa3e2624d4f22a9125e548",
+        "triangles": 168
+      },
+      "MODEL_near_wide_sleeve": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "d1b3f6b6440e600c2f04000c5929860a3756da9b72546c8e46e065905acd6f4b",
+        "faces": "027a9c9daa897d6765460f1ede73e4d5624ab712ec90d3ce1c7f5bbbf0a1dd0b",
+        "uv": "12ddcd187bdbc515ac0a432022289d3d89a36fab3187065a01702f735d350593",
+        "materials": "9875cc8e9b688c143538091c56c45f386c2fba04fa929a6175e5b0d7b73926a1",
+        "triangles": 328
+      },
+      "MODEL_hands_pose_placeholder": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "f78cd730b60897d4f39a8a30851d9150d8bbf9e9c5813907e6a65889cc93334d",
+        "faces": "8848b02c90eb1a5bfb8466908b3458e63bac5ae7eb3212a14aef56426ee5f2ea",
+        "uv": "aeded0454a8f727d5889897916feb68f3faaca71131a5d4eec2493d5fcac2046",
+        "materials": "e232ef87a86242e4c4ee0ca54de7510ee4021e940ee59d6b1af392914f317adb",
+        "triangles": 448
+      },
+      "Primary_same_as_stage1": {
+        "type": "CAMERA",
+        "matrix": "462e6e406012350de59ef96e399f9de9f3fbc158f7fd2aec71c8269d249d5fbb",
+        "parent": null
+      },
+      "Area": {
+        "type": "LIGHT",
+        "matrix": "322c2b8001aae3ea48d2916364b153a90023392c6390d9feab9603ae64840a64",
+        "parent": null
+      },
+      "Area.001": {
+        "type": "LIGHT",
+        "matrix": "74af1cdf281785635731499a66c3628d70d0e5a2ea9a4a029a1f2995d1970ee7",
+        "parent": null
+      },
+      "HEAD_Neck": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "c5be4fc6982b08e827929a925aa0d2cf8fa9af651df5318eff02295bb50999b8",
+        "faces": "9600965e9e144a9b1adb6517cf3c37705420e9aa73803b944a21c3df7a84fa3f",
+        "uv": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "materials": "1ff91302a32ac32b0b710b4ad554c41853267d90b5ccff808c63741b93d70c63",
+        "triangles": 116
+      },
+      "HEAD_Swept_front_hair": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "844af00037bb4a1c570a233ec13567b20ac61f4d46b4a8257c7913b278dc0b76",
+        "faces": "8629a5a2da586ce0b005bf13a5b958a0220607b1d52b7cec9b971427766f6b97",
+        "uv": "0d8c239317b42009d94689bbd4e116bc92ec166ba9cec533fb507f22bf924bb1",
+        "materials": "9ce05830eb7fcff20112120dff54c9e39990bd17b195a54ce8217669eb2658a4",
+        "triangles": 94
+      },
+      "HEAD_High_bun": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "fd04425d253c7c8eb3deb63b4ee429e49d9d25b9c5234ee8d1998ed68da09f33",
+        "faces": "e7ab8a3ec464fbbf6dc0fbcf6a6b0c52fbf984c247e5ec81a3b6f581b4bc25c9",
+        "uv": "3eb870478dd58d4a67dd8f3ce6ba7f08d3b801697c0dd3d0f21c7203ab485592",
+        "materials": "7cfad52c176354bb313461461f43731e6d64577d9cbe61ddc7bb4cf0dbb99583",
+        "triangles": 160
+      },
+      "HEAD_Nape_hair": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "663adbb86e81a86ef1bc035f9ef947090d55ce674f96e6bf6dd5373a954f0f2f",
+        "faces": "3d587e0996d232ce37ff42547878f9ccbc45650cfea6e5197fe7fb07c886294a",
+        "uv": "bd7d98ff672213837db6709359c60b68a7ed7f89a76ee28ec4e4ba2b1d43f311",
+        "materials": "ca10a4ed10c4971835091797b78a9189e9bae1f9a10a8093ec150fe45a38a9ca",
+        "triangles": 192
+      },
+      "HEAD_Ear": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "f0450c9c62720d3ddb4a498c2227e64a77d81bf073b0db6b2e5fd6e11106adf6",
+        "faces": "984f52ca200ae3b84b86583185886b306096d2bc350580b5651bf3e610255340",
+        "uv": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "materials": "30ca9b88a2f8c0be5f9d47d7b88a169049cebf3b7c7cc5645fa24a9755418040",
+        "triangles": 22
+      },
+      "REFERENCE_ONLY": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "d73908b0829fc961baed2ad2dafb3a77fe73f163464e1dd6ca08fb7aed2c37a6",
+        "faces": "abb6d52e629caf5a149b3be55226f134dc1656e5a8c60490ed45b851ab8a6b7e",
+        "uv": "12201e89b8a9e08910e25eae288fa2ff9a7ee2b110621f95564cf8e5af558aff",
+        "materials": "3a2f82302a91c6d2a70f2264e8d0faad4a8d138c5f1569dc8a07fc1f1cc92822",
+        "triangles": 2
+      },
+      "HEAD_Face": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "23d851aa24541019bbad58b1408e0c5469ea22df1bdafb60866a2fda7f3c491f",
+        "faces": "c6d71a2807b86b1dfad6e9f7199d5ca442daa8cd2f5ecdbed9a89a65e09034fe",
+        "uv": "820554a4f6075c1b1068db73319222a0fff29bede7ead3312d058a5208f4b8c7",
+        "materials": "f63147f9e5806bc11e1bf50f3b7c52bec112acde25c362643a2de9d0dac09a22",
+        "triangles": 106
+      },
+      "COSTUME_Ivory_pibo": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "feed18c69e627b1b4d635d0138cce77bbbeccd172a2a289aeb26bdde874282c7",
+        "faces": "856358dc6338b22cb0a44030db3b48a272b662d9083975a7984ff45f787e1ad2",
+        "uv": "713ad340784b3e4ef2d93a65310654ff7c0511adccaacd16ca73aeae5f1f08af",
+        "materials": "c07e626404599cc40211e779f33c6cd185ede4b88a17ad8e443994940d115646",
+        "triangles": 60
+      },
+      "COSTUME_Vermilion_pibo": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "ad0827be27c92f644f280f3f0a8b71d39e530505fe1cf54904eff761f69efd61",
+        "faces": "8354a343bd55664b628447ccbebbba8fd7e7f0daa5b8b92d0bf71c59ae7c19db",
+        "uv": "063142adc211ac89b74d5ec116b09db29e944a4f420aa13edc171bac24234e40",
+        "materials": "a2a2f15e1e503d54503e1d9da47f58239f659e5355d18973f8493e74f4f1c1fd",
+        "triangles": 64
+      },
+      "COSTUME_Vermilion_pibo_gold_edge": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "c9a8c181d0c419a119521cb3f3787948c3666c9ddd340a800c1fd122e22fa583",
+        "faces": "856358dc6338b22cb0a44030db3b48a272b662d9083975a7984ff45f787e1ad2",
+        "uv": "1aff4503079e49055e1ad0d7f939b9d6bc0dfa48126e3e80a0ba1d03e973cb45",
+        "materials": "86713d2e8473a7b22667f87c2cc3f4f9a0404816e9530b8acc104b31ed600766",
+        "triangles": 60
+      },
+      "COSTUME_Red_waist_wrap": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "543126eb27568d6dd7a300cb204fe528c7e8f0ffe5eca4c4a4efb83ee26334e1",
+        "faces": "588f35cfe85aeb36afbf5829dc793e4fff87cd494de2107d76c283aef77e10d0",
+        "uv": "25917c1bea04c45f0929b5bed32fc45680823bddb06344396d234ca3687ea16f",
+        "materials": "3230a8d791bfc87d2003bf7738ec4c86653cdf6f19c03d4c7a09a9f780726107",
+        "triangles": 80
+      },
+      "COSTUME_Gold_waist_band": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "9d5fe6b6db8fb33f91ddb76e797e42d67604069a09e3d4e2b9a8f00fdd2461d3",
+        "faces": "588f35cfe85aeb36afbf5829dc793e4fff87cd494de2107d76c283aef77e10d0",
+        "uv": "ccc5ba4a7d415b9a5c13f0ac3741b7199658ab7fdcd284a23accaf7995ecbca0",
+        "materials": "358b493a00a45630f8c2e2dfae7179a210d27ca97523dcd9381aa9501cd622ea",
+        "triangles": 80
+      },
+      "COSTUME_Waist_tie": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "3f842e3b494a90b3e368ea5afbedde32b3a96ae475545b0b8647b4d19934b620",
+        "faces": "9319b1fd59ef32c83e163f45d44c761ba7e75d9398a0d5cba6258b5c617c7a87",
+        "uv": "59767d1f456f50d5b6e9f2243646a1085d00d22048a1474c33ef259186941734",
+        "materials": "3add65da25f6421b3b37a6c336532d2ef39777107a88b38ea2ed203b79608dc4",
+        "triangles": 28
+      },
+      "COSTUME_Waist_tie_gold_edge": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "992e921873f5d283d0092e0a0f083337088eb87a8c3d7ce5685d2a7f24796132",
+        "faces": "9319b1fd59ef32c83e163f45d44c761ba7e75d9398a0d5cba6258b5c617c7a87",
+        "uv": "dedea121074c90ea10119f519a6c466ed213f1f04b2b81c179aea57b52b2f344",
+        "materials": "005d651a1fd34c609ab9137d9f94bb4e1a71a4b68fb41c68f8cb7668986ffbd6",
+        "triangles": 28
+      },
+      "COSTUME_Waist_knot": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "71f89f8196336b86d63bf6c84b8a93abab86dfdcc572ccee69096ea0ae41d253",
+        "faces": "c1044a26e2b451a8d56f88d8e8fb19e417518615ce7f6278ff334f53feb75aff",
+        "uv": "11bd02c3e0fd651647f0b7b9e4df60ee5a1988fe67e84c855a04ef2c5e8394ed",
+        "materials": "970eb6b8a74e8ebadfe337d9080def4074c9d26fbef6f01f70560244400f411b",
+        "triangles": 8
+      },
+      "COSTUME_Bun_red_binding": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "cc68ed4f29836d5405268f4f45e41469a5e5ede1af3c9cf09e2501b256f02be7",
+        "faces": "b641a71e023f35df77818b2776d0b5da7170ef663f58a5b933cabe8ba91e6e4f",
+        "uv": "4b107c0ec223f93f2ae0e3a1bdcfc87c1f859a002898d93f9ef7731bdc5e46e2",
+        "materials": "3add65da25f6421b3b37a6c336532d2ef39777107a88b38ea2ed203b79608dc4",
+        "triangles": 28
+      },
+      "COSTUME_Flower_outer_0": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "3e0210b0c03a7479770315c8f62d15e4ec0402dbb987960b1dfb7fb1ab640c55",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "da7f8dafcd06605dfa824d023eb6e07cf0a55af202ac615f835b0c14346fe78a",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_outer_1": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "6266c76ec004894f27b3998b89b2abec1b410e990fa38517602c14e2d1f28de5",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "65f855b9705b120f237b10ff9c8410d2237b570417d6794a2d3761e7f019c57b",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_outer_2": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "d76e73dc5a29b4bf829dcfd34da57ce79f8416cf6180087837b440057757c0fa",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "b9e0950a3b2d89bf3e89602616e4a42bdd131ad1a0bc06d5a7d7f9eb244dc97e",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_outer_3": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "aef68ad80ba9632aee1cf355337369a41055116a4c1fb7e41288c3bf9c22f592",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "12c0e814ddd89889bd67e28b4f8f48b3f7377ee3fe7f7dcedf5396b57f03f2f8",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_outer_4": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "ad04ca3e3ae32617a7812f21b3999ca64aa75280e9be5ae95fc985ab4b79ec0d",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "0379b5ea4088f532a42430dc6ff576c752b8d34589c5f908064766804de8fa06",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_outer_5": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "48991df607794cbacd9444290d184da8a1ee37d9326fd6c7947459a887c2c264",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "38ee669a0c615e93fdbe97ff491f6ee9b97dddf3599a809cfaccbde7eed31ac7",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_outer_6": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "acedb09d92deba2470a8041753ea65371aebe3e8e6a380927356fa5d79fdf1a8",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "46f4dade39fee294f01cfbc3862e0f0f246e3b2b27d56d1ce66d89742bb4bc98",
+        "materials": "74930e1ff228daa949a4b88fe06c6a3930446bf1bcd2d7b5c60a660be7efba27",
+        "triangles": 20
+      },
+      "COSTUME_Flower_inner_0": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "4ff62f556b63a11b7688b5ff7a08da38b26b4e2d0306d06aee5db35f1f289392",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "047251ff26eb92df6e5de1e5d05b586ba80d6373ee3330d5f61597f23d65c158",
+        "materials": "67c82aa6699c8475bde6d6759c6ca442bd08757fde550e93f96927e5e2ada39c",
+        "triangles": 20
+      },
+      "COSTUME_Flower_inner_1": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "d583bdfa3536995a2a373d5f3bdd2f11ee053151d28f568e7d0895082407fb4f",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "ea06639c3d685611f1be8a4db837e1ab430fabaadbce684f4aaa02246a83832a",
+        "materials": "67c82aa6699c8475bde6d6759c6ca442bd08757fde550e93f96927e5e2ada39c",
+        "triangles": 20
+      },
+      "COSTUME_Flower_inner_2": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "cde4cf188cdfea2c45a1cae16a3fe8fb4509068069565734396cce2f8095bed0",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "49477f4489d4381dc79929ed8240361982326ac9bec586c93deef1fd4295bbef",
+        "materials": "67c82aa6699c8475bde6d6759c6ca442bd08757fde550e93f96927e5e2ada39c",
+        "triangles": 20
+      },
+      "COSTUME_Flower_inner_3": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "dbbeb5ab26b55fdeb9f99814bc57fd589076d5ef3bf4716793614bcd8203b8bd",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "9001582c80e0c2fad9ce0f541a4f436190b40c232db1a7ce69ec68ebf6cbf7de",
+        "materials": "67c82aa6699c8475bde6d6759c6ca442bd08757fde550e93f96927e5e2ada39c",
+        "triangles": 20
+      },
+      "COSTUME_Flower_inner_4": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "25abd2c3e3f25a37e0188a49e3a488b60241d7d3c59e63db711514e47c410e92",
+        "faces": "3c572a2c27cf708157d56b6e767af20a74d81988836ecb3950e89c1a170210b5",
+        "uv": "c3ea628ff9bec216f59c360e4462ace66745b65b9396daab91eff3cad22db00c",
+        "materials": "67c82aa6699c8475bde6d6759c6ca442bd08757fde550e93f96927e5e2ada39c",
+        "triangles": 20
+      },
+      "COSTUME_Flower_heart": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "4816d2aa913b72e472b2eb0c50ca27b3b15c5329c2edb0d60b72044b73fab199",
+        "faces": "c1044a26e2b451a8d56f88d8e8fb19e417518615ce7f6278ff334f53feb75aff",
+        "uv": "6ae62b8672b401ce01990920bd19ecaaf0053b394f556546fcdfc45941f08920",
+        "materials": "eb9246126f6eedf24e79cb5eda9d0d9f1888c2bfb8e7c5754f1490b2278ad8ad",
+        "triangles": 8
+      },
+      "COSTUME_Hairpin_right": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "5f4b60f47c5e1dbf37ad51f3d2c5c8043a873b4858399ae029f3b167fa85f64a",
+        "faces": "7478bbf808d2fe00bdeca7a0ca6cd85ae013470fc41b3dcef935fec9bec7ba9a",
+        "uv": "a950c8ebe2e55ad84e94b56b99cbf92eb9c509e33b360abc604f84b1661a2f2c",
+        "materials": "65b5743df86b02a1d8a93eaffb9f0ec341caee5ec9fb3a1b7d59db43d5fb1569",
+        "triangles": 12
+      },
+      "COSTUME_Hairpin_right_branch": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "b15eccd4494ca930b50f65501a1ea967b9d4ac287960539752a35796c5ccdbca",
+        "faces": "7478bbf808d2fe00bdeca7a0ca6cd85ae013470fc41b3dcef935fec9bec7ba9a",
+        "uv": "285196805c56e728254affc4b13d4085770bec7b2507f76856286950f5e5acfa",
+        "materials": "65b5743df86b02a1d8a93eaffb9f0ec341caee5ec9fb3a1b7d59db43d5fb1569",
+        "triangles": 12
+      },
+      "COSTUME_Hairpin_left": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "f4219a02ff2550a4f67926bb54ddf5a5bc072ac1478bfbb880693d7ea2ed4d6a",
+        "faces": "7478bbf808d2fe00bdeca7a0ca6cd85ae013470fc41b3dcef935fec9bec7ba9a",
+        "uv": "c47209ce62f656d0f06044e9506517da4493d79826547baec1d9e2acef2d08b3",
+        "materials": "65b5743df86b02a1d8a93eaffb9f0ec341caee5ec9fb3a1b7d59db43d5fb1569",
+        "triangles": 12
+      },
+      "COSTUME_Hairpin_left_branch": {
+        "type": "MESH",
+        "matrix": "ab8fb8662b95e3482547f51311ee2daf56fbe947bc5994ecb5b18420006a634d",
+        "parent": null,
+        "vertices": "fa5ee102e28c7b5af06cdf9111fe1c6e805d5df7a3c630749a7d4c9086fd4072",
+        "faces": "7478bbf808d2fe00bdeca7a0ca6cd85ae013470fc41b3dcef935fec9bec7ba9a",
+        "uv": "b3aa2c8a7e12b7194fc9d10a5858591bc6a2ceea75fad2533a8539d6045bafe0",
+        "materials": "65b5743df86b02a1d8a93eaffb9f0ec341caee5ec9fb3a1b7d59db43d5fb1569",
+        "triangles": 12
+      },
+      "COSTUME_Earring_chain_near": {
+        "type": "MESH",
+        "matrix": "1ed8a2910fef0f1cb8fdc82a56b009a328507037c5042074a3b0bfa170f00692",
+        "parent": null,
+        "vertices": "1fcf68dd9479dcc3436c8ccf1fdae0212b3843ddadf77e68bcac9f6f0501be13",
+        "faces": "7478bbf808d2fe00bdeca7a0ca6cd85ae013470fc41b3dcef935fec9bec7ba9a",
+        "uv": "f5f583cc193063a102a27de0679b82d271d490a88a704c17528e1acb4eecdf1e",
+        "materials": "65b5743df86b02a1d8a93eaffb9f0ec341caee5ec9fb3a1b7d59db43d5fb1569",
+        "triangles": 12
+      },
+      "COSTUME_Earring_drop_near": {
+        "type": "MESH",
+        "matrix": "1ed8a2910fef0f1cb8fdc82a56b009a328507037c5042074a3b0bfa170f00692",
+        "parent": null,
+        "vertices": "8775fd86ab51a38001b176e34866906767a6963476d8238a684379025a2f88b1",
+        "faces": "c1044a26e2b451a8d56f88d8e8fb19e417518615ce7f6278ff334f53feb75aff",
+        "uv": "b19e845baf96e96bac46fe40f1c346f2f61f4cfe69541e3c0550bd54a58301fa",
+        "materials": "eb9246126f6eedf24e79cb5eda9d0d9f1888c2bfb8e7c5754f1490b2278ad8ad",
+        "triangles": 8
+      },
+      "COSTUME_Earring_chain_far": {
+        "type": "MESH",
+        "matrix": "b9fa162b354787193591a73fde2d021afe434a3aadd06d967a6e8c56ae906ab9",
+        "parent": null,
+        "vertices": "ca04ae1c345aca47a219f4cbcf5bae8cfc4da93c6d67fc71a346ea05f8252cb3",
+        "faces": "7478bbf808d2fe00bdeca7a0ca6cd85ae013470fc41b3dcef935fec9bec7ba9a",
+        "uv": "34d3c7508a10bcfb0b7d4fd9f35815b8f839fd5b86e44a016b20a30580df57c4",
+        "materials": "65b5743df86b02a1d8a93eaffb9f0ec341caee5ec9fb3a1b7d59db43d5fb1569",
+        "triangles": 12
+      },
+      "COSTUME_Earring_drop_far": {
+        "type": "MESH",
+        "matrix": "b9fa162b354787193591a73fde2d021afe434a3aadd06d967a6e8c56ae906ab9",
+        "parent": null,
+        "vertices": "2aef66379786fd274a286843ed634118288d5b7134b44b9b3edbbfaa6db3c631",
+        "faces": "c1044a26e2b451a8d56f88d8e8fb19e417518615ce7f6278ff334f53feb75aff",
+        "uv": "1fe8e925667e325812a5755021d7f72aac271dccdd98717c67731aa37adaf6f5",
+        "materials": "eb9246126f6eedf24e79cb5eda9d0d9f1888c2bfb8e7c5754f1490b2278ad8ad",
+        "triangles": 8
+      }
+    },
+    "materials": {
+      "Costume_gold_metal": "d78769134cf4c175b98489cc2d614fa823bc4dd3cc43d73f29b8f86fb8dbebc4",
+      "Costume_ivory": "27fd6ea067096838c62fea75eedf45e27fdbad32f19911e61f07eba942771c9d",
+      "Costume_jade": "15c5414040b9721c4275a0873a2fbc22e85a0bcf0a8198a0ef91bc66127d38ad",
+      "Costume_lining": "367781bed1e3fdf5a861534875bc81707f1079102dbba1e5c2337e585323475e",
+      "Costume_pattern_far_wide_sleeve": "1d21a6e46c0aae7737f2a1a72c0bce88ccdbae6308e060c2386ab863635c9813",
+      "Costume_pattern_near_wide_sleeve": "cc3ee5a148904523a94f342293497f446f2d9b14ca4d492ba1b1ca6623b8544e",
+      "Costume_pattern_skirt": "c8a120f5d63486fdaa722600662882613f0a1fc76202ccfe7e74345b024df77a",
+      "Costume_pattern_torso": "59e537b1f94dff971b2491cb8d2078f2d4d839ff10ba4df7f9b48f3262d0853e",
+      "Costume_red": "6444e2a99b21a9c71dcadb089ab54b52bf7e9eb2adae9ac850bb0e4bb5d2592f",
+      "Ink_brown_hair": "0bb1fec41f0b9bac4aa98e6e8cc9830cf820399714bb6e9a67e62f06082291cd",
+      "Reference_image": "f529593ed920ec0b6be009ec3789c84b1c4ec39fdec017fcb48d495cb02d1a38",
+      "Warm_ivory_skin": "46280159770bbf957a4fb1da518e08a8157179998c251f4e0c32854e4bac9b10"
+    },
+    "packed_images": {
+      "cloth-gold.png": "38cb9d5d20eb3117e14a33dc022847716cc6fd2d47ea1147e165b3d16e0b3c8c",
+      "cloth-ivory.png": "e7f566949b09dd3bcea6c1afeea5825f44a377f57f88ecb2701a0eec87bcf506",
+      "cloth-jade.png": "afaed9408232c3e4bb68001534edcd86474a184ed85376b99eb0c555d72726e4",
+      "cloth-jade_inner.png": "fb338452298a27b7ff1af0ebd02db3944a5f1fe155023267e5ba576058491307",
+      "cloth-lining.png": "e18f904432488d4e44a4f27515ec56fe73024c65314e1a4b49b8ce59b7716ee7",
+      "cloth-red.png": "735d8916476647e49687bb72b23f35cd7db5023fbefa7b9274714754f360ec3b",
+      "dress-collar.png": "dee1e38aa51b94697ba130263a124c81380a7c21f8eb481e668a1a78edffaec0",
+      "dress-far-sleeve.png": "7672eeeee12589569fb7e3f321cc2e88641527c8cc91f8cd8b45adff849a411a",
+      "dress-near-sleeve.png": "926b600cb21ad905cd869edac8680f725a23c81ad5ea26d10262c03a47745656",
+      "dress-skirt.png": "6e6862323c4c724cac30665e88c5d6c5ee2322faf62a4a29dbacd08d2b41eda1",
+      "face-albedo.png": "16410709393ee655c03285252a5d7dc7058f59586c91d81d4530ef7e83c3310c",
+      "target.png": "23826014d5db1abc1e5c8c5cf36e8dcc115f13b699e8ffd8ec4cba893cad7a8b"
+    }
+  },
+  "protected_obj_original": {
+    "COSTUME_Bun_red_binding": "8faf5e22f38e96d9ec4895a3dfaa91b0852be9800abe232d95b62b96e4f9e90d",
+    "COSTUME_Flower_heart": "22668e7e11ef1ce453eae18511e251e98a451d7df1b0a0aa4e557cb510bc3f50",
+    "COSTUME_Flower_inner_0": "f3803b868fa702a2aa369d3588b25e4205efa0419078855a835fa9da4fe1520b",
+    "COSTUME_Flower_inner_1": "3a88211429928f90d3d2b8ac16eeaaa64bec0e2dc19b98713bd8bbbf3d2f3511",
+    "COSTUME_Flower_inner_2": "92cb036b03c76852460328c85a726dc378c5cefa20da8953b87c218c713ae824",
+    "COSTUME_Flower_inner_3": "2ae3c1d898a43e92f190d9232121ae65d53461e52a8625de1efa61d753b94919",
+    "COSTUME_Flower_inner_4": "bdcc4c45f10ed7779f60bbcecfa9d138a7ed46256e17d7f0b5890b5f82533b92",
+    "COSTUME_Flower_outer_0": "56f4829cb8b37bc1142cae56c5d3b36ccdff3f69d6a1ad90eea72e7d5c09ba5e",
+    "COSTUME_Flower_outer_1": "b0e61072a7dd61fd601817344d738d0dd0c95fbd3b5992390d1624cb9512c364",
+    "COSTUME_Flower_outer_2": "751b843c976dc7616fe0bd63c3a11683064c6a2d60de16ef338d3aa9c7445717",
+    "COSTUME_Flower_outer_3": "d51bbe0eb6909df222d0aa25ae7d3d12c83dc290f8fc84f3122106c758642f6b",
+    "COSTUME_Flower_outer_4": "f74c832328039ed18d2aee8e982d8c8c6885e794117bb9b415a1915658a390f3",
+    "COSTUME_Flower_outer_5": "de8d5363a27ae91a290aa6f998752f7327a382b949fd18b8d3d53a65e017ef2b",
+    "COSTUME_Flower_outer_6": "214eacacc18a04d227357f968a220d4855094898076eef8e2ea7d5a66400604a",
+    "COSTUME_Gold_waist_band": "4bd9c2bd7f09955d8c1ba6cf2249cf8c39d83ab929b88be21d0d4498e3122679",
+    "COSTUME_Hairpin_left": "18931c85c042c45ca0c0db58b919ca96954b3ef61b9ec6500dd3537c6115482a",
+    "COSTUME_Hairpin_left_branch": "06547d96e60deca1250c4f8cd93fd75d9e0a990384b7b528ff39bc5751e14348",
+    "COSTUME_Hairpin_right": "5acf154c63fad56f248484ba4c3a2d923aa1acdaf0783404ec737c875bba16b9",
+    "COSTUME_Hairpin_right_branch": "44a90888914c48378c94b5c563a605d5a799642988e2dab4d6cc034717b9a14b",
+    "COSTUME_Ivory_pibo": "5ebdf8a903728027bf7dfeab71b5c87995104ffb38785d6ca70bc91ea46a7955",
+    "COSTUME_Red_waist_wrap": "73179d6a630ed06e62caaf1293a43bfd6ddde7d8318a4a2643b61cde4f00b33a",
+    "COSTUME_Vermilion_pibo": "c88f884d6361859324df82276494bb8388ff32cfcca468d1f7407938f864d0e3",
+    "COSTUME_Vermilion_pibo_gold_edge": "2f39933c0471e4423e9a6409beea1c3cbecc5979f5ce1e35bc4deb1ddb94d19b",
+    "COSTUME_Waist_knot": "51c467471d861ae60edaa267f273eedc5427394dd36b80e56ef8d46a63684e3f",
+    "COSTUME_Waist_tie": "2d197f7b89915813c5f70281c750c0a7bf644cb296a18937643f583c3dfb07e3",
+    "COSTUME_Waist_tie_gold_edge": "e30cd6a95df4c535ba2a5488a75c5c3f2104d7f478e0c088341630ede9f74601",
+    "HEAD_Ear": "cfe89213fc6c067d7c05670ac96d1a94934a6975a5f1ef1e4cc1c8523a62b22a",
+    "HEAD_Face": "73e4986f5955f773e3598cddff1b3e8ae08a5f181d6515b81eebcdd370024c7a",
+    "HEAD_High_bun": "78f3ad79f32629d22a15827870dfd84a8cbf8408cec4f2f0fd2702ea8aa9b8ee",
+    "HEAD_Nape_hair": "f0ab295ee4e3c2fad8e9106302a72c51689c42b58247d8f3df0abc6c252edcf6",
+    "HEAD_Swept_front_hair": "5ac5fcdebf2b04ef524895251dc384e8d9c00179b76d3d9dc21297932c763be7",
+    "MODEL_far_wide_sleeve": "20b8f87f4f72eb30eebc5def7d06db5c0851b033f2a74758f13c3a56867edb26",
+    "MODEL_hands_pose_placeholder": "c65b9740d686ce6ee9311a2b6ba8eebf6dcae975deab696c313051950c764282",
+    "MODEL_near_wide_sleeve": "e6fb9ae5e41312f16decb666a43308f6904d01f238a5e4b59c326c6522080507",
+    "MODEL_skirt": "fd9dbb0f36e9e11bccd282ab87ae9f59f31e162d4671827164aaa860478ac105",
+    "MODEL_torso": "8e953c5faa7c18f56b143d9b72f76f9530493eec17830bc37013aa26b076e37a"
+  },
+  "protected_obj_final": {
+    "COSTUME_Bun_red_binding": "8faf5e22f38e96d9ec4895a3dfaa91b0852be9800abe232d95b62b96e4f9e90d",
+    "COSTUME_Flower_heart": "22668e7e11ef1ce453eae18511e251e98a451d7df1b0a0aa4e557cb510bc3f50",
+    "COSTUME_Flower_inner_0": "f3803b868fa702a2aa369d3588b25e4205efa0419078855a835fa9da4fe1520b",
+    "COSTUME_Flower_inner_1": "3a88211429928f90d3d2b8ac16eeaaa64bec0e2dc19b98713bd8bbbf3d2f3511",
+    "COSTUME_Flower_inner_2": "92cb036b03c76852460328c85a726dc378c5cefa20da8953b87c218c713ae824",
+    "COSTUME_Flower_inner_3": "2ae3c1d898a43e92f190d9232121ae65d53461e52a8625de1efa61d753b94919",
+    "COSTUME_Flower_inner_4": "bdcc4c45f10ed7779f60bbcecfa9d138a7ed46256e17d7f0b5890b5f82533b92",
+    "COSTUME_Flower_outer_0": "56f4829cb8b37bc1142cae56c5d3b36ccdff3f69d6a1ad90eea72e7d5c09ba5e",
+    "COSTUME_Flower_outer_1": "b0e61072a7dd61fd601817344d738d0dd0c95fbd3b5992390d1624cb9512c364",
+    "COSTUME_Flower_outer_2": "751b843c976dc7616fe0bd63c3a11683064c6a2d60de16ef338d3aa9c7445717",
+    "COSTUME_Flower_outer_3": "d51bbe0eb6909df222d0aa25ae7d3d12c83dc290f8fc84f3122106c758642f6b",
+    "COSTUME_Flower_outer_4": "f74c832328039ed18d2aee8e982d8c8c6885e794117bb9b415a1915658a390f3",
+    "COSTUME_Flower_outer_5": "de8d5363a27ae91a290aa6f998752f7327a382b949fd18b8d3d53a65e017ef2b",
+    "COSTUME_Flower_outer_6": "214eacacc18a04d227357f968a220d4855094898076eef8e2ea7d5a66400604a",
+    "COSTUME_Gold_waist_band": "4bd9c2bd7f09955d8c1ba6cf2249cf8c39d83ab929b88be21d0d4498e3122679",
+    "COSTUME_Hairpin_left": "18931c85c042c45ca0c0db58b919ca96954b3ef61b9ec6500dd3537c6115482a",
+    "COSTUME_Hairpin_left_branch": "06547d96e60deca1250c4f8cd93fd75d9e0a990384b7b528ff39bc5751e14348",
+    "COSTUME_Hairpin_right": "5acf154c63fad56f248484ba4c3a2d923aa1acdaf0783404ec737c875bba16b9",
+    "COSTUME_Hairpin_right_branch": "44a90888914c48378c94b5c563a605d5a799642988e2dab4d6cc034717b9a14b",
+    "COSTUME_Ivory_pibo": "5ebdf8a903728027bf7dfeab71b5c87995104ffb38785d6ca70bc91ea46a7955",
+    "COSTUME_Red_waist_wrap": "73179d6a630ed06e62caaf1293a43bfd6ddde7d8318a4a2643b61cde4f00b33a",
+    "COSTUME_Vermilion_pibo": "c88f884d6361859324df82276494bb8388ff32cfcca468d1f7407938f864d0e3",
+    "COSTUME_Vermilion_pibo_gold_edge": "2f39933c0471e4423e9a6409beea1c3cbecc5979f5ce1e35bc4deb1ddb94d19b",
+    "COSTUME_Waist_knot": "51c467471d861ae60edaa267f273eedc5427394dd36b80e56ef8d46a63684e3f",
+    "COSTUME_Waist_tie": "2d197f7b89915813c5f70281c750c0a7bf644cb296a18937643f583c3dfb07e3",
+    "COSTUME_Waist_tie_gold_edge": "e30cd6a95df4c535ba2a5488a75c5c3f2104d7f478e0c088341630ede9f74601",
+    "HEAD_Ear": "cfe89213fc6c067d7c05670ac96d1a94934a6975a5f1ef1e4cc1c8523a62b22a",
+    "HEAD_Face": "73e4986f5955f773e3598cddff1b3e8ae08a5f181d6515b81eebcdd370024c7a",
+    "HEAD_High_bun": "78f3ad79f32629d22a15827870dfd84a8cbf8408cec4f2f0fd2702ea8aa9b8ee",
+    "HEAD_Nape_hair": "f0ab295ee4e3c2fad8e9106302a72c51689c42b58247d8f3df0abc6c252edcf6",
+    "HEAD_Swept_front_hair": "5ac5fcdebf2b04ef524895251dc384e8d9c00179b76d3d9dc21297932c763be7",
+    "MODEL_far_wide_sleeve": "20b8f87f4f72eb30eebc5def7d06db5c0851b033f2a74758f13c3a56867edb26",
+    "MODEL_hands_pose_placeholder": "c65b9740d686ce6ee9311a2b6ba8eebf6dcae975deab696c313051950c764282",
+    "MODEL_near_wide_sleeve": "e6fb9ae5e41312f16decb666a43308f6904d01f238a5e4b59c326c6522080507",
+    "MODEL_skirt": "fd9dbb0f36e9e11bccd282ab87ae9f59f31e162d4671827164aaa860478ac105",
+    "MODEL_torso": "8e953c5faa7c18f56b143d9b72f76f9530493eec17830bc37013aa26b076e37a"
+  },
+  "reopened": true,
+  "changed_objects": [
+    "HEAD_Neck",
+    "COSTUME_Earring_chain_near",
+    "COSTUME_Earring_drop_near",
+    "COSTUME_Earring_chain_far",
+    "COSTUME_Earring_drop_far"
+  ],
+  "anchor_distance_m": {
+    "near": 0.0004999683005735278,
+    "far": 0.0005000001983717084
+  },
+  "native_triangles": 2862,
+  "source_native_triangles": 2782,
+  "imported_objects": 41,
+  "imported_triangles": 2862,
+  "imported_textures": {
+    "cloth-gold.png": [
+      1024,
+      1024
+    ],
+    "cloth-ivory.png": [
+      1024,
+      1024
+    ],
+    "cloth-lining.png": [
+      1024,
+      1024
+    ],
+    "dress-far-sleeve.png": [
+      1024,
+      1024
+    ],
+    "dress-near-sleeve.png": [
+      1024,
+      1024
+    ],
+    "dress-skirt.png": [
+      1024,
+      1024
+    ],
+    "dress-collar.png": [
+      1024,
+      1024
+    ],
+    "cloth-red.png": [
+      1024,
+      1024
+    ],
+    "face-albedo.png": [
+      1024,
+      1024
+    ]
+  },
+  "maximum_roundtrip_error_m": {
+    "HEAD_Neck": 7.193187343546015e-07,
+    "COSTUME_Earring_chain_near": 1.1097114338554093e-06,
+    "COSTUME_Earring_drop_near": 9.062184744834667e-07,
+    "COSTUME_Earring_chain_far": 6.80179255141411e-07,
+    "COSTUME_Earring_drop_far": 5.273753345136356e-07
+  }
+}

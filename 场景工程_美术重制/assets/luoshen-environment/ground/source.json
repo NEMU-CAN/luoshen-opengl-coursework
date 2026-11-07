@@ -1,0 +1,21 @@
+{
+  "source": "https://polyhaven.com/a/forest_ground_04",
+  "license": "CC0",
+  "route": "direct session trust_env=False",
+  "files": [
+    {
+      "file": "color.png",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/forest_ground_04/forest_ground_04_diff_1k.png",
+      "size": 2364487,
+      "md5": "8f4318ba5044aa147999b08a10302fb4",
+      "sha256": "59fd7ca8dbfb83cd7adb487c67b744d80805a5abac60ce1fc89f2cd90c53c3cf"
+    },
+    {
+      "file": "normal.png",
+      "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/forest_ground_04/forest_ground_04_nor_gl_1k.png",
+      "size": 2537954,
+      "md5": "77c2337c8c8c47357f69b598e73a72de",
+      "sha256": "dc30ffdf75d28b2f02831201b377cf8cce4594d86bbcf46ba711dfcd35a5fcf0"
+    }
+  ]
+}

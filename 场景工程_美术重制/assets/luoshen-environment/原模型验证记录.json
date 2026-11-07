@@ -1,0 +1,362 @@
+{
+  "assets": [
+    {
+      "file": "assets\\luoshen-environment\\rocks\\rock_01.obj",
+      "vertices": 5502,
+      "triangles": 11000,
+      "objects": [
+        "rock_moss_set_01_rock01"
+      ],
+      "texture_paths": [
+        "textures/rock_moss_set_01_diff_2k.jpg"
+      ],
+      "minimum_triangle_area": 5.98132564266536e-05,
+      "bounds": [
+        [
+          -3.914021,
+          -0.656569,
+          -3.823822
+        ],
+        [
+          -1.676389,
+          0.816129,
+          -0.455017
+        ]
+      ],
+      "removed_degenerate_export_triangles": 0,
+      "reimport_faces": 11000,
+      "all_material_textures": [
+        "rocks\\textures\\rock_moss_set_01_diff_2k.jpg",
+        "rocks\\textures\\rock_moss_set_01_rough_2k.jpg",
+        "rocks\\textures\\rock_moss_set_01_nor_gl_2k.png"
+      ],
+      "sha256": "9505c918cc7c87ecd2f13f56bb2a7889fd79fbefe785606ba616c6f3c3996a25"
+    },
+    {
+      "file": "assets\\luoshen-environment\\rocks\\rock_02.obj",
+      "vertices": 5470,
+      "triangles": 10996,
+      "objects": [
+        "rock_moss_set_01_rock02"
+      ],
+      "texture_paths": [
+        "textures/rock_moss_set_01_diff_2k.jpg"
+      ],
+      "minimum_triangle_area": 4.329816486092805e-06,
+      "bounds": [
+        [
+          -1.273055,
+          -0.465619,
+          -3.767196
+        ],
+        [
+          1.382326,
+          0.796372,
+          -0.503475
+        ]
+      ],
+      "removed_degenerate_export_triangles": 0,
+      "reimport_faces": 10996,
+      "all_material_textures": [
+        "rocks\\textures\\rock_moss_set_01_diff_2k.jpg",
+        "rocks\\textures\\rock_moss_set_01_rough_2k.jpg",
+        "rocks\\textures\\rock_moss_set_01_nor_gl_2k.png"
+      ],
+      "sha256": "3e85f0b0492c9fb269cf8d9fd3233ff112cc9361b233e5b4d8a6d669b914ffa5"
+    },
+    {
+      "file": "assets\\luoshen-environment\\rocks\\rock_03.obj",
+      "vertices": 2500,
+      "triangles": 5000,
+      "objects": [
+        "rock_moss_set_01_rock03"
+      ],
+      "texture_paths": [
+        "textures/rock_moss_set_01_diff_2k.jpg"
+      ],
+      "minimum_triangle_area": 0.00027980070858514284,
+      "bounds": [
+        [
+          1.982,
+          -0.410872,
+          -3.146401
+        ],
+        [
+          4.090583,
+          0.688822,
+          -1.066815
+        ]
+      ],
+      "removed_degenerate_export_triangles": 0,
+      "reimport_faces": 5000,
+      "all_material_textures": [
+        "rocks\\textures\\rock_moss_set_01_diff_2k.jpg",
+        "rocks\\textures\\rock_moss_set_01_rough_2k.jpg",
+        "rocks\\textures\\rock_moss_set_01_nor_gl_2k.png"
+      ],
+      "sha256": "3e26ce1d1e7fd542f3378920ce858c22da5cc9b212622cd8a7faf6ffbad100c5"
+    },
+    {
+      "file": "assets\\luoshen-environment\\rocks\\rock_04.obj",
+      "vertices": 5301,
+      "triangles": 10589,
+      "objects": [
+        "rock_moss_set_01_rock04"
+      ],
+      "texture_paths": [
+        "textures/rock_moss_set_01_diff_2k.jpg"
+      ],
+      "minimum_triangle_area": 3.314001095020458e-05,
+      "bounds": [
+        [
+          -3.650279,
+          -0.660971,
+          0.6898
+        ],
+        [
+          -1.52265,
+          1.107349,
+          2.654541
+        ]
+      ],
+      "removed_degenerate_export_triangles": 0,
+      "reimport_faces": 10589,
+      "all_material_textures": [
+        "rocks\\textures\\rock_moss_set_01_diff_2k.jpg",
+        "rocks\\textures\\rock_moss_set_01_rough_2k.jpg",
+        "rocks\\textures\\rock_moss_set_01_nor_gl_2k.png"
+      ],
+      "sha256": "800a84a2324434d7e135871292319c33ff7070f8169ee16c4ec53033a1899ead"
+    },
+    {
+      "file": "assets\\luoshen-environment\\rocks\\rock_05.obj",
+      "vertices": 8276,
+      "triangles": 16548,
+      "objects": [
+        "rock_moss_set_01_rock05"
+      ],
+      "texture_paths": [
+        "textures/rock_moss_set_01_diff_2k.jpg"
+      ],
+      "minimum_triangle_area": 1.3590526525140542e-05,
+      "bounds": [
+        [
+          -0.710668,
+          -0.572554,
+          0.126279
+        ],
+        [
+          1.106655,
+          0.632896,
+          3.124943
+        ]
+      ],
+      "removed_degenerate_export_triangles": 0,
+      "reimport_faces": 16548,
+      "all_material_textures": [
+        "rocks\\textures\\rock_moss_set_01_diff_2k.jpg",
+        "rocks\\textures\\rock_moss_set_01_rough_2k.jpg",
+        "rocks\\textures\\rock_moss_set_01_nor_gl_2k.png"
+      ],
+      "sha256": "0f1a9dd9386f8ff734472ca1bfcd8e8f4407ea009a66474f8f7cc7358f2d9a7a"
+    },
+    {
+      "file": "assets\\luoshen-environment\\rocks\\rock_06.obj",
+      "vertices": 4499,
+      "triangles": 8994,
+      "objects": [
+        "rock_moss_set_01_rock06"
+      ],
+      "texture_paths": [
+        "textures/rock_moss_set_01_diff_2k.jpg"
+      ],
+      "minimum_triangle_area": 5.148610501207384e-05,
+      "bounds": [
+        [
+          1.599223,
+          -0.528057,
+          0.097072
+        ],
+        [
+          3.725205,
+          0.733796,
+          2.854376
+        ]
+      ],
+      "removed_degenerate_export_triangles": 0,
+      "reimport_faces": 8994,
+      "all_material_textures": [
+        "rocks\\textures\\rock_moss_set_01_diff_2k.jpg",
+        "rocks\\textures\\rock_moss_set_01_rough_2k.jpg",
+        "rocks\\textures\\rock_moss_set_01_nor_gl_2k.png"
+      ],
+      "sha256": "6301a8e5cab72898a8b3ef270a3e9abbd2ccb6d200aac2717083bb4e4bedec07"
+    },
+    {
+      "file": "assets\\luoshen-environment\\tree\\tree_small_lod1.obj",
+      "vertices": 626249,
+      "triangles": 495064,
+      "objects": [
+        "tree_small_02_LOD1.001"
+      ],
+      "texture_paths": [
+        "textures/tree_small_02_branch_diff_1k.png",
+        "textures/tree_small_02_leaves_diff_1k.png",
+        "textures/tree_small_02_diff_1k.jpg"
+      ],
+      "minimum_triangle_area": 1.917229546012677e-07,
+      "bounds": [
+        [
+          -1.310724,
+          -0.024194,
+          -1.383023
+        ],
+        [
+          1.610711,
+          4.539843,
+          2.909646
+        ]
+      ],
+      "removed_degenerate_export_triangles": 0,
+      "reimport_faces": 495064,
+      "all_material_textures": [
+        "tree\\textures\\tree_small_02_branch_diff_1k.png",
+        "tree\\textures\\tree_small_02_branch_rough_1k.png",
+        "tree\\textures\\tree_small_02_branch_nor_gl_1k.png",
+        "tree\\textures\\tree_small_02_leaves_diff_1k.png",
+        "tree\\textures\\tree_small_02_leaves_alpha_1k.png",
+        "tree\\textures\\tree_small_02_diff_1k.jpg",
+        "tree\\textures\\tree_small_02_rough_1k.png",
+        "tree\\textures\\tree_small_02_nor_gl_1k.png"
+      ],
+      "sha256": "d75e3e8f606120a8174ce6dee5d944ad23e6c043d016490401146779be21fd66"
+    },
+    {
+      "file": "assets\\luoshen-environment\\boat\\boat-row-small.obj",
+      "vertices": 292,
+      "triangles": 165,
+      "objects": [
+        "boat-row-small",
+        "paddles"
+      ],
+      "texture_paths": [
+        "textures/colormap.png"
+      ],
+      "minimum_triangle_area": 0.006399938623705695,
+      "bounds": [
+        [
+          -1.374269,
+          0.0,
+          -1.186073
+        ],
+        [
+          1.374269,
+          0.847696,
+          1.186073
+        ]
+      ],
+      "removed_degenerate_export_triangles": 2,
+      "reimport_faces": 165,
+      "all_material_textures": [
+        "boat\\textures\\colormap.png"
+      ],
+      "sha256": "856706791b91e80693854eec7974e1527c7f71e20952d1dc52a234e76cab5464"
+    },
+    {
+      "file": "assets\\luoshen-environment\\boat\\boat-row-large.obj",
+      "vertices": 258,
+      "triangles": 171,
+      "objects": [
+        "boat-row-large",
+        "paddles"
+      ],
+      "texture_paths": [
+        "textures/colormap.png"
+      ],
+      "minimum_triangle_area": 0.004374600000000034,
+      "bounds": [
+        [
+          -1.374269,
+          -0.0,
+          -1.426073
+        ],
+        [
+          1.374269,
+          0.847696,
+          1.426073
+        ]
+      ],
+      "removed_degenerate_export_triangles": 2,
+      "reimport_faces": 171,
+      "all_material_textures": [
+        "boat\\textures\\colormap.png"
+      ],
+      "sha256": "5cdf4fecb1bf1e5e23434f7ffad836d156aecbfa61574e47be2c50f00f5237bc"
+    },
+    {
+      "file": "assets\\luoshen-environment\\boat\\tool-paddle.obj",
+      "vertices": 102,
+      "triangles": 60,
+      "objects": [
+        "tool-paddle"
+      ],
+      "texture_paths": [
+        "textures/colormap.png"
+      ],
+      "minimum_triangle_area": 0.0014963491840000005,
+      "bounds": [
+        [
+          -0.328915,
+          0.0,
+          -0.103766
+        ],
+        [
+          0.328915,
+          2.349127,
+          0.103766
+        ]
+      ],
+      "removed_degenerate_export_triangles": 0,
+      "reimport_faces": 60,
+      "all_material_textures": [
+        "boat\\textures\\colormap.png"
+      ],
+      "sha256": "0721062887d10d1e3c7615ee782ae120b09a218a882de62c6772ac0b80d5536c"
+    },
+    {
+      "file": "assets\\luoshen-environment\\boat-medieval\\wooden-rowboat.obj",
+      "vertices": 188,
+      "triangles": 322,
+      "objects": [
+        "division",
+        "body",
+        "Paddle"
+      ],
+      "texture_paths": [
+        "textures/WoodPlanksOld.jpg"
+      ],
+      "minimum_triangle_area": 0.002630727626580949,
+      "bounds": [
+        [
+          -2.849849,
+          -0.230671,
+          -3.466208
+        ],
+        [
+          2.888724,
+          1.433489,
+          4.569831
+        ]
+      ],
+      "removed_degenerate_export_triangles": 0,
+      "reimport_faces": 322,
+      "all_material_textures": [
+        "boat-medieval\\textures\\WoodPlanksOld.jpg"
+      ],
+      "sha256": "c2b660650b918a43945b996b2b8993b80216d7cdbcad33cff70ae063894d31a8"
+    }
+  ],
+  "axis": "+Y up, -Z forward in exported OBJ",
+  "license": "CC0",
+  "round_trip": "passed"
+}

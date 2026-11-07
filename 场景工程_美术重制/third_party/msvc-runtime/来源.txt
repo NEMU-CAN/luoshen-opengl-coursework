@@ -1,0 +1,6 @@
+Microsoft Visual C++ x64 Redistributable Runtime
+vcruntime140.dll copied from the installed Visual Studio redistributable directory:
+VC/Redist/MSVC/14.51.36231/x64/Microsoft.VC145.CRT
+Used by the official GLFW DLL. Windows 10/11 Universal CRT is provided by Windows.
+Official redistributable information: https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist
+The DLL remains Microsoft copyrighted code; it is not CC0.

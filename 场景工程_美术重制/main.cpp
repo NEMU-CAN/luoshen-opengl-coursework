@@ -1,7 +1,6 @@
 // 洛水别绪：曹植与洛神的河岸离别，OBJ贴图、Phong、倒影与Bézier动画。
 #include "graphics_support.h"
 #include "mesh_data.h"
-#include "scene_motion.h"
 #include "scene_layout.h"
 #include <map>
 #include <chrono>
@@ -9,6 +8,7 @@
 #include <cstring>
 #include "scene_overlay.h"
 #include "shadow_map.h"
+#include "layout_editor.h"
 #pragma comment(lib,"gdi32.lib")
 #pragma comment(lib,"user32.lib")
 
@@ -22,7 +22,7 @@ BindBufferFn sceneBindBuffer=nullptr;
 BufferDataFn sceneBufferData=nullptr;
 DeleteBuffersFn sceneDeleteBuffers=nullptr;
 const GLenum SCENE_ARRAY_BUFFER=0x8892,SCENE_STATIC_DRAW=0x88E4;
-struct SceneModel {std::vector<GpuBatch> batches;glm::vec3 center{0};float bottom=0;size_t triangles=0;};
+struct SceneModel {std::vector<GpuBatch> batches;glm::vec3 center{0},size{0};float bottom=0;size_t triangles=0;std::vector<glm::vec3> pickTriangles;};
 GLuint program=0;
 GLint colorLocation=-1,textureLocation=-1,kindLocation=-1,timeLocation=-1,lightLocation=-1;
 GLint reflectionLocation=-1,goddessLocation=-1,worldUpLocation=-1,cameraHeightLocation=-1;
@@ -33,11 +33,12 @@ glm::mat4 worldPrefix(1);
 GLuint groundColor=0,groundNormal=0;
 std::map<std::string,GLuint> textures;
 std::filesystem::path assetRoot;
-bool paused=false,markers=false,captureRequested=false,mainShot=true;
-double animationTime=0;
+bool captureRequested=false;
 float yaw=scene_layout::mainYaw,pitch=scene_layout::mainPitch,distanceToTarget=scene_layout::mainDistance;
 glm::vec3 target=scene_layout::mainTarget;
 bool leftDown=false,rightDown=false;double lastX=0,lastY=0;
+LayoutEditor layoutEditor;
+size_t caozhiItem=0,luoshenItem=0;
 
 GLuint loadMaterialTexture(const SceneMaterial& mat) {
     if(mat.colorMap.empty())return 0;
@@ -69,10 +70,14 @@ GLuint loadMaterialTexture(const SceneMaterial& mat) {
     return texture;
 }
 
-SceneModel loadModel(const std::string& relative){
+SceneModel loadModel(const std::string& relative,bool pickable=false){
     auto mesh=readSceneObj(assetRoot/std::filesystem::u8path(relative));
-    SceneModel model;model.center=(mesh.minimum+mesh.maximum)*.5f;model.bottom=mesh.minimum.y;model.triangles=mesh.triangles;
+    SceneModel model;model.center=(mesh.minimum+mesh.maximum)*.5f;model.size=mesh.maximum-mesh.minimum;model.bottom=mesh.minimum.y;model.triangles=mesh.triangles;
     for(const auto& batch:mesh.batches){
+        if(pickable){
+            auto pivot=glm::vec3(model.center.x,model.bottom,model.center.z);
+            for(const auto& vertex:batch.vertices)model.pickTriangles.push_back(vertex.position-pivot);
+        }
         const auto& mat=mesh.materials.at(batch.material);
         GpuBatch gpu;gpu.texture=loadMaterialTexture(mat);gpu.color=gpu.texture?glm::vec3(1):mat.diffuse;
         gpu.kind=mat.name.find("Under_robe")!=std::string::npos||mat.name.find("Under robe")!=std::string::npos?3:0;
@@ -92,9 +97,9 @@ void material(glm::vec3 color,int kind=0,GLuint texture=0){
     pUniform1i(reflectionLocation,reflectionPass?1:0);
     pUniform1i(textureLocation,texture?1:0);glBindTexture(GL_TEXTURE_2D,texture);
 }
-void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,float angle,float scale,glm::vec3 tint=glm::vec3(1)){
+void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,float angle,float scale,glm::vec3 tint=glm::vec3(1),glm::vec3 stretch=glm::vec3(1)){
     auto m=glm::translate(worldPrefix*(reflectionPass?glm::scale(glm::mat4(1),glm::vec3(1,-1,1)):glm::mat4(1)),position);
-    m=glm::rotate(m,glm::radians(angle),glm::vec3(0,1,0));m=glm::scale(m,glm::vec3(scale));
+    m=glm::rotate(m,glm::radians(angle),glm::vec3(0,1,0));m=glm::scale(m,stretch*scale);
     m=glm::translate(m,glm::vec3(-model.center.x,-model.bottom,-model.center.z));
     auto mv=view*m;glMatrixMode(GL_MODELVIEW);glLoadMatrixf(glm::value_ptr(mv));
     glEnableClientState(GL_VERTEX_ARRAY);glEnableClientState(GL_NORMAL_ARRAY);glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -138,60 +143,16 @@ void drawWater(){
     vertex(-70,0,-80,-7,-8);vertex(-70,0,50,-7,5);vertex(70,0,50,7,5);vertex(70,0,-80,7,-8);
     glEnd();
 }
-// Sample the same ridges when building geometry and planting distant trees.
-float ridgeHeight(float x,float z,int row){
-    float centerZ=-29-row*17.f;
-    float depth=std::exp(-std::pow((z-centerZ)/8.f,2.f));
-    float peaks=0;
-    const float centers[]={-35.f,-16.f,12.f,31.f,48.f};
-    const float heights[]={5.f,6.7f,9.f,6.2f,8.2f};
-    const float widths[]={12.f,11.f,13.f,12.f,14.f};
-    for(int k=0;k<5;++k){
-        float ridge=std::exp(-std::pow((x-centers[k]+row*3.f)/widths[k]*1.25f,2.f));
-        peaks=glm::max(peaks,heights[k]*ridge);
-    }
-    return -.3f+depth*peaks*(.86f+.065f*std::sin(x*.47f+z*.31f)+.055f*std::sin(x*.91f-z*.46f));
-}
-float ridgeSurface(float x,float z,int row){
-    // Interpolate on the exact two triangles used by the 2 m ridge grid.
-    float originZ=-43-row*17.f;
-    if(x<-70.f||x>70.f||z<originZ||z>originZ+28.f)return -.3f;
-    float ax=std::floor((x+70.f)*.5f)*2.f-70.f;
-    float az=std::floor((z-originZ)*.5f)*2.f+originZ;
-    float u=(x-ax)*.5f,v=(z-az)*.5f;
-    float a=ridgeHeight(ax,az,row),c=ridgeHeight(ax+2,az+2,row);
-    if(u<=v)return (1-v)*a+(v-u)*ridgeHeight(ax,az+2,row)+u*c;
-    return (1-u)*a+(u-v)*ridgeHeight(ax+2,az,row)+v*c;
-}
-std::vector<SceneModel> buildMountains(){
-    std::vector<SceneModel> models;
-    for(int row=2;row>=0;--row){
-        float centerZ=-29-row*17.f;
-        std::vector<SceneVertex> vertices;vertices.reserve(14*70*6);
-        for(int iz=0;iz<14;++iz)for(int ix=0;ix<70;++ix){
-            float x=-70+ix*2.f,z=centerZ-14+iz*2.f;
-            auto p=[&](float xx,float zz){return glm::vec3(xx,ridgeHeight(xx,zz,row),zz);};
-            auto tri=[&](glm::vec3 a,glm::vec3 b,glm::vec3 c){
-                auto n=glm::normalize(glm::cross(b-a,c-a));
-                if(n.y<0)n=-n;
-                for(auto v:{a,b,c})vertices.push_back({v,n,glm::vec2(v.x*.12f,v.z*.12f)});
-            };
-            tri(p(x,z),p(x,z+2),p(x+2,z+2));tri(p(x,z),p(x+2,z+2),p(x+2,z));
-        }
-        GpuBatch batch;batch.kind=4;batch.color=glm::vec3(.16f+row*.13f,.31f+row*.105f,.35f+row*.09f);batch.count=static_cast<GLsizei>(vertices.size());
-        sceneGenBuffers(1,&batch.buffer);sceneBindBuffer(SCENE_ARRAY_BUFFER,batch.buffer);
-        sceneBufferData(SCENE_ARRAY_BUFFER,vertices.size()*sizeof(SceneVertex),vertices.data(),SCENE_STATIC_DRAW);sceneBindBuffer(SCENE_ARRAY_BUFFER,0);
-        SceneModel model;model.batches.push_back(batch);model.triangles=vertices.size()/3;models.push_back(model);
-    }
-    return models;
-}
-SceneModel buildMeadow(){
+constexpr int meadowPatchCount=4;
+SceneModel buildMeadow(int patch){
     SceneModel model;
+    glm::vec3 minimum(1000),maximum(-1000);
     auto random=[](float n){return glm::fract(std::sin(n*127.1f+31.7f)*43758.5453f);};
     for(int group=0;group<3;++group){
         std::vector<SceneVertex> vertices;
         for(int i=group;i<2800;i+=3){
             float x=-13+random(float(i)+1)*10,z=-12+random(float(i)+4)*22;
+            if(int((z+12)*meadowPatchCount/22)!=patch)continue;
             if(x>bank(z)-.75f)continue;
             if(std::sin(x*1.7f+std::sin(z*.8f))+std::cos(z*1.3f)<-.45f)continue;
             if(glm::length(glm::vec2(x-scene_layout::caozhiPosition.x,z-scene_layout::caozhiPosition.z))<1.0f)continue;
@@ -206,27 +167,19 @@ SceneModel buildMeadow(){
                 }
             }
         }
+        for(const auto& vertex:vertices){
+            minimum=glm::min(minimum,vertex.position);
+            maximum=glm::max(maximum,vertex.position);
+            model.pickTriangles.push_back(vertex.position);
+        }
         GpuBatch batch;batch.kind=5;batch.color=group==0?glm::vec3(.22f,.34f,.19f):group==1?glm::vec3(.33f,.41f,.24f):glm::vec3(.18f,.28f,.19f);batch.count=static_cast<GLsizei>(vertices.size());
         sceneGenBuffers(1,&batch.buffer);sceneBindBuffer(SCENE_ARRAY_BUFFER,batch.buffer);sceneBufferData(SCENE_ARRAY_BUFFER,vertices.size()*sizeof(SceneVertex),vertices.data(),SCENE_STATIC_DRAW);sceneBindBuffer(SCENE_ARRAY_BUFFER,0);model.batches.push_back(batch);
-    }return model;
-}
-void drawReeds(){
-    for(int i=0;i<90;++i){
-        float z=-15+i*.15f+.40f*std::sin(i*1.8f);float x=bank(z)-.12f-.75f*(.5f+.5f*std::sin(i*2.7f));
-        if(std::sin(z*.9f)<-.1f)continue;
-        float height=.16f+.23f*(.5f+.5f*std::sin(i*5.1f));
-        material(i%3?glm::vec3(.32f,.38f,.23f):glm::vec3(.52f,.45f,.27f),3);
-        glNormal3f(0,1,0);glBegin(GL_TRIANGLES);
-        for(int blade=0;blade<3;++blade){
-            float a=blade*2.09f+i;glm::vec3 side(.017f*std::cos(a),0,.017f*std::sin(a));
-            for(int k=0;k<4;++k){
-                float t0=k/4.f,t1=(k+1)/4.f;
-                auto p=[&](float t){return glm::vec3(x+.13f*std::sin(a)*t*t,.15f+height*t,z+.10f*std::cos(a)*t*t);};
-                auto a0=p(t0)-side*(1-t0),b0=p(t0)+side*(1-t0),a1=p(t1)-side*(1-t1),b1=p(t1)+side*(1-t1);
-                for(auto v:{a0,b0,b1,a0,b1,a1})vertex(v.x,v.y,v.z,0,0);
-            }
-        }glEnd();
     }
+    model.center=(minimum+maximum)*.5f;
+    model.bottom=minimum.y;
+    model.size=maximum-minimum;
+    for(auto& point:model.pickTriangles)point-=glm::vec3(model.center.x,model.bottom,model.center.z);
+    return model;
 }
 void sky(int w,int h){
     pUseProgram(0);glDisable(GL_DEPTH_TEST);glMatrixMode(GL_PROJECTION);glLoadIdentity();glMatrixMode(GL_MODELVIEW);glLoadIdentity();
@@ -252,30 +205,42 @@ void sky(int w,int h){
     }
     glEnable(GL_DEPTH_TEST);
 }
-void resetView(){mainShot=true;yaw=scene_layout::mainYaw;pitch=scene_layout::mainPitch;distanceToTarget=scene_layout::mainDistance;target=scene_layout::mainTarget;}
+void resetView(){yaw=scene_layout::mainYaw;pitch=scene_layout::mainPitch;distanceToTarget=scene_layout::mainDistance;target=scene_layout::mainTarget;}
 void mouseButton(GLFWwindow* w,int button,int action,int){
     if(button==GLFW_MOUSE_BUTTON_LEFT)leftDown=action==GLFW_PRESS;
     if(button==GLFW_MOUSE_BUTTON_RIGHT)rightDown=action==GLFW_PRESS;
     glfwGetCursorPos(w,&lastX,&lastY);
+    if(layoutEditor.active&&button==GLFW_MOUSE_BUTTON_LEFT){
+        if(leftDown)layoutEditor.click(w,{float(lastX),float(lastY)});
+        else layoutEditor.endDrag();
+    }
 }
-void mouseMove(GLFWwindow*,double x,double y){
+void mouseMove(GLFWwindow* w,double x,double y){
     float dx=float(x-lastX),dy=float(y-lastY);lastX=x;lastY=y;
-    if(leftDown){mainShot=false;yaw-=dx*.25f;pitch=glm::clamp(pitch+dy*.22f,5.0f,80.0f);}
-    if(rightDown){mainShot=false;float a=glm::radians(yaw);target+=glm::vec3(-std::cos(a)*dx,dy*.45f,std::sin(a)*dx)*distanceToTarget*.0015f;}
+    if(leftDown&&layoutEditor.active){
+        bool fine=glfwGetKey(w,GLFW_KEY_LEFT_SHIFT)==GLFW_PRESS||glfwGetKey(w,GLFW_KEY_RIGHT_SHIFT)==GLFW_PRESS;
+        layoutEditor.drag(w,{float(x),float(y)},fine);
+    }else if(leftDown){yaw-=dx*.25f;pitch=glm::clamp(pitch+dy*.22f,5.0f,80.0f);}
+    if(rightDown){float a=glm::radians(yaw);target+=glm::vec3(-std::cos(a)*dx,dy*.45f,std::sin(a)*dx)*distanceToTarget*.0015f;}
 }
-void scroll(GLFWwindow*,double,double dy){mainShot=false;distanceToTarget=glm::clamp(distanceToTarget*std::exp(float(-dy)*.1f),5.0f,65.0f);}
-void keyboard(GLFWwindow* w,int key,int,int action,int){
+void scroll(GLFWwindow*,double,double dy){distanceToTarget=glm::clamp(distanceToTarget*std::exp(float(-dy)*.1f),5.0f,65.0f);}
+void keyboard(GLFWwindow* w,int key,int,int action,int mods){
+    if(layoutEditor.key(w,key,action,mods))return;
     if(action!=GLFW_PRESS)return;
+    if(key==GLFW_KEY_TAB){
+        layoutEditor.active=!layoutEditor.active;
+        leftDown=rightDown=false;
+        layoutEditor.endDrag();
+        layoutEditor.title(w);
+    }
     if(key==GLFW_KEY_ESCAPE)glfwSetWindowShouldClose(w,1);
-    if(key==GLFW_KEY_SPACE)paused=!paused;
-    if(key==GLFW_KEY_P)markers=!markers;
     if(key==GLFW_KEY_H)showHelp=!showHelp;
-    if(key==GLFW_KEY_R){resetView();animationTime=0;paused=false;}
+    if(key==GLFW_KEY_R)resetView();
     if(key==GLFW_KEY_F9)captureRequested=true;
     if(key==GLFW_KEY_1)resetView();
-    if(key==GLFW_KEY_2){mainShot=false;yaw=48;pitch=29;distanceToTarget=23;target=glm::vec3(-1,1,-3);}
-    if(key==GLFW_KEY_3){mainShot=false;yaw=4;pitch=10;distanceToTarget=6;target=farewellPosition(animationTime)+glm::vec3(0,1.4f,0);}
-    if(key==GLFW_KEY_4){mainShot=false;yaw=25;pitch=9;distanceToTarget=6;target=scene_layout::caozhiPosition+glm::vec3(0,1.2f,0);}
+    if(key==GLFW_KEY_2){yaw=48;pitch=29;distanceToTarget=23;target=glm::vec3(-1,1,-3);}
+    if(key==GLFW_KEY_3){yaw=4;pitch=10;distanceToTarget=6;target=layoutEditor.items[luoshenItem].pose.position+glm::vec3(0,1.4f,0);}
+    if(key==GLFW_KEY_4){yaw=25;pitch=9;distanceToTarget=6;target=layoutEditor.items[caozhiItem].pose.position+glm::vec3(0,1.2f,0);}
 }
 void saveFrame(const std::filesystem::path& path,int w,int h){
     int stride=(w*3+3)&~3;std::vector<unsigned char> data(size_t(stride)*h);
@@ -285,11 +250,6 @@ void saveFrame(const std::filesystem::path& path,int w,int h){
     std::ofstream out(path,std::ios::binary);out.write(reinterpret_cast<char*>(&fh),sizeof(fh));out.write(reinterpret_cast<char*>(&ih),sizeof(ih));out.write(reinterpret_cast<char*>(data.data()),data.size());
     if(!out)throw std::runtime_error("Cannot write screenshot");
 }
-void marker(glm::vec3 p,glm::vec3 color){
-    material(color);glNormal3f(0,1,0);glBegin(GL_TRIANGLE_FAN);vertex(p.x,p.y,p.z,0,0);
-    for(int i=0;i<=40;++i){float a=i*6.2831853f/40;vertex(p.x+.4f*std::cos(a),p.y,p.z+.4f*std::sin(a),0,0);}glEnd();
-}
-
 #include "environment_effects.h"
 
 int wmain(int argc,wchar_t** argv){
@@ -310,12 +270,13 @@ int wmain(int argc,wchar_t** argv){
         glfwWindowHint(GLFW_SAMPLES,4);
         glfwWindowHint(GLFW_STENCIL_BITS,8);
         if(capture||smoke)glfwWindowHint(GLFW_VISIBLE,GLFW_FALSE);
-        auto window=glfwCreateWindow(1600,900,"Luoshen | 1/2/3/4 views | Space pause | R replay | P path | H text | F9 screenshot",nullptr,nullptr);
+        auto window=glfwCreateWindow(1600,900,"Luoshen | 1/2/3/4 views | R reset view | H text | F9 screenshot",nullptr,nullptr);
         if(!window)throw std::runtime_error("Window creation failed");
         glfwMakeContextCurrent(window);glfwSwapInterval(capture?0:1);
         glfwSetMouseButtonCallback(window,mouseButton);glfwSetCursorPosCallback(window,mouseMove);
         glfwSetScrollCallback(window,scroll);glfwSetKeyCallback(window,keyboard);
-        glfwSetWindowFocusCallback(window,[](GLFWwindow*,int focus){if(!focus)leftDown=rightDown=false;});
+        glfwSetWindowFocusCallback(window,[](GLFWwindow*,int focus){if(!focus){leftDown=rightDown=false;layoutEditor.endDrag();}});
+        layoutEditor.title(window);
         if(!initShaderFunctions())throw std::runtime_error("Shader functions unavailable");
         sceneGenBuffers=reinterpret_cast<GenBuffersFn>(glfwGetProcAddress("glGenBuffers"));
         sceneBindBuffer=reinterpret_cast<BindBufferFn>(glfwGetProcAddress("glBindBuffer"));
@@ -336,16 +297,79 @@ int wmain(int argc,wchar_t** argv){
         glEnable(GL_DEPTH_TEST);glDisable(GL_CULL_FACE);
         std::cout<<"GL version: "<<glGetString(GL_VERSION)<<"\nPhong shader linked successfully\n";
         ShadowMap shadows;shadows.init(program);
-        auto boat=loadModel("boat-medieval/wooden-rowboat.obj");
-        auto pine=loadModel("composition/river-pine.obj");auto distantBank=loadModel("composition/distant-bank.obj");
-        auto canopy=loadModel("composition/boat-canopy.obj");auto blossom=loadModel("composition/blossom-frame.obj");auto ledge=loadModel("composition/river-ledge.obj");
-        auto caozhi=loadModel("../luoshen-characters/caozhi/caozhi.obj");
-        auto luoshen=loadModel("../luoshen-characters/luoshen/luoshen.obj");
+        auto prop=[](const char* name,bool pickable=false){return loadModel(std::string("imported-props/v6/")+name+".obj",pickable);};
+        auto boat=prop("05_covered_wooden_boat",true);
+        auto blossom=prop("01_foreground_blossom_tree",true);
+        auto ledge=prop("03_left_bank_main_platform");
+        auto distantBank=prop("04_right_bank_slope");
+        SceneModel pines[]={prop("02_pine_tree_A",true),prop("02_pine_tree_B",true),prop("02_pine_tree_C",true)};
+        SceneModel rocks[]={prop("03_shore_rock_A",true),prop("03_shore_rock_B",true),prop("03_shore_rock_C",true)};
+        SceneModel reeds[]={prop("06_shore_reeds_A",true),prop("06_shore_reeds_B",true),prop("06_shore_reeds_C",true)};
+        SceneModel mountains[]={prop("07_mountain_far"),prop("07_mountain_mid"),prop("07_mountain_near")};
+        SceneModel petals[]={prop("08_floating_petal_A"),prop("08_floating_petal_B"),prop("08_floating_petal_C")};
+        auto caozhi=loadModel("../luoshen-characters/caozhi/caozhi.obj",true);
+        auto luoshen=loadModel("../luoshen-characters/luoshen/luoshen.obj",true);
+        struct EditableModel {const SceneModel* model;glm::vec3 stretch;};
+        std::vector<EditableModel> editableModels;
+        auto editable=[&](const SceneModel& model,std::string id,std::string name,
+                          LayoutEditor::Pose pose,glm::vec3 stretch=glm::vec3(1),bool waterLocked=false){
+            editableModels.push_back({&model,stretch});
+            layoutEditor.items.push_back({id,name,pose,model.size*stretch,waterLocked,&model.pickTriangles,stretch});
+        };
+        editable(boat,"boat",u8"小舟",{scene_layout::boatPosition,scene_layout::boatYaw,scene_layout::boatScale},glm::vec3(1),true);
+        editable(blossom,"blossom",u8"桃花树",{scene_layout::blossomPosition,scene_layout::blossomYaw,scene_layout::blossomScale},scene_layout::blossomStretch);
+        for(int i=1;i<int(scene_layout::ledges.size());++i){
+            const auto& rock=scene_layout::ledges[i];
+            auto number=std::to_string(i);
+            editable(rocks[i-1],"foreground-"+number,u8"前景岩石 "+number,
+                     {rock.position+glm::vec3(0,.20f,0),rock.yaw,rock.scale*1.4f});
+        }
+        for(int i=0;i<int(scene_layout::bankRocks.size());++i){
+            const auto& rock=scene_layout::bankRocks[i];
+            auto number=std::to_string(i+1);
+            auto position=rock.position;
+            if(position.x<0&&position.y==0)position.y=terrainHeight(position.x,position.z)-.05f;
+            editable(rocks[rock.variant],"bank-"+number,(rock.position.x<0?u8"左岸岩石 ":u8"右岸岩石 ")+number,
+                     {position,rock.yaw,1.f},rock.size);
+        }
+        for(size_t i=0;i<scene_layout::riverPines.size();++i){
+            const auto& pine=scene_layout::riverPines[i];
+            auto position=pine.position;
+            position.y=position.x<0?terrainHeight(position.x,position.z)-.015f:position.y-.09f;
+            auto number=std::to_string(i+1);
+            editable(pines[i%3],"pine-"+number,u8"松树 "+number,{position,pine.yaw,pine.scale});
+        }
+        for(size_t i=0;i<scene_layout::leftGrove.size();++i){
+            const auto& pine=scene_layout::leftGrove[i];
+            auto position=pine.position;
+            position.y=terrainHeight(position.x,position.z)-.015f;
+            auto number=std::to_string(i+1);
+            editable(pines[(i+2)%3],"left-grove-"+number,u8"左岸远松 "+number,{position,pine.yaw,pine.scale});
+        }
+        for(int i=0;i<10;++i){
+            float z=-13.f+1.55f*i;
+            float x=bank(z)-.22f-.19f*(i%3);
+            auto number=std::to_string(i+1);
+            editable(reeds[i%3],"reeds-"+number,u8"岸边草丛 "+number,{{x,terrainHeight(x,z)-.015f,z},25.f*i,.58f});
+        }
+        caozhiItem=layoutEditor.items.size();
+        editable(caozhi,"caozhi",u8"曹植",{scene_layout::caozhiPosition,scene_layout::caozhiYaw,scene_layout::caozhiScale});
+        luoshenItem=layoutEditor.items.size();
+        editable(luoshen,"luoshen",u8"洛神",{scene_layout::luoshenPosition,scene_layout::luoshenYaw,scene_layout::luoshenScale});
+        const auto firstMeadowItem=editableModels.size();
+        std::array<SceneModel,meadowPatchCount> meadow;
+        for(int i=0;i<meadowPatchCount;++i){
+            meadow[i]=buildMeadow(i);
+            const auto& m=meadow[i];
+            auto number=std::to_string(i+1);
+            editable(m,"meadow-"+number,u8"草地草片 "+number,{{m.center.x,m.bottom,m.center.z},0,1});
+        }
+        layoutEditor.path=assetRoot.parent_path().parent_path()/"scene-layout.txt";
+        layoutEditor.load();
         SceneMaterial groundMat;groundMat.colorMap=assetRoot/"ground/color.png";groundColor=loadMaterialTexture(groundMat);
         groundMat.colorMap=assetRoot/"ground/normal.png";groundNormal=loadMaterialTexture(groundMat);
         sceneActiveTexture(0x84C1);glBindTexture(GL_TEXTURE_2D,groundNormal);sceneActiveTexture(0x84C0);
-        std::vector<SceneModel> rocks;for(int i=1;i<=6;++i){char f[64];std::snprintf(f,sizeof(f),"rocks/rock_%02d.obj",i);rocks.push_back(loadModel(f));}
-        buildGround();auto mountainModels=buildMountains();auto meadow=buildMeadow();
+        buildGround();
         auto checkGL=[&](const char* label){GLenum err=glGetError();std::cout<<label<<" GL error="<<err<<'\n';if(err)throw std::runtime_error("OpenGL error");};
         checkGL("Assets uploaded");
         // Exercise the same callback handlers used by real mouse/keyboard input.
@@ -353,53 +377,40 @@ int wmain(int argc,wchar_t** argv){
         if(yaw==originalYaw)throw std::runtime_error("Orbit control failed");
         auto beforeZoom=distanceToTarget;scroll(window,0,2);
         if(distanceToTarget>=beforeZoom)throw std::runtime_error("Zoom control failed");
-        keyboard(window,GLFW_KEY_SPACE,0,GLFW_PRESS,0);
-        if(!paused)throw std::runtime_error("Pause control failed");
-        animationTime=17;keyboard(window,GLFW_KEY_R,0,GLFW_PRESS,0);
-        if(animationTime!=0||paused)throw std::runtime_error("Replay must restart even when paused");
-        std::cout<<"Control callbacks: orbit, zoom, pause/reset PASS\n";
-        std::cout<<"CONTROLS: left orbit, right pan, wheel zoom; WASD pan; 1/2/3/4 view; P path; H text; Space pause; R replay; F9 screenshot\n";
+        keyboard(window,GLFW_KEY_R,0,GLFW_PRESS,0);
+        if(yaw!=scene_layout::mainYaw||distanceToTarget!=scene_layout::mainDistance)
+            throw std::runtime_error("Reset view failed");
+        std::cout<<"Control callbacks: orbit, zoom, reset PASS\n";
         double previous=glfwGetTime(),start=previous;int frame=0;size_t frames=0;double fpsStart=previous;
         while(!glfwWindowShouldClose(window)){
             glfwPollEvents();double now=glfwGetTime();float dt=glm::clamp(float(now-previous),0.0f,.05f);previous=now;
-            if(!paused)animationTime+=dt;
-            if(capture){const double times[]={0,0,0,0,22.5,45};animationTime=times[frame];}
             float speed=dt*distanceToTarget*.15f;
+            if(!layoutEditor.active){
             if(glfwGetKey(window,GLFW_KEY_A)==GLFW_PRESS)target.x-=speed;
             if(glfwGetKey(window,GLFW_KEY_D)==GLFW_PRESS)target.x+=speed;
             if(glfwGetKey(window,GLFW_KEY_W)==GLFW_PRESS)target.z-=speed;
             if(glfwGetKey(window,GLFW_KEY_S)==GLFW_PRESS)target.z+=speed;
-            if(glfwGetKey(window,GLFW_KEY_A)==GLFW_PRESS||glfwGetKey(window,GLFW_KEY_D)==GLFW_PRESS||glfwGetKey(window,GLFW_KEY_W)==GLFW_PRESS||glfwGetKey(window,GLFW_KEY_S)==GLFW_PRESS)mainShot=false;
+            }
             int w,h;glfwGetFramebufferSize(window,&w,&h);if(w==0||h==0){glfwWaitEvents();continue;}
             glViewport(0,0,w,h);glStencilMask(0xff);glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);sky(w,h);
             auto projection=glm::perspective(glm::radians(45.0f),float(w)/h,.1f,160.0f);
             float a=glm::radians(yaw),b=glm::radians(pitch);
-            float pullback=mainShot?glm::smoothstep(0.f,45.f,float(animationTime)):0.f;
-            auto shotTarget=target+glm::vec3(1.2f*pullback,0,0);
-            glm::vec3 eye=shotTarget+(distanceToTarget+2.f*pullback)*glm::vec3(std::sin(a)*std::cos(b),std::sin(b),std::cos(a)*std::cos(b));
-            auto view=glm::lookAt(eye,shotTarget,glm::vec3(0,1,0));
-            auto goddess=farewellPosition(animationTime);goddess.y+=.012f*std::sin(float(animationTime)*1.3f);
-            auto drawCasters=[&](const glm::mat4& view){
-            drawModel(blossom,view,scene_layout::blossomPosition,scene_layout::blossomYaw,scene_layout::blossomScale);
-            drawModel(distantBank,view,scene_layout::distantBankPosition,0,1);
-            for(const auto& p:scene_layout::riverPines){
-                auto position=p.position;
-                if(position.x<0)position.y=terrainHeight(position.x,position.z)-.015f;
-                for(int row=0;row<3;++row)position.y=glm::max(position.y,ridgeSurface(position.x,position.z,row)-.06f);
-                drawModel(pine,view,position,p.yaw,p.scale);
-            }
-            for(const auto& r:scene_layout::ledges)drawModel(ledge,view,r.position,r.yaw,r.scale);
-            drawModel(rocks[2],view,glm::vec3(-4.8f,-.02f,-11.f),40,.22f);
-            drawModel(rocks[4],view,glm::vec3(-5.1f,-.04f,-14.f),-15,.18f);
-            float bob=.018f*std::sin(float(animationTime)*.85f);
-            drawModel(boat,view,scene_layout::boatPosition+glm::vec3(0,bob,0),scene_layout::boatYaw,scene_layout::boatScale);
-            drawModel(canopy,view,scene_layout::boatPosition+glm::vec3(0,.25f+bob,0),scene_layout::boatYaw,scene_layout::boatScale);
-            drawModel(caozhi,view,scene_layout::caozhiPosition,scene_layout::caozhiYaw,scene_layout::caozhiScale);
-            drawModel(luoshen,view,goddess,scene_layout::luoshenYaw,scene_layout::luoshenScale);
+            glm::vec3 eye=target+distanceToTarget*glm::vec3(std::sin(a)*std::cos(b),std::sin(b),std::cos(a)*std::cos(b));
+            auto view=glm::lookAt(eye,target,glm::vec3(0,1,0));
+            auto goddess=layoutEditor.items[luoshenItem].pose.position;
+            auto drawEditable=[&](size_t i,const glm::mat4& cameraView){
+                const auto& item=layoutEditor.items[i];
+                const auto& entry=editableModels[i];
+                drawModel(*entry.model,cameraView,item.pose.position,item.pose.yaw,item.pose.scale,glm::vec3(1),entry.stretch);
             };
-            pUseProgram(program);uniform1f(timeLocation,float(animationTime));shadows.begin();drawCasters(shadows.lightView);shadows.end(w,h,view,!noShadows);
+            auto drawCasters=[&](const glm::mat4& view){
+            for(size_t i=0;i<firstMeadowItem;++i)drawEditable(i,view);
+            drawModel(distantBank,view,scene_layout::distantBankPosition,0,1,glm::vec3(1),glm::vec3(1.55f,.42f,8.5f));
+            drawModel(ledge,view,scene_layout::ledges[0].position,-8,1);
+            };
+            pUseProgram(program);uniform1f(timeLocation,0.f);shadows.begin();drawCasters(shadows.lightView);shadows.end(w,h,view,!noShadows);
             glMatrixMode(GL_PROJECTION);glLoadMatrixf(glm::value_ptr(projection));
-            pUseProgram(program);uniform1f(timeLocation,float(animationTime));
+            pUseProgram(program);uniform1f(timeLocation,0.f);
             auto worldUp=glm::vec3(view*glm::vec4(0,1,0,0));pUniform3f(worldUpLocation,worldUp.x,worldUp.y,worldUp.z);uniform1f(cameraHeightLocation,eye.y);
             glm::vec3 light=glm::vec3(view*glm::vec4(-12,16,9,1));pUniform3f(lightLocation,light.x,light.y,light.z);
 
@@ -414,29 +425,31 @@ int wmain(int argc,wchar_t** argv){
             drawCasters(view);
             reflectionPass=false;glDisable(GL_BLEND);glDisable(GL_STENCIL_TEST);
             glLoadMatrixf(glm::value_ptr(view));glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);drawWater();glDisable(GL_BLEND);
-            for(const auto& mountain:mountainModels)drawModel(mountain,view,glm::vec3(0),0,1);material(glm::vec3(.85f,.90f,.81f),2,groundColor);
+            drawModel(mountains[0],view,{-2,-.22f,-51},0,3.4f,{.84f,.91f,1});
+            drawModel(mountains[1],view,{9,-.20f,-36},-6,2.9f,{.84f,.91f,1});
+            drawModel(mountains[0],view,scene_layout::leftFarPosition,0,1,{.84f,.91f,1},scene_layout::leftFarStretch);
+            drawModel(mountains[2],view,scene_layout::leftMountainPosition,0,1,{.84f,.91f,1},scene_layout::leftMountainStretch);
+            drawModel(mountains[2],view,scene_layout::leftFoothillPosition,0,1,{.84f,.91f,1},scene_layout::leftFoothillStretch);
+            glLoadMatrixf(glm::value_ptr(view));
+            material(glm::vec3(.85f,.90f,.81f),2,groundColor);
             glCallList(groundList);
-            glLoadMatrixf(glm::value_ptr(view));drawReeds();drawModel(meadow,view,glm::vec3(0),0,1);
+            for(size_t i=firstMeadowItem;i<editableModels.size();++i)drawEditable(i,view);
             drawCasters(view);
             glLoadMatrixf(glm::value_ptr(view));
-            environment_effects::drawWaterPetals(animationTime,goddess);
-            if(markers){
-                marker(scene_layout::caozhiPosition,glm::vec3(.2f,.3f,.5f));
-                marker(goddess,glm::vec3(.8f,.5f,.25f));
-                material(glm::vec3(.85f,.65f,.3f));glLineWidth(2);glBegin(GL_LINE_STRIP);
-                for(int i=0;i<=100;++i){auto p=farewellPosition(i*.45);glVertex3f(p.x,.07f,p.z);}glEnd();
-            }
+            environment_effects::drawWaterPetals(0.,goddess,view,petals);
             drawSceneOverlay(showHelp?overlay:titleOverlay,showHelp);
+            int windowWidth,windowHeight;
+            glfwGetWindowSize(window,&windowWidth,&windowHeight);
+            layoutEditor.draw(projection*view,windowWidth,windowHeight);
             if(capture){
                 auto folder=exe/"captures";std::filesystem::create_directories(folder);
-                const char* names[]={"scene-main.bmp","scene-overview.bmp","scene-luoshen.bmp","scene-caozhi.bmp","scene-departure.bmp","scene-farewell.bmp"};
+                const char* names[]={"scene-main.bmp","scene-overview.bmp","scene-luoshen.bmp","scene-caozhi.bmp"};
                 saveFrame(folder/names[frame],w,h);
                 checkGL("Frame rendered");
                 if(frame==0)keyboard(window,GLFW_KEY_2,0,GLFW_PRESS,0);
                 if(frame==1)keyboard(window,GLFW_KEY_3,0,GLFW_PRESS,0);
                 if(frame==2)keyboard(window,GLFW_KEY_4,0,GLFW_PRESS,0);
-                if(frame==3){resetView();markers=false;}
-                if(++frame>=6)break;
+                if(++frame>=4)break;
             }
             if(captureRequested){saveFrame(exe/"screenshot.bmp",w,h);captureRequested=false;}
             if(smoke&&frame<3){
@@ -454,7 +467,15 @@ int wmain(int argc,wchar_t** argv){
         glDeleteTextures(1,&overlay);
         glDeleteTextures(1,&titleOverlay);
         auto release=[](SceneModel& m){for(auto b:m.batches)sceneDeleteBuffers(1,&b.buffer);};
-        release(boat);release(blossom);release(ledge);release(canopy);release(pine);release(distantBank);release(caozhi);release(luoshen);release(meadow);for(auto& mountain:mountainModels)release(mountain);for(auto& r:rocks)release(r);glDeleteLists(groundList,1);
+        release(boat);release(blossom);release(ledge);release(distantBank);
+        release(caozhi);release(luoshen);
+        for(auto& patch:meadow)release(patch);
+        for(auto& m:pines)release(m);
+        for(auto& m:rocks)release(m);
+        for(auto& m:reeds)release(m);
+        for(auto& m:mountains)release(m);
+        for(auto& m:petals)release(m);
+        glDeleteLists(groundList,1);
         shadows.destroy();pDeleteProgram(program);glfwDestroyWindow(window);glfwTerminate();CoUninitialize();
         return 0;
     }catch(const std::exception& e){std::cerr<<"ERROR: "<<e.what()<<'\n';return 1;}

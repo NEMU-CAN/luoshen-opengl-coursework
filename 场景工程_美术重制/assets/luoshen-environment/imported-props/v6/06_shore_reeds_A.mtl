@@ -1,0 +1,9 @@
+# Material library for 06_shore_reeds_A (Y-Up Low-Poly Origami Prop)
+newmtl Luoshen_Origami_Palette
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.050000 0.050000 0.050000
+Ns 20.000000
+d 1.000000
+illum 1
+map_Kd luoshen_scene_palette.png

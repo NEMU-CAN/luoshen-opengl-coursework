@@ -198,16 +198,19 @@ void main(){
         vec2 ndc=uv*2.0-1.0;
         float aspect=max(cloudParams.y/max(cloudParams.z,1.0),.5);
         vec3 rd=normalize(camRight*(ndc.x*aspect*.4142)+camUp*(ndc.y*.4142)-camBack);
-        float az=atan(rd.x,rd.z)+sceneTime*.01;
-        vec2 cuv=vec2(az*1.8,rd.y*7.0);
-        float n=noise(cuv)*.62+noise(cuv*2.1+3.7)*.38;
-        float puff=smoothstep(.55,.72,n);
-        puff*=smoothstep(.02,.08,rd.y)*(1.0-smoothstep(.5,.8,rd.y));
-        float band=exp(-pow((rd.y-.06)/.05,2.0))*smoothstep(0.0,.04,rd.y);
-        vec3 cloudCol=mix(vec3(.98,.90,.80),vec3(1.0,.97,.93),clamp(n,0.0,1.0));
-        vec3 mistCol=vec3(.70,.78,.84);
-        float alpha=clamp(puff*.62+band*.28,0.0,.62);
-        gl_FragColor=vec4(mix(mistCol,cloudCol,puff),alpha);
+        float drift=sceneTime*.012;
+        float wx=rd.x*rd.x, wz=rd.z*rd.z, wsum=max(wx+wz,1e-3);
+        vec2 scale=vec2(2.4,2.4);
+        float nx=noise(rd.yz*scale+vec2(drift,1.3));
+        float nz=noise(rd.xy*scale+vec2(4.2,drift));
+        float n=(nx*wx+nz*wz)/wsum;
+        float puff=smoothstep(.43,.55,n);
+        puff*=smoothstep(.015,.07,rd.y)*(1.0-smoothstep(.58,.88,rd.y));
+        float skyBand=exp(-pow((rd.y-.07)/.055,2.0))*smoothstep(0.0,.05,rd.y);
+        vec3 cloudCol=mix(vec3(.98,.91,.82),vec3(1.0,.97,.94),clamp(n,0.0,1.0));
+        vec3 mistCol=vec3(.72,.80,.86);
+        float alpha=clamp(puff*.58+skyBand*.26,0.0,.58);
+        gl_FragColor=vec4(mix(mistCol,cloudCol,clamp(puff,0.0,1.0)),alpha);
         return;
     }
     vec4 color=vec4(baseColor,1.0);
@@ -282,13 +285,14 @@ void main(){
     }else if(materialKind==4){
         lit=color.rgb*(vec3(.60,.66,.74)+vec3(.10,.11,.12)*diffuse);
     }else{
-        lit=color.rgb*(vec3(.24,.32,.40)+vec3(.40,.26,.15)*fold*visibility);
+        float shaped=diffuse*.75+fold*.25;
+        lit=color.rgb*(vec3(.26,.20,.18)+vec3(.68,.40,.18)*shaped*visibility);
         float fill=max(dot(N,normalize(vec3(-.2,.72,.48))),0.0);
-        lit+=color.rgb*vec3(.03,.06,.11)*fill;
+        lit+=color.rgb*vec3(.04,.05,.07)*fill;
         float up=max(dot(N,normalize(worldUpEye)),0.0);
-        lit+=color.rgb*vec3(.05,.035,.02)*up*fold;
+        lit+=color.rgb*vec3(.08,.045,.02)*up*shaped;
         float rim=pow(1.0-max(dot(N,V),0.0),2.6);
-        lit+=vec3(.07,.04,.028)*rim*(.25+.75*fold);
+        lit+=vec3(.10,.055,.03)*rim*(.2+.8*shaped);
     }
     float specStrength=materialKind==1?.03:(materialKind==7?.035:.010);
     vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
@@ -300,8 +304,9 @@ void main(){
     vec3 fogColor=materialKind==1?vec3(.60,.70,.76):(materialKind==4?vec3(.46,.54,.60):vec3(.82,.78,.74));
     lit=mix(lit,fogColor,clamp(fog,0.0,materialKind==4?.16:.24));
     if(materialKind==4){
-        float base=exp(-pow(max(worldHeight,0.0)/.7,2.0));
-        lit=mix(lit,vec3(.52,.62,.68),base*.22);
+        float foot=exp(-pow((worldHeight-1.3)/1.7,2.0));
+        float side=.7+.3*noise(textureCoord*vec2(1.4,.7));
+        lit=mix(lit,vec3(.66,.75,.82),clamp(foot*side,0.0,.5));
     }
     float opacity=materialKind==1?.86:1.0;
     if(reflectionPass==1){

@@ -205,14 +205,14 @@ void main(){
         vec3 sunDir=normalize(vec3(-.12,.16,-1.0));
         float ang=acos(clamp(dot(rd,sunDir),-1.0,1.0));
         float lift=smoothstep(0.0,.5,rd.y);
-        vec3 sky=mix(vec3(.97,.66,.46),vec3(.99,.82,.68),lift);
+        vec3 sky=mix(vec3(.97,.66,.46),vec3(.99,.76,.58),lift);
         float disc=1.0-smoothstep(.036,.040,ang);
         float below=dot(sunDir,camUp)-dot(rd,camUp);
         float cut=step(below,.012);
         disc*=cut;
-        float halo=(1.0-smoothstep(.040,.10,ang))*step(below,.016);
-        sky=mix(sky,vec3(.99,.78,.60),halo*.35);
-        sky=mix(sky,vec3(.99,.90,.76),disc*.78);
+        float halo=(1.0-smoothstep(.040,.055,ang))*step(below,.014);
+        sky=mix(sky,vec3(.99,.80,.64),halo*.12);
+        sky=mix(sky,vec3(.99,.90,.80),disc*.82);
         gl_FragColor=vec4(sky,1.0);
         return;
     }
@@ -226,9 +226,9 @@ void main(){
     if(materialKind==1){
         vec2 flow=textureCoord*10.0;
         float away=smoothstep(2.0,-10.0,flow.y);
-        color.rgb=mix(vec3(.27,.45,.54),vec3(.34,.52,.60),away);
+        color.rgb=mix(vec3(.48,.54,.55),vec3(.56,.60,.59),away);
         vec2 fromSun=flow-vec2(-1.1,-2.4);
-        sunBand=exp(-fromSun.x*fromSun.x/(2.4*2.4)-fromSun.y*fromSun.y/(1.6*1.6));
+        sunBand=exp(-fromSun.x*fromSun.x/(1.15*1.15)-fromSun.y*fromSun.y/(.85*.85));
     }
     if(materialKind==2){
         float patch=.5+.5*sin(textureCoord.x*2.0+sin(textureCoord.y*1.8))*cos(textureCoord.y*2.4);
@@ -260,8 +260,8 @@ void main(){
     if(materialKind==0 || materialKind==3 || materialKind==7){
         float warm=clamp((color.r-color.b-.06)/.20,0.0,1.0)*smoothstep(.55,.82,color.r);
         color.rgb=mix(color.rgb,vec3(min(color.r*1.03,1.0),min(color.g*1.01,.96),mix(color.b,.86,.75)),warm*.65);
-        float teal=smoothstep(.02,.10,color.g-color.r)*smoothstep(.40,.62,color.g);
-        color.rgb=mix(color.rgb,vec3(color.r*.82,color.g,min(color.b+.06,color.g)),teal*.4);
+        float teal=smoothstep(.0,.08,color.g-color.r)*smoothstep(.22,.50,color.g);
+        color.rgb=mix(color.rgb,vec3(color.r*.74,min(color.g*1.06,.82),min(color.b+.08,color.g)),teal*.65);
     }
     if(materialKind==0 && useTexture==0){
         float peak=max(color.r,color.g);
@@ -298,10 +298,12 @@ void main(){
     vec3 lit;
     if(materialKind==1){
         lit=color.rgb;
-        lit=mix(lit,vec3(.86,.62,.46),sunBand*.40);
+        lit=mix(lit,vec3(.78,.58,.46),sunBand*.28);
     }else if(ridge>.45){
-        float shaped=diffuse*.72+fold*.28;
-        lit=color.rgb*(vec3(.42,.46,.50)+vec3(.52,.44,.34)*shaped);
+        float shaped=diffuse*.5+fold*.5;
+        lit=color.rgb*(vec3(.70,.74,.78)+vec3(.26,.20,.14)*shaped);
+        float shade=1.0-smoothstep(.12,.65,shaped);
+        lit=mix(lit,vec3(.40,.50,.51),shade*.32);
     }else if(materialKind==4){
         float shaped=clamp(diffuse*.85+.1,0.0,1.0);
         shaped=shaped*.7+smoothstep(.05,.8,diffuse)*.3;
@@ -327,6 +329,13 @@ void main(){
         float rim=pow(1.0-max(dot(N,V),0.0),2.4);
         lit+=vec3(.11,.09,.07)*rim*(.22+.78*shaped);
     }
+    if(useTexture==1 && materialKind==0){
+        float sleeve=smoothstep(.02,.10,color.g-color.r)*smoothstep(.22,.48,color.g);
+        if(ridge>=.2)sleeve=0.0;
+        lit=mix(lit,vec3(lit.r*.76,min(lit.g*1.14,.70),min(lit.b*1.08,lit.g)),sleeve*.7);
+        float cream=smoothstep(.55,.78,color.r)*smoothstep(.02,.10,color.g-color.b)*smoothstep(.55,.75,color.g/max(color.r,.001));
+        lit=mix(lit,vec3(.94,.86,.76),cream*.7);
+    }
     float specStrength=materialKind==1?.006:(materialKind==7?.035:.010);
     vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
     lit+=specColor*specular*visibility*specStrength;
@@ -335,9 +344,9 @@ void main(){
     vec3 fogColor=materialKind==1?vec3(.58,.66,.72):(materialKind==4?vec3(.62,.70,.76):vec3(.78,.70,.62));
     lit=mix(lit,fogColor,clamp(fog,0.0,.02));
     if(ridge>.45){
-        float far=smoothstep(42.0,52.0,length(eyePosition));
-        float below=1.0-smoothstep(5.4,7.8,worldHeight);
-        lit=mix(lit,vec3(.79,.77,.73),clamp(far*(.2+.32*below),0.0,.40));
+        float far=smoothstep(30.0,46.0,length(eyePosition));
+        float waist=smoothstep(1.5,3.2,worldHeight)*(1.0-smoothstep(5.2,7.2,worldHeight));
+        lit=mix(lit,vec3(.68,.72,.71),clamp(far*waist,0.0,.40));
     }
     float opacity=materialKind==1?.82:1.0;
     if(reflectionPass==1){

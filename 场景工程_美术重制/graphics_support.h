@@ -252,7 +252,7 @@ void main(){
     if(materialKind==1){
         vec2 flow=textureCoord*10.0;
         float away=smoothstep(2.0,-10.0,flow.y);
-        color.rgb=mix(vec3(.45,.56,.61),vec3(.53,.63,.66),away);
+        color.rgb=mix(vec3(.45,.584,.61),vec3(.53,.654,.66),away);
         vec2 fromSun=flow-vec2(-1.1,-2.4);
         sunBand=exp(-fromSun.x*fromSun.x/(.72*.72)-fromSun.y*fromSun.y/(.50*.50));
         if(reflectionPass==0){
@@ -338,7 +338,7 @@ void main(){
     vec3 lit;
     if(materialKind==1){
         lit=color.rgb;
-        lit=mix(lit,vec3(.93,.76,.64),sunBand*.62);
+        lit=mix(lit,vec3(.93,.742,.64),sunBand*.62);
         if(wakeMoved>.5){
             vec3 nEye=normalize((gl_ModelViewMatrix*vec4(wakeNormal,0.0)).xyz);
             float flatD=max(dot(normalize(worldUpEye),L),0.0);
@@ -354,6 +354,8 @@ void main(){
         float dark=1.0-smoothstep(.42,.70,top);
         lit=mix(lit,vec3(.58,.63,.62),mix(.50,.93,dark));
         float hot=smoothstep(.55,.66,lit.g)*smoothstep(.04,.12,lit.g-lit.r);
+        lit.r=mix(lit.r,.58,hot*.65);
+        lit.g=mix(lit.g,.635,hot*.45);
         lit.r=mix(lit.r,.58,hot*.65);
         lit.g=mix(lit.g,.635,hot*.45);
     }else if(materialKind==4){
@@ -417,6 +419,14 @@ void main(){
         float settle=mix(foot,notch,smoothstep(.2,.8,away));
         float far=smoothstep(22.0,40.0,length(eyePosition));
         lit=mix(lit,vec3(.70,.77,.79),clamp(far*settle,0.0,.70));
+        float ruddy=smoothstep(.585,.70,lit.r);
+        lit.r=mix(lit.r,.52,ruddy);
+        float leftish=smoothstep(.545,.555,lit.r)*(1.0-smoothstep(.568,.578,lit.r));
+        leftish*=smoothstep(.59,.605,lit.g)*(1.0-smoothstep(.618,.632,lit.g));
+        lit.g+=.020*leftish;
+        lit.b+=.020*leftish;
+        float keepFace=smoothstep(.638,.646,lit.g)*(1.0-smoothstep(.652,.662,lit.g));
+        lit.r=mix(lit.r,.545,keepFace*.55);
     }
     float opacity=materialKind==1?.82:1.0;
     if(reflectionPass==1){

@@ -13,7 +13,7 @@ struct ShadowMap {
     using Active=void(APIENTRY*)(GLenum);
     GLuint framebuffer=0,depth=0;Gen gen=nullptr,remove=nullptr;Bind bind=nullptr;Attach attach=nullptr;Status status=nullptr;Matrix matrix=nullptr;Active active=nullptr;
     glm::mat4 lightView,lightProjection;
-    GLint depthLocation=-1,matrixLocation=-1,enabledLocation=-1,kindLocation=-1,textureLocation=-1,cloudLocation=-1,rightLocation=-1,upLocation=-1,backLocation=-1,boatLocation=-1,goddessVelocityLocation=-1,boatVelocityLocation=-1;
+    GLint depthLocation=-1,matrixLocation=-1,enabledLocation=-1,kindLocation=-1,textureLocation=-1,cloudLocation=-1,rightLocation=-1,upLocation=-1,backLocation=-1,boatLocation=-1,footLocation=-1,goddessVelocityLocation=-1,boatVelocityLocation=-1;
     void init(GLuint program){
         gen=reinterpret_cast<Gen>(glfwGetProcAddress("glGenFramebuffers"));bind=reinterpret_cast<Bind>(glfwGetProcAddress("glBindFramebuffer"));
         remove=reinterpret_cast<Gen>(glfwGetProcAddress("glDeleteFramebuffers"));attach=reinterpret_cast<Attach>(glfwGetProcAddress("glFramebufferTexture2D"));
@@ -27,7 +27,7 @@ struct ShadowMap {
         gen(1,&framebuffer);bind(0x8D40,framebuffer);attach(0x8D40,0x8D00,GL_TEXTURE_2D,depth,0);glDrawBuffer(GL_NONE);glReadBuffer(GL_NONE);
         if(status(0x8D40)!=0x8CD5)throw std::runtime_error("Shadow framebuffer incomplete");
         bind(0x8D40,0);glDrawBuffer(GL_BACK);glReadBuffer(GL_BACK);
-        depthLocation=pGetUniformLocation(program,"renderDepth");matrixLocation=pGetUniformLocation(program,"shadowFromEye");enabledLocation=pGetUniformLocation(program,"shadowsEnabled");kindLocation=pGetUniformLocation(program,"materialKind");textureLocation=pGetUniformLocation(program,"useTexture");cloudLocation=pGetUniformLocation(program,"cloudParams");rightLocation=pGetUniformLocation(program,"camRight");upLocation=pGetUniformLocation(program,"camUp");backLocation=pGetUniformLocation(program,"camBack");boatLocation=pGetUniformLocation(program,"boatPosition");goddessVelocityLocation=pGetUniformLocation(program,"goddessVelocity");boatVelocityLocation=pGetUniformLocation(program,"boatVelocity");pUniform1i(pGetUniformLocation(program,"shadowMap"),2);
+        depthLocation=pGetUniformLocation(program,"renderDepth");matrixLocation=pGetUniformLocation(program,"shadowFromEye");enabledLocation=pGetUniformLocation(program,"shadowsEnabled");kindLocation=pGetUniformLocation(program,"materialKind");textureLocation=pGetUniformLocation(program,"useTexture");cloudLocation=pGetUniformLocation(program,"cloudParams");rightLocation=pGetUniformLocation(program,"camRight");upLocation=pGetUniformLocation(program,"camUp");backLocation=pGetUniformLocation(program,"camBack");boatLocation=pGetUniformLocation(program,"boatPosition");footLocation=pGetUniformLocation(program,"footPosition");goddessVelocityLocation=pGetUniformLocation(program,"goddessVelocity");boatVelocityLocation=pGetUniformLocation(program,"boatVelocity");pUniform1i(pGetUniformLocation(program,"shadowMap"),2);
         // Same sun as the shader: world (-12, 5.5, 9), aimed at the folded bank and the two figures.
         lightView=glm::lookAt(glm::vec3(-12.f,5.5f,9.f),glm::vec3(-4.2f,.5f,-2.8f),glm::vec3(0,1,0));lightProjection=glm::ortho(-13.f,13.f,-13.f,13.f,.2f,64.f);
         std::cout<<"Shadow framebuffer COMPLETE "<<size<<"x"<<size<<"\n";
@@ -52,10 +52,18 @@ struct ShadowMap {
         pUniform3f(cloudLocation,float(glfwGetTime()),float(w),float(h));
         glm::vec3 goddess=scene_layout::luoshenPosition;
         glm::vec3 boat=scene_layout::boatPosition;
+        float goddessYaw=scene_layout::luoshenYaw,goddessScale=scene_layout::luoshenScale;
+        float boatYaw=scene_layout::boatYaw,boatScale=scene_layout::boatScale;
         for(const auto& item:layoutEditor.items){
-            if(item.id=="luoshen")goddess=item.pose.position;
-            if(item.id=="boat")boat=item.pose.position;
+            if(item.id=="luoshen"){goddess=item.pose.position;goddessYaw=item.pose.yaw;goddessScale=item.pose.scale;}
+            if(item.id=="boat"){boat=item.pose.position;boatYaw=item.pose.yaw;boatScale=item.pose.scale;}
         }
+        auto spun=[&](glm::vec2 local,float yaw){float r=glm::radians(yaw),c=std::cos(r),s=std::sin(r);return glm::vec2(local.x*c-local.y*s,local.x*s+local.y*c);};
+        // Lowest vertices of each mesh, relative to the pivot drawModel subtracts.
+        glm::vec2 footShift=spun(glm::vec2(.348f,-.064f)*goddessScale,goddessYaw);
+        glm::vec2 keelShift=spun(glm::vec2(.031f,-.050f)*boatScale,boatYaw);
+        glm::vec3 foot(goddess.x+footShift.x,goddess.y,goddess.z+footShift.y);
+        glm::vec3 keel(boat.x+keelShift.x,boat.y,boat.z+keelShift.y);
         static glm::vec3 prevGoddess,prevBoat;
         static double prevClock=-1.0;
         static bool havePrev=false;
@@ -70,7 +78,11 @@ struct ShadowMap {
             goddessVelocity=limit(goddessVelocity);boatVelocity=limit(boatVelocity);
         }
         prevGoddess=goddess;prevBoat=boat;prevClock=now;havePrev=true;
-        pUniform3f(boatLocation,boat.x,boat.y,boat.z);
+        auto ashore=[&](glm::vec3 p){float shore=-3.5f+.65f*std::sin(p.z*.16f)+.35f*std::sin(p.z*.53f+.8f)+.12f*std::sin(p.z*1.4f);return p.y>.12f||p.x<shore+.15f;};
+        if(ashore(foot))goddessVelocity=glm::vec3(0.f);
+        if(ashore(keel))boatVelocity=glm::vec3(0.f);
+        pUniform3f(footLocation,foot.x,foot.y,foot.z);
+        pUniform3f(boatLocation,keel.x,keel.y,keel.z);
         pUniform3f(goddessVelocityLocation,goddessVelocity.x,goddessVelocity.y,goddessVelocity.z);
         pUniform3f(boatVelocityLocation,boatVelocity.x,boatVelocity.y,boatVelocity.z);
         pUniform1i(textureLocation,0);pUniform1i(kindLocation,8);

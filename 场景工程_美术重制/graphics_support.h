@@ -229,20 +229,10 @@ void main(){
         color.rgb+=vec3(.48,.56,.60)*lines*.02;
         vec2 waterWorld=textureCoord*10.0;
         float anim=sceneTime>0.0?sceneTime:cloudParams.x;
-        vec2 fromSun=waterWorld-vec2(-1.4+sin(anim*.35)*.55,-5.2+cos(anim*.27)*.35);
-        sunBand=exp(-fromSun.x*fromSun.x/(1.7*1.7)-fromSun.y*fromSun.y/(1.05*1.05));
+        vec2 fromSun=waterWorld-vec2(.4+sin(anim*.35)*.45,-2.2+cos(anim*.27)*.28);
+        sunBand=exp(-fromSun.x*fromSun.x/(2.2*2.2)-fromSun.y*fromSun.y/(1.3*1.3));
         float grazing=pow(1.0-max(dot(N,normalize(-eyePosition)),0.0),3.0);
         color.rgb=mix(color.rgb,vec3(.52,.62,.68),grazing*.32);
-        vec2 centers[2];
-        centers[0]=goddessPosition.xz;
-        centers[1]=vec2(-2.0,-6.9);
-        for(int i=0;i<2;i++){
-            vec2 rippleOffset=waterWorld-centers[i];
-            float angle=atan(rippleOffset.y,rippleOffset.x);
-            float radius=length(rippleOffset*vec2(.94,1.08))+.04*sin(angle*3.0+anim*.2);
-            float arcs=smoothstep(.20,.65,.5+.5*sin(angle*3.0+radius*2.0-anim*.25));
-            color.rgb+=vec3(.07,.09,.10)*pow(.5+.5*cos(radius*16.0-anim*1.6),12.0)*exp(-radius*1.6)*arcs;
-        }
     }
     if(materialKind==2){
         float patch=.5+.5*sin(textureCoord.x*2.0+sin(textureCoord.y*1.8))*cos(textureCoord.y*2.4);
@@ -348,6 +338,27 @@ void main(){
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;
     vec3 fogColor=materialKind==1?vec3(.58,.66,.72):(materialKind==4?vec3(.62,.70,.76):vec3(.78,.70,.62));
     lit=mix(lit,fogColor,clamp(fog,0.0,.02));
+    if(ridge>.45){
+        float valley=1.0-smoothstep(.4,3.2,worldHeight);
+        lit=mix(lit,vec3(.70,.78,.82),valley*.22);
+    }
+    if(materialKind==1 && reflectionPass==0){
+        float anim=sceneTime>0.0?sceneTime:cloudParams.x;
+        vec2 waterWorld=textureCoord*10.0;
+        vec2 centers[2];
+        centers[0]=goddessPosition.xz;
+        centers[1]=vec2(-2.0,-6.9);
+        for(int i=0;i<2;i++){
+            float radius=length(waterWorld-centers[i]);
+            float wave=sin(radius*7.5-anim*2.3);
+            float fall=exp(-radius*.38)*smoothstep(.08,.4,radius);
+            float crest=smoothstep(.2,.85,wave)*fall;
+            float trough=smoothstep(.2,.85,-wave)*fall;
+            lit=mix(lit,vec3(.93,.96,.98),crest*.92);
+            lit=mix(lit,lit*vec3(.45,.55,.62),trough*.8);
+        }
+        lit=mix(lit,vec3(.96,.64,.42),sunBand*.62);
+    }
     float opacity=materialKind==1?.86:1.0;
     if(reflectionPass==1){
         float depth=max(-worldHeight,0.0);

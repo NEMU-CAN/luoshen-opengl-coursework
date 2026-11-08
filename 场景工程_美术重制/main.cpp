@@ -506,28 +506,36 @@ int wmain(int argc,wchar_t** argv){
             glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
             drawWater();
             glDisable(GL_BLEND);
+            auto drawLeftBankRidges=[&](int variant){
+                for(const auto& ridge:scene_layout::leftBankRidges){
+                    if(ridge.round>bankRounds)break;
+                    if(ridge.variant!=variant)continue;
+                    auto position=ridge.position;
+                    auto size=ridge.size;
+                    float angle=ridge.yaw;
+                    if(bankRounds>=41&&ridge.round==15){
+                        position.x-=.55f;
+                        position.z-=1.8f;
+                        size.y*=.86f;
+                    }
+                    if(bankRounds>=42&&ridge.round==16){
+                        position.x-=.42f;
+                        angle-=16.f;
+                        size.y*=.85f;
+                    }
+                    drawModel(mountains[ridge.variant],view,position,angle,1,{.84f,.91f,1},size);
+                }
+            };
+            // Far mountains.
             drawModel(mountains[0],view,{-2,-.22f,-51},0,3.4f,{.84f,.91f,1});
-            drawModel(mountains[1],view,{9,-.20f,-36},-6,2.9f,{.84f,.91f,1});
             drawModel(mountains[0],view,scene_layout::leftFarPosition,0,1,{.84f,.91f,1},scene_layout::leftFarStretch);
+            // Fog slot: between the far and middle mountains.
+            drawModel(mountains[1],view,{9,-.20f,-36},-6,2.9f,{.84f,.91f,1});
             drawModel(leftRidge,view,scene_layout::leftMountainPosition,0,1,{.84f,.91f,1},scene_layout::leftMountainStretch);
+            drawLeftBankRidges(1);
+            // Fog slot: between the middle mountains and near foothills.
             drawModel(mountains[2],view,scene_layout::leftFoothillPosition,0,1,{.84f,.91f,1},scene_layout::leftFoothillStretch);
-            for(const auto& ridge:scene_layout::leftBankRidges){
-                if(ridge.round>bankRounds)break;
-                auto position=ridge.position;
-                auto size=ridge.size;
-                float angle=ridge.yaw;
-                if(bankRounds>=41&&ridge.round==15){
-                    position.x-=.55f;
-                    position.z-=1.8f;
-                    size.y*=.86f;
-                }
-                if(bankRounds>=42&&ridge.round==16){
-                    position.x-=.42f;
-                    angle-=16.f;
-                    size.y*=.85f;
-                }
-                drawModel(mountains[ridge.variant],view,position,angle,1,{.84f,.91f,1},size);
-            }
+            drawLeftBankRidges(2);
             glLoadMatrixf(glm::value_ptr(view));
             material(glm::vec3(.85f,.90f,.81f),2,groundColor);
             glCallList(groundList);

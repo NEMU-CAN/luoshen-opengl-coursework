@@ -208,11 +208,11 @@ float wakeHeight(vec2 p,vec2 center,vec2 vel){
     vec2 rel=p-center;
     float along=dot(rel,dir);
     float side=rel.x*dir.y-rel.y*dir.x;
-    float press=exp(-dot(rel,rel)/.14);
-    vec2 tail=rel+dir*.40;
-    float rim=exp(-pow(length(tail)-.34,2.0)/.009);
-    float rear=smoothstep(.16,-.06,along);
-    return (-.07*press+.04*rim*rear)*moving;
+    float press=exp(-dot(rel,rel)/.85);
+    vec2 tail=rel+dir*.65;
+    float rim=exp(-pow(length(tail)-1.15,2.0)/.07);
+    float rear=smoothstep(.35,-.15,along);
+    return (-.28*press+.20*rim*rear)*moving;
 }
 float wakeAt(vec2 p){
     return wakeHeight(p,footPosition.xz,goddessVelocity.xz)+wakeHeight(p,boatPosition.xz,boatVelocity.xz);
@@ -260,8 +260,8 @@ void main(){
             if(abs(h)>.003){
                 wakeMoved=1.0;
                 wakeRaised=step(0.0,h);
-                float hx=(wakeAt(flow+vec2(.06,0.0))-wakeAt(flow-vec2(.06,0.0)))/.12;
-                float hz=(wakeAt(flow+vec2(0.0,.06))-wakeAt(flow-vec2(0.0,.06)))/.12;
+                float hx=(wakeAt(flow+vec2(.12,0.0))-wakeAt(flow-vec2(.12,0.0)))/.24;
+                float hz=(wakeAt(flow+vec2(0.0,.12))-wakeAt(flow-vec2(0.0,.12)))/.24;
                 wakeNormal=normalize(vec3(-hx,1.0,-hz));
                 wakePoint=eyePosition+worldUpEye*h;
             }
@@ -340,7 +340,7 @@ void main(){
             vec3 nEye=normalize((gl_ModelViewMatrix*vec4(wakeNormal,0.0)).xyz);
             float flatD=max(dot(normalize(worldUpEye),L),0.0);
             float wakeD=max(dot(nEye,L),0.0);
-            lit*=1.0+clamp((wakeD-flatD)*1.35,-.08,.06);
+            lit*=1.0+clamp((wakeD-flatD)*1.5,-.16,.12);
         }
     }else if(ridge>.45){
         float shaped=diffuse*.5+fold*.5;

@@ -228,8 +228,8 @@ void main(){
         float lines=pow(.5+.5*sin(textureCoord.y*39.0+sin(textureCoord.x*8.0+sceneTime*.2)*3.0),18.0);
         color.rgb+=vec3(.48,.56,.60)*lines*.02;
         vec2 waterWorld=textureCoord*10.0;
-        vec2 fromSun=waterWorld-vec2(-1.6,-4.7);
-        sunBand=exp(-fromSun.x*fromSun.x/(1.6*1.6)-fromSun.y*fromSun.y/(0.95*0.95));
+        vec2 fromSun=waterWorld-vec2(-1.4,-5.2);
+        sunBand=exp(-fromSun.x*fromSun.x/(2.1*2.1)-fromSun.y*fromSun.y/(1.15*1.15));
         float grazing=pow(1.0-max(dot(N,normalize(-eyePosition)),0.0),3.0);
         color.rgb=mix(color.rgb,vec3(.52,.62,.68),grazing*.32);
         vec2 rippleOffset=textureCoord*10.0-goddessPosition.xz;
@@ -276,6 +276,13 @@ void main(){
         float lift=smoothstep(.22,.30,peak)*(1.0-smoothstep(.42,.70,peak));
         color.rgb=mix(color.rgb,color.rgb*.5+vec3(.46,.44,.39),lift);
     }
+    float ridge=0.0;
+    if(useTexture==1 && materialKind==0){
+        float cool=smoothstep(.0,.07,min(color.g,color.b)-color.r);
+        float gray=1.0-smoothstep(.05,.16,abs(color.g-color.b));
+        ridge=cool*gray*step(20.0,length(eyePosition));
+        color.rgb=mix(color.rgb,color.rgb*vec3(.90,.96,1.04),ridge*.4);
+    }
     // main.cpp still places the sun at world (-12, 16, 9). Slide it down to y=5.5
     // along world up so the direction stays fixed when the camera moves.
     vec3 sunEye=lightPositionEye-10.5*worldUpEye;
@@ -299,7 +306,10 @@ void main(){
     vec3 lit;
     if(materialKind==1){
         lit=color.rgb*(vec3(.74,.80,.84)+vec3(.16,.14,.12)*diffuse);
-        lit=mix(lit,vec3(.92,.60,.42),sunBand*.42);
+        lit=mix(lit,vec3(.94,.62,.40),sunBand*.55);
+    }else if(ridge>.45){
+        float shaped=diffuse*.48+fold*.52;
+        lit=color.rgb*(vec3(.46,.52,.56)+vec3(.52,.42,.34)*shaped);
     }else if(materialKind==4){
         float shaped=clamp(diffuse*.8+.16,0.0,1.0);
         shaped=shaped*.68+smoothstep(.05,.8,diffuse)*.32;
@@ -323,9 +333,10 @@ void main(){
     lit+=specColor*specular*visibility*specStrength;
     float fog=1.0-exp(-max(length(eyePosition)-22.0,0.0)*(materialKind==4?.004:(materialKind==1?.003:.004)));
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;
-    if(materialKind==4){
-        float valley=1.0-smoothstep(.2,3.8,worldHeight);
-        lit=mix(lit,vec3(.78,.83,.86),valley*(.55+.2*smoothstep(20.0,48.0,length(eyePosition))));
+    if(materialKind==4 || ridge>.45){
+        float valley=1.0-smoothstep(.6,5.2,worldHeight);
+        float far=smoothstep(16.0,52.0,length(eyePosition));
+        lit=mix(lit,vec3(.80,.84,.86),clamp(valley*(.62-.28*smoothstep(3.0,6.5,worldHeight))+far*.28,0.0,.58));
     }
     vec3 fogColor=materialKind==1?vec3(.58,.66,.72):(materialKind==4?vec3(.70,.76,.80):vec3(.86,.80,.72));
     lit=mix(lit,fogColor,clamp(fog,0.0,materialKind==4?.05:.06));

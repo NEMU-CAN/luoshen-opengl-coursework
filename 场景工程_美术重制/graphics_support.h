@@ -217,6 +217,72 @@ float wakeHeight(vec2 p,vec2 center,vec2 vel){
 float wakeAt(vec2 p){
     return wakeHeight(p,footPosition.xz,goddessVelocity.xz)+wakeHeight(p,boatPosition.xz,boatVelocity.xz);
 }
+float ridgeSpan(float x,float c,float h,float w){
+    float d=abs(x-c);
+    return d>=w?0.0:h*(1.0-d/w);
+}
+float peakGap(float x,float kind){
+    float d=12.0;
+    if(kind<0.5){
+        d=min(d,abs(x+7.4));
+        d=min(d,abs(x+5.2));
+        d=min(d,abs(x+2.6));
+        d=min(d,abs(x-0.8));
+        d=min(d,abs(x-3.4));
+        d=min(d,abs(x-5.8));
+        d=min(d,abs(x-7.8));
+    }else if(kind<1.5){
+        d=min(d,abs(x+5.8));
+        d=min(d,abs(x+3.8));
+        d=min(d,abs(x+2.4));
+        d=min(d,abs(x+0.8));
+        d=min(d,abs(x-0.8));
+        d=min(d,abs(x-2.5));
+        d=min(d,abs(x-3.5));
+        d=min(d,abs(x-5.4));
+    }else{
+        d=min(d,abs(x+4.7));
+        d=min(d,abs(x+3.1));
+        d=min(d,abs(x+2.1));
+        d=min(d,abs(x+1.0));
+        d=min(d,abs(x-0.45));
+        d=min(d,abs(x-1.3));
+        d=min(d,abs(x-2.75));
+        d=min(d,abs(x-4.15));
+    }
+    return d;
+}
+float valleyRidge(float x,float kind){
+    float r=0.0;
+    if(kind<0.5){
+        r=max(r,ridgeSpan(x,-7.4,1.18,1.7));
+        r=max(r,ridgeSpan(x,-5.2,1.36,1.9));
+        r=max(r,ridgeSpan(x,-2.6,2.18,2.2));
+        r=max(r,ridgeSpan(x,0.8,3.68,2.3));
+        r=max(r,ridgeSpan(x,3.4,2.52,2.0));
+        r=max(r,ridgeSpan(x,5.8,1.48,1.7));
+        r=max(r,ridgeSpan(x,7.8,0.96,1.6));
+    }else if(kind<1.5){
+        r=max(r,ridgeSpan(x,-5.8,1.18,1.6));
+        r=max(r,ridgeSpan(x,-3.8,1.88,1.5));
+        r=max(r,ridgeSpan(x,-2.4,2.12,1.3));
+        r=max(r,ridgeSpan(x,-0.8,1.74,1.2));
+        r=max(r,ridgeSpan(x,0.8,2.24,1.4));
+        r=max(r,ridgeSpan(x,2.5,2.92,1.3));
+        r=max(r,ridgeSpan(x,3.5,3.06,1.5));
+        r=max(r,ridgeSpan(x,5.4,1.96,1.8));
+    }else{
+        r=max(r,ridgeSpan(x,-4.7,0.94,1.2));
+        r=max(r,ridgeSpan(x,-3.1,1.68,1.1));
+        r=max(r,ridgeSpan(x,-2.1,1.84,1.0));
+        r=max(r,ridgeSpan(x,-1.0,1.52,0.9));
+        r=max(r,ridgeSpan(x,0.45,2.48,1.1));
+        r=max(r,ridgeSpan(x,1.3,2.68,1.2));
+        r=max(r,ridgeSpan(x,2.75,1.90,1.1));
+        r=max(r,ridgeSpan(x,4.15,1.36,1.3));
+    }
+    return r;
+}
 void main(){
     gl_FragDepth=gl_FragCoord.z;
     if(materialKind==8 && renderDepth==0){
@@ -414,6 +480,32 @@ void main(){
         float keepFace=smoothstep(.638,.646,lit.g)*(1.0-smoothstep(.652,.662,lit.g));
         lit.r=mix(lit.r,.545,keepFace*.55);
         lit=mix(lit,vec3(.42,.52,.56),ridgeShade*.58);
+    }
+    if(useTexture==1 && materialKind==0){
+        float cool=smoothstep(.0,.07,min(color.g,color.b)-color.r);
+        float gray=1.0-smoothstep(.05,.16,abs(color.g-color.b));
+        float xScale=length(gl_ModelViewMatrix[0].xyz);
+        float yScale=length(gl_ModelViewMatrix[1].xyz);
+        float zScale=length(gl_ModelViewMatrix[2].xyz);
+        float onRange=step(2.2,xScale)*step(1.95,yScale)*step(yScale,3.3);
+        float onNear=step(1.4,xScale)*step(5.2,zScale)*step(zScale,7.4);
+        if(cool*gray>.45 && onRange+onNear>0.0){
+            vec3 mesh=(gl_ModelViewMatrixInverse*vec4(eyePosition,1.0)).xyz;
+            float kind=0.0;
+            if(zScale>6.5)kind=2.0;
+            else if(yScale>2.45 && yScale<2.85 && zScale<3.2)kind=1.0;
+            float ridgeH=max(valleyRidge(mesh.x,kind),.2);
+            float yn=clamp(mesh.y/ridgeH,0.0,1.4);
+            float valley=smoothstep(.35,1.15,peakGap(mesh.x,kind));
+            float ceiling=mix(.20,1.08,valley);
+            float aboveFoot=smoothstep(.28,.55,mesh.y);
+            float mist=aboveFoot*(1.0-smoothstep(ceiling-.18,ceiling+.05,yn));
+            mist*=smoothstep(.12,.55,valley);
+            mist*=mix(.6,1.0,smoothstep(-.4,.55,mesh.z));
+            lit=mix(lit,vec3(.72,.78,.81),clamp(mist,0.0,.62));
+            float base=1.0-smoothstep(.0,.46,mesh.y);
+            lit=mix(lit,vec3(.22,.30,.34),base*.82);
+        }
     }
     float opacity=materialKind==1?.82:1.0;
     if(reflectionPass==1){

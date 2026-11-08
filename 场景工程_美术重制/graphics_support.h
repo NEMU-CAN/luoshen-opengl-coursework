@@ -224,11 +224,15 @@ void main(){
     if(materialKind==6){gl_FragColor=vec4(.035,.065,.06,.24);return;}
     vec3 N=normalize(eyeNormal);if(!gl_FrontFacing)N=-N;
     float sunBand=0.0;
+    float ripple=0.0;
     if(materialKind==1){
         float anim=sceneTime>0.0?sceneTime:cloudParams.x;
         vec2 flow=textureCoord*10.0;
-        N=normalize(N+vec3(.05*cos(flow.x*.12+anim*.3),0.,.04*cos(flow.y*.1-anim*.2)));
-        color.rgb=vec3(.30,.47,.55);
+        float along=sin(flow.x*1.7+flow.y*.85+anim*.7);
+        float across=sin(flow.y*2.15-flow.x*.55-anim*.5);
+        ripple=along*.6+across*.4;
+        N=normalize(N+vec3(.12*cos(flow.x*1.7+anim*.7),0.,.10*cos(flow.y*2.15-anim*.5)));
+        color.rgb=vec3(.30,.47,.55)+vec3(.055,.060,.062)*ripple;
         vec2 fromSun=flow-vec2(-1.1,-2.4);
         sunBand=exp(-fromSun.x*fromSun.x/(1.15*1.15)-fromSun.y*fromSun.y/(.7*.7));
     }
@@ -341,7 +345,7 @@ void main(){
         float below=1.0-smoothstep(5.4,7.8,worldHeight);
         lit=mix(lit,vec3(.79,.77,.73),clamp(far*(.2+.32*below),0.0,.40));
     }
-    float opacity=materialKind==1?.86:1.0;
+    float opacity=materialKind==1?.80+.07*ripple:1.0;
     if(reflectionPass==1){
         float depth=max(-worldHeight,0.0);
         lit=mix(lit,vec3(.84,.70,.58),.07);

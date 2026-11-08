@@ -151,10 +151,6 @@ void main()
         local.z+=.035*sin(local.y*3.0-sceneTime*.8);
     }
     if(materialKind==5)local.x+=.04*sin(sceneTime*.8+local.z*.9+local.x)*clamp(gl_MultiTexCoord0.y,0.0,1.0);
-    if(materialKind==1){
-        float anim=sceneTime>0.0?sceneTime:cloudParams.x;
-        local.y+=.03*sin(local.x*.05+anim*.35)+.02*sin(local.z*.04-anim*.22);
-    }
     vec4 position = gl_ModelViewMatrix * local;
     if(reflectionPass==1){
         float depth=max(-(dot(position.xyz,worldUpEye)+cameraHeight),0.0);
@@ -224,17 +220,17 @@ void main(){
     if(materialKind==6){gl_FragColor=vec4(.035,.065,.06,.24);return;}
     vec3 N=normalize(eyeNormal);if(!gl_FrontFacing)N=-N;
     float sunBand=0.0;
-    float ripple=0.0;
     if(materialKind==1){
-        float anim=sceneTime>0.0?sceneTime:cloudParams.x;
         vec2 flow=textureCoord*10.0;
-        float along=sin(flow.x*1.7+flow.y*.85+anim*.7);
-        float across=sin(flow.y*2.15-flow.x*.55-anim*.5);
-        ripple=along*.6+across*.4;
-        N=normalize(N+vec3(.12*cos(flow.x*1.7+anim*.7),0.,.10*cos(flow.y*2.15-anim*.5)));
-        color.rgb=vec3(.30,.47,.55)+vec3(.055,.060,.062)*ripple;
+        float away=smoothstep(2.2,-8.0,flow.y);
+        color.rgb=mix(vec3(.14,.30,.42),vec3(.50,.66,.72),away);
+        float shore=-3.5+.65*sin(flow.y*.16)+.35*sin(flow.y*.53+.8)-flow.x;
+        float shallow=exp(-max(-shore,0.0)*.35);
+        color.rgb=mix(color.rgb,vec3(.48,.64,.70),shallow*.16);
+        float shade=pow(1.0-max(dot(N,normalize(-eyePosition)),0.0),2.2);
+        color.rgb=mix(color.rgb,vec3(.52,.66,.72),shade*.12);
         vec2 fromSun=flow-vec2(-1.1,-2.4);
-        sunBand=exp(-fromSun.x*fromSun.x/(1.15*1.15)-fromSun.y*fromSun.y/(.7*.7));
+        sunBand=exp(-fromSun.x*fromSun.x/(2.4*2.4)-fromSun.y*fromSun.y/(1.6*1.6));
     }
     if(materialKind==2){
         float patch=.5+.5*sin(textureCoord.x*2.0+sin(textureCoord.y*1.8))*cos(textureCoord.y*2.4);
@@ -304,7 +300,7 @@ void main(){
     vec3 lit;
     if(materialKind==1){
         lit=color.rgb;
-        lit=mix(lit,vec3(.93,.62,.44),sunBand*.62);
+        lit=mix(lit,vec3(.86,.62,.46),sunBand*.40);
     }else if(ridge>.45){
         float shaped=diffuse*.72+fold*.28;
         lit=color.rgb*(vec3(.42,.46,.50)+vec3(.52,.44,.34)*shaped);
@@ -345,7 +341,7 @@ void main(){
         float below=1.0-smoothstep(5.4,7.8,worldHeight);
         lit=mix(lit,vec3(.79,.77,.73),clamp(far*(.2+.32*below),0.0,.40));
     }
-    float opacity=materialKind==1?.80+.07*ripple:1.0;
+    float opacity=materialKind==1?.86:1.0;
     if(reflectionPass==1){
         float depth=max(-worldHeight,0.0);
         lit=mix(lit,vec3(.84,.70,.58),.07);

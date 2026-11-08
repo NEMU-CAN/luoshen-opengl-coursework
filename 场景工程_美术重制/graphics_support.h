@@ -252,7 +252,7 @@ void main(){
     if(materialKind==1){
         vec2 flow=textureCoord*10.0;
         float away=smoothstep(2.0,-10.0,flow.y);
-        color.rgb=mix(vec3(.48,.54,.55),vec3(.56,.60,.59),away);
+        color.rgb=mix(vec3(.40,.50,.64),vec3(.48,.58,.70),away);
         vec2 fromSun=flow-vec2(-1.1,-2.4);
         sunBand=exp(-fromSun.x*fromSun.x/(1.15*1.15)-fromSun.y*fromSun.y/(.85*.85));
         if(reflectionPass==0){
@@ -269,12 +269,12 @@ void main(){
     }
     if(materialKind==2){
         float patch=.5+.5*sin(textureCoord.x*2.0+sin(textureCoord.y*1.8))*cos(textureCoord.y*2.4);
-        color.rgb=mix(color.rgb,vec3(.80,.76,.68),.88);
-        color.rgb*=mix(vec3(.90,.88,.82),vec3(1.08,1.04,.96),patch);
+        color.rgb=mix(color.rgb,vec3(.64,.62,.58),.80);
+        color.rgb*=mix(vec3(.92,.90,.86),vec3(1.02,1.00,.96),patch);
         color.rgb*=.97+.06*hash(floor(textureCoord*28.0));
         vec2 ground=textureCoord/0.4;
         float shore=-3.5+.65*sin(ground.y*.16)+.35*sin(ground.y*.53+.8)+.12*sin(ground.y*1.4)-ground.x;
-        color.rgb=mix(color.rgb,vec3(.70,.72,.70),.18*exp(-max(shore,0.0)*1.4));
+        color.rgb=mix(color.rgb,vec3(.58,.60,.62),.22*exp(-max(shore,0.0)*1.4));
         float shade=exp(-dot((ground-vec2(-8.0,-3.5))/vec2(2.6,3.2),(ground-vec2(-8.0,-3.5))/vec2(2.6,3.2)));
         color.rgb*=1.0-.08*shade;
         vec2 contact=(ground-vec2(-4.3,1.0))/vec2(1.1,.85);
@@ -297,9 +297,12 @@ void main(){
     if(materialKind==0 || materialKind==3 || materialKind==7){
         float warm=clamp((color.r-color.b-.06)/.20,0.0,1.0)*smoothstep(.55,.82,color.r);
         color.rgb=mix(color.rgb,vec3(min(color.r*1.03,1.0),min(color.g*1.01,.96),mix(color.b,.86,.75)),warm*.65);
-        float teal=smoothstep(.0,.08,color.g-color.r)*smoothstep(.22,.50,color.g);
+        float leaf=smoothstep(.04,.14,color.g-color.b)*smoothstep(.04,.12,color.g-color.r);
+        float teal=smoothstep(.0,.08,color.g-color.r)*smoothstep(.22,.50,color.g)*(1.0-leaf);
         color.rgb=mix(color.rgb,vec3(color.r*.74,min(color.g*1.06,.82),min(color.b+.08,color.g)),teal*.65);
+        color.rgb=mix(color.rgb,vec3(color.r*.96,color.g*.66,color.b*.76),leaf*.72);
     }
+    if(materialKind==5)color.rgb=mix(color.rgb,vec3(color.r*.92,color.g*.64,color.b*.72),.6);
     if(materialKind==0 && useTexture==0){
         float peak=max(color.r,color.g);
         float lift=smoothstep(.22,.30,peak)*(1.0-smoothstep(.42,.70,peak));
@@ -310,7 +313,7 @@ void main(){
         float cool=smoothstep(.0,.07,min(color.g,color.b)-color.r);
         float gray=1.0-smoothstep(.05,.16,abs(color.g-color.b));
         ridge=cool*gray*step(20.0,length(eyePosition));
-        color.rgb=mix(color.rgb,color.rgb*vec3(.90,.96,1.04),ridge*.4);
+        color.rgb=mix(color.rgb,color.rgb*vec3(.94,.86,1.06),ridge*.45);
     }
     // main.cpp still places the sun at world (-12, 16, 9). Slide it down to y=5.5
     // along world up so the direction stays fixed when the camera moves.
@@ -344,16 +347,16 @@ void main(){
         }
     }else if(ridge>.45){
         float shaped=diffuse*.5+fold*.5;
-        lit=color.rgb*(vec3(.70,.74,.78)+vec3(.26,.20,.14)*shaped);
+        lit=color.rgb*(vec3(.66,.68,.78)+vec3(.22,.16,.14)*shaped);
         float shade=1.0-smoothstep(.12,.65,shaped);
-        lit=mix(lit,vec3(.40,.50,.51),shade*.32);
+        lit=mix(lit,vec3(.36,.44,.54),shade*.30);
     }else if(materialKind==4){
         float shaped=clamp(diffuse*.85+.1,0.0,1.0);
         shaped=shaped*.7+smoothstep(.05,.8,diffuse)*.3;
         lit=color.rgb*(vec3(.34,.38,.42)+vec3(.74,.60,.46)*shaped);
     }else if(materialKind==2){
         float shaped=diffuse*.7+fold*.3;
-        lit=color.rgb*(vec3(.44,.40,.36)+vec3(.58,.48,.36)*shaped*visibility);
+        lit=color.rgb*(vec3(.50,.48,.46)+vec3(.46,.44,.42)*shaped*visibility);
     }else if(materialKind==0 && useTexture==0){
         float peak=max(color.r,color.g);
         float ink=1.0-smoothstep(.16,.26,peak);
@@ -375,7 +378,12 @@ void main(){
     if(useTexture==1 && materialKind==0){
         float sleeve=smoothstep(.02,.10,color.g-color.r)*smoothstep(.22,.48,color.g);
         if(ridge>=.2)sleeve=0.0;
-        lit=mix(lit,vec3(lit.r*.76,min(lit.g*1.14,.70),min(lit.b*1.08,lit.g)),sleeve*.7);
+        float worldY=dot(eyePosition,worldUpEye)+cameraHeight;
+        if(worldY<.85)sleeve=0.0;
+        lit=mix(lit,vec3(lit.r*.82,lit.g*.74,min(lit.b*1.16,lit.g)),sleeve*.8);
+        float green=smoothstep(.05,.14,lit.g-lit.r)*smoothstep(.0,.08,lit.g-lit.b);
+        float held=green*(1.0-sleeve);
+        lit=mix(lit,vec3(.38,.40,.34),held*.78);
         float cream=smoothstep(.55,.78,color.r)*smoothstep(.02,.10,color.g-color.b)*smoothstep(.55,.75,color.g/max(color.r,.001));
         lit=mix(lit,vec3(.94,.86,.76),cream*.7);
     }

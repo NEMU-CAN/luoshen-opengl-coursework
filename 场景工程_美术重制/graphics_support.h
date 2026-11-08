@@ -150,16 +150,16 @@ float wakeHeight(vec2 p,vec2 center,vec2 vel,float anim){
     float speed=length(vel);
     float moving=smoothstep(.05,.22,speed);
     vec2 dir=vel/max(speed,.001);
-    vec2 origin=center-dir*(1.5+.3*min(speed,1.2));
+    vec2 origin=center-dir*(.28+.06*min(speed,1.2));
     vec2 d=p-origin;
     float along=dot(d,-dir);
     float side=d.x*dir.y-d.y*dir.x;
     float r=length(d);
-    float spread=.26+.14*max(along,0.0);
-    float wake=smoothstep(.2,.75,along)*exp(-side*side/(spread*spread));
-    wake*=exp(-max(r-1.1,0.0)*.075);
-    float u=abs(fract((r*3.6-anim*.16)*.1591549)-.5);
-    return exp(-pow(u/.026,2.0))*wake*moving;
+    float spread=.62+.16*max(along,0.0);
+    float wake=smoothstep(-.25,.35,along)*exp(-side*side/(spread*spread));
+    wake*=exp(-max(r-.15,0.0)*.11);
+    float u=abs(fract((r*6.4-anim*.16)*.1591549)-.5);
+    return exp(-pow(u/.024,2.0))*wake*moving;
 }
 
 void main()
@@ -224,16 +224,16 @@ float wakeHeight(vec2 p,vec2 center,vec2 vel,float anim){
     float speed=length(vel);
     float moving=smoothstep(.05,.22,speed);
     vec2 dir=vel/max(speed,.001);
-    vec2 origin=center-dir*(1.5+.3*min(speed,1.2));
+    vec2 origin=center-dir*(.28+.06*min(speed,1.2));
     vec2 d=p-origin;
     float along=dot(d,-dir);
     float side=d.x*dir.y-d.y*dir.x;
     float r=length(d);
-    float spread=.26+.14*max(along,0.0);
-    float wake=smoothstep(.2,.75,along)*exp(-side*side/(spread*spread));
-    wake*=exp(-max(r-1.1,0.0)*.075);
-    float u=abs(fract((r*3.6-anim*.16)*.1591549)-.5);
-    return exp(-pow(u/.026,2.0))*wake*moving;
+    float spread=.62+.16*max(along,0.0);
+    float wake=smoothstep(-.25,.35,along)*exp(-side*side/(spread*spread));
+    wake*=exp(-max(r-.15,0.0)*.11);
+    float u=abs(fract((r*6.4-anim*.16)*.1591549)-.5);
+    return exp(-pow(u/.024,2.0))*wake*moving;
 }
 void main(){
     if(materialKind==8 && renderDepth==0){

@@ -151,6 +151,10 @@ void main()
         local.z+=.035*sin(local.y*3.0-sceneTime*.8);
     }
     if(materialKind==5)local.x+=.04*sin(sceneTime*.8+local.z*.9+local.x)*clamp(gl_MultiTexCoord0.y,0.0,1.0);
+    if(materialKind==1){
+        float anim=sceneTime>0.0?sceneTime:cloudParams.x;
+        local.y+=.03*sin(local.x*.05+anim*.35)+.02*sin(local.z*.04-anim*.22);
+    }
     vec4 position = gl_ModelViewMatrix * local;
     if(reflectionPass==1){
         float depth=max(-(dot(position.xyz,worldUpEye)+cameraHeight),0.0);
@@ -174,10 +178,6 @@ uniform sampler2DShadow shadowMap;
 uniform int renderDepth;
 uniform int shadowsEnabled;
 uniform int reflectionPass;
-uniform vec3 goddessPosition;
-uniform vec3 boatPosition;
-uniform vec3 goddessVelocity;
-uniform vec3 boatVelocity;
 uniform vec3 worldUpEye;
 uniform float cameraHeight;
 uniform vec3 lightPositionEye;
@@ -196,22 +196,7 @@ varying vec4 shadowCoord;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}
 float shadowTap(vec3 sc,vec2 offset,float bias){return shadow2D(shadowMap,vec3(sc.xy+offset*8.0/2048.0,sc.z-bias)).r;}
-float wakeHeight(vec2 p,vec2 center,vec2 vel){
-    float speed=length(vel);
-    float moving=smoothstep(.05,.22,speed);
-    vec2 dir=vel/max(speed,.001);
-    vec2 d=p-center;
-    float ahead=dot(d,dir);
-    float side=d.x*dir.y-d.y*dir.x;
-    float trough=exp(-pow(ahead+.15,2.0)/.55-side*side/.40);
-    float crest=exp(-pow(ahead+1.35,2.0)/.34-side*side/.46);
-    return (-.42*trough+.70*crest)*moving;
-}
-float wakeAt(vec2 p){
-    return wakeHeight(p,goddessPosition.xz,goddessVelocity.xz)+wakeHeight(p,boatPosition.xz,boatVelocity.xz);
-}
 void main(){
-    gl_FragDepth=gl_FragCoord.z;
     if(materialKind==8 && renderDepth==0){
         vec2 uv=gl_FragCoord.xy/max(cloudParams.yz,vec2(1.0));
         vec2 ndc=uv*2.0-1.0;
@@ -238,50 +223,10 @@ void main(){
     if(materialKind==6){gl_FragColor=vec4(.035,.065,.06,.24);return;}
     vec3 N=normalize(eyeNormal);if(!gl_FrontFacing)N=-N;
     float sunBand=0.0;
-    float wakeTilt=0.0;
-    vec3 waterWorld=vec3(0.0);
-    float crestHit=0.0;
-    float wakeActive=0.0;
     if(materialKind==1){
         vec2 flow=textureCoord*10.0;
         float away=smoothstep(2.0,-10.0,flow.y);
         color.rgb=mix(vec3(.27,.45,.54),vec3(.34,.52,.60),away);
-        float moving=max(length(goddessVelocity.xz),length(boatVelocity.xz));
-        if(moving>.04 && min(length(flow-goddessPosition.xz),length(flow-boatPosition.xz))<8.0){
-            waterWorld=(gl_ModelViewMatrixInverse*vec4(eyePosition,1.0)).xyz;
-            vec3 ro=(gl_ModelViewMatrixInverse*vec4(0.0,0.0,0.0,1.0)).xyz;
-            vec3 rd=waterWorld-ro;
-            float tFlat=length(rd);
-            rd/=max(tFlat,.001);
-            float tStart=max(tFlat-5.0,.05);
-            vec3 p0=ro+rd*tStart;
-            float h0=wakeAt(p0.xz);
-            float gapPrev=p0.y-h0;
-            float tPrev=tStart;
-            float tHit=tFlat;
-            if(h0>.02 && gapPrev<=0.0){tHit=tStart;crestHit=1.0;}
-            for(int i=1;i<=36;i++){
-                float t=mix(tStart,tFlat,float(i)/36.0);
-                vec3 p=ro+rd*t;
-                float h=wakeAt(p.xz);
-                float gap=p.y-h;
-                float crossed=step(.02,h)*step(gap,0.0)*(1.0-crestHit);
-                float a=clamp(gapPrev/max(gapPrev-gap,.0001),0.0,1.0);
-                tHit=mix(tHit,mix(tPrev,t,a),crossed);
-                crestHit=max(crestHit,crossed);
-                tPrev=t;gapPrev=gap;
-            }
-            waterWorld=mix(waterWorld,ro+rd*tHit,crestHit);
-            if(crestHit<.5)waterWorld.y+=min(wakeAt(waterWorld.xz),0.0);
-            flow=waterWorld.xz;
-            away=smoothstep(2.0,-10.0,flow.y);
-            color.rgb=mix(vec3(.27,.45,.54),vec3(.34,.52,.60),away);
-            float hx=(wakeAt(flow+vec2(.16,0.0))-wakeAt(flow-vec2(.16,0.0)))/.32;
-            float hz=(wakeAt(flow+vec2(0.0,.16))-wakeAt(flow-vec2(0.0,.16)))/.32;
-            N=normalize((gl_ModelViewMatrix*vec4(normalize(vec3(-hx,1.0,-hz)),0.0)).xyz);
-            wakeTilt=clamp(length(vec2(hx,hz))*2.6,0.0,1.0);
-            wakeActive=step(.02,abs(wakeAt(flow)));
-        }
         vec2 fromSun=flow-vec2(-1.1,-2.4);
         sunBand=exp(-fromSun.x*fromSun.x/(2.4*2.4)-fromSun.y*fromSun.y/(1.6*1.6));
     }
@@ -354,9 +299,6 @@ void main(){
     if(materialKind==1){
         lit=color.rgb;
         lit=mix(lit,vec3(.86,.62,.46),sunBand*.40);
-        float flatD=max(dot(normalize(worldUpEye),L),0.0);
-        float wakeD=max(dot(N,L),0.0);
-        lit*=1.0+clamp((wakeD-flatD)*1.15,-.16,.12)*smoothstep(.08,.4,wakeTilt);
     }else if(ridge>.45){
         float shaped=diffuse*.72+fold*.28;
         lit=color.rgb*(vec3(.42,.46,.50)+vec3(.52,.44,.34)*shaped);
@@ -402,11 +344,6 @@ void main(){
         float depth=max(-worldHeight,0.0);
         lit=mix(lit,vec3(.84,.70,.58),.07);
         opacity=.68*exp(-depth*.65);
-    }
-    if(materialKind==1 && (crestHit>.5 || wakeActive>.5)){
-        vec4 clip=gl_ProjectionMatrix*gl_ModelViewMatrix*vec4(waterWorld,1.0);
-        float displaced=clamp(clip.z/clip.w*.5+.5,0.0,1.0);
-        gl_FragDepth=crestHit>.5?min(displaced,gl_FragCoord.z):max(displaced,gl_FragCoord.z);
     }
     gl_FragColor=vec4(lit,opacity);
 }

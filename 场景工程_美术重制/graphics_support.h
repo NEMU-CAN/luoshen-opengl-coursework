@@ -309,6 +309,7 @@ void main(){
         color.rgb=mix(color.rgb,color.rgb*.5+vec3(.46,.44,.39),lift);
     }
     float ridge=0.0;
+    float ridgeShade=0.0;
     if(useTexture==1 && materialKind==0){
         float cool=smoothstep(.0,.07,min(color.g,color.b)-color.r);
         float gray=1.0-smoothstep(.05,.16,abs(color.g-color.b));
@@ -347,6 +348,7 @@ void main(){
         }
     }else if(ridge>.45){
         float shaped=diffuse*.5+fold*.5;
+        ridgeShade=1.0-smoothstep(.42,.78,shaped);
         lit=color.rgb*(vec3(.76,.78,.75)+vec3(.20,.18,.16)*shaped);
         float shade=1.0-smoothstep(.12,.65,shaped);
         lit=mix(lit,vec3(.52,.54,.52),shade*.12);
@@ -427,6 +429,7 @@ void main(){
         lit.b+=.020*leftish;
         float keepFace=smoothstep(.638,.646,lit.g)*(1.0-smoothstep(.652,.662,lit.g));
         lit.r=mix(lit.r,.545,keepFace*.55);
+        lit=mix(lit,lit*vec3(.32,.36,.38),ridgeShade*.85);
     }
     float opacity=materialKind==1?.82:1.0;
     if(reflectionPass==1){

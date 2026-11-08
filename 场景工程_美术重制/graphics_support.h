@@ -252,7 +252,7 @@ void main(){
     if(materialKind==1){
         vec2 flow=textureCoord*10.0;
         float away=smoothstep(2.0,-10.0,flow.y);
-        color.rgb=mix(vec3(.46,.53,.57),vec3(.54,.60,.61),away);
+        color.rgb=mix(vec3(.44,.52,.60),vec3(.52,.59,.65),away);
         vec2 fromSun=flow-vec2(-1.1,-2.4);
         sunBand=exp(-fromSun.x*fromSun.x/(1.15*1.15)-fromSun.y*fromSun.y/(.85*.85));
         if(reflectionPass==0){
@@ -313,7 +313,7 @@ void main(){
         float cool=smoothstep(.0,.07,min(color.g,color.b)-color.r);
         float gray=1.0-smoothstep(.05,.16,abs(color.g-color.b));
         ridge=cool*gray*step(20.0,length(eyePosition));
-        color.rgb=mix(color.rgb,color.rgb*vec3(.92,.93,1.03),ridge*.42);
+        color.rgb=mix(color.rgb,color.rgb*vec3(.96,.99,.96),ridge*.35);
     }
     // main.cpp still places the sun at world (-12, 16, 9). Slide it down to y=5.5
     // along world up so the direction stays fixed when the camera moves.
@@ -347,9 +347,10 @@ void main(){
         }
     }else if(ridge>.45){
         float shaped=diffuse*.5+fold*.5;
-        lit=color.rgb*(vec3(.68,.72,.77)+vec3(.24,.18,.14)*shaped);
+        lit=color.rgb*(vec3(.70,.72,.75)+vec3(.18,.16,.17)*shaped);
         float shade=1.0-smoothstep(.12,.65,shaped);
-        lit=mix(lit,vec3(.38,.48,.52),shade*.30);
+        lit=mix(lit,vec3(.50,.52,.52),shade*.22);
+        lit=mix(lit,vec3(.60,.63,.63),.40);
     }else if(materialKind==4){
         float shaped=clamp(diffuse*.85+.1,0.0,1.0);
         shaped=shaped*.7+smoothstep(.05,.8,diffuse)*.3;
@@ -382,7 +383,7 @@ void main(){
         if(worldY<.85)sleeve=0.0;
         lit=mix(lit,vec3(lit.r*.82,lit.g*.74,min(lit.b*1.16,lit.g)),sleeve*.8);
         float green=smoothstep(.05,.14,lit.g-lit.r)*smoothstep(.0,.08,lit.g-lit.b);
-        float held=green*(1.0-sleeve);
+        float held=green*(1.0-sleeve)*(1.0-smoothstep(.15,.40,ridge));
         lit=mix(lit,vec3(.38,.40,.34),held*.78);
         float cream=smoothstep(.55,.78,color.r)*smoothstep(.02,.10,color.g-color.b)*smoothstep(.55,.75,color.g/max(color.r,.001));
         lit=mix(lit,vec3(.94,.86,.76),cream*.7);

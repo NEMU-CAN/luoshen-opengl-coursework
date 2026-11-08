@@ -153,7 +153,7 @@ void main()
     if(materialKind==5)local.x+=.04*sin(sceneTime*.8+local.z*.9+local.x)*clamp(gl_MultiTexCoord0.y,0.0,1.0);
     if(materialKind==1){
         float anim=sceneTime>0.0?sceneTime:cloudParams.x;
-        local.y+=.012*sin(local.x*.08+anim*.4)+.008*sin(local.z*.06-anim*.3);
+        local.y+=.03*sin(local.x*.05+anim*.35)+.02*sin(local.z*.04-anim*.22);
     }
     vec4 position = gl_ModelViewMatrix * local;
     if(reflectionPass==1){
@@ -205,10 +205,8 @@ void main(){
         vec3 rd=normalize(camRight*(ndc.x*aspect*.4142)+camUp*(ndc.y*.4142)-camBack);
         vec3 sunDir=normalize(vec3(-.12,.16,-1.0));
         float ang=acos(clamp(dot(rd,sunDir),-1.0,1.0));
-        float lift=smoothstep(0.0,.42,rd.y);
-        vec3 sky=mix(vec3(.98,.72,.54),vec3(.95,.64,.48),lift);
-        float foot=smoothstep(.05,-.04,rd.y);
-        sky=mix(sky,vec3(.68,.76,.82),foot*.72);
+        float lift=smoothstep(0.0,.5,rd.y);
+        vec3 sky=mix(vec3(.97,.66,.46),vec3(.99,.82,.68),lift);
         float disc=1.0-smoothstep(.036,.040,ang);
         float below=dot(sunDir,camUp)-dot(rd,camUp);
         float cut=step(below,.012);
@@ -229,13 +227,10 @@ void main(){
     if(materialKind==1){
         float anim=sceneTime>0.0?sceneTime:cloudParams.x;
         vec2 flow=textureCoord*10.0;
-        float swell=sin(flow.x*.16+flow.y*.09+anim*.28)+.55*sin(flow.y*.21-anim*.18);
-        N=normalize(N+vec3(.08*cos(flow.x*.16+anim*.28),0.,.06*cos(flow.y*.21-anim*.18)));
-        color.rgb=vec3(.30,.46,.54)+vec3(.016,.018,.020)*swell;
-        vec2 fromSun=flow-vec2(.2+sin(anim*.16)*.15,-2.1+cos(anim*.12)*.1);
-        sunBand=exp(-fromSun.x*fromSun.x/(4.6*4.6)-fromSun.y*fromSun.y/(2.8*2.8));
-        float grazing=pow(1.0-max(dot(N,normalize(-eyePosition)),0.0),3.0);
-        color.rgb=mix(color.rgb,vec3(.50,.62,.70),grazing*.22);
+        N=normalize(N+vec3(.05*cos(flow.x*.12+anim*.3),0.,.04*cos(flow.y*.1-anim*.2)));
+        color.rgb=vec3(.30,.47,.55);
+        vec2 fromSun=flow-vec2(-1.1,-2.4);
+        sunBand=exp(-fromSun.x*fromSun.x/(1.15*1.15)-fromSun.y*fromSun.y/(.7*.7));
     }
     if(materialKind==2){
         float patch=.5+.5*sin(textureCoord.x*2.0+sin(textureCoord.y*1.8))*cos(textureCoord.y*2.4);
@@ -305,7 +300,7 @@ void main(){
     vec3 lit;
     if(materialKind==1){
         lit=color.rgb;
-        lit=mix(lit,vec3(.90,.58,.40),sunBand*.48);
+        lit=mix(lit,vec3(.93,.62,.44),sunBand*.62);
     }else if(ridge>.45){
         float shaped=diffuse*.72+fold*.28;
         lit=color.rgb*(vec3(.42,.46,.50)+vec3(.52,.44,.34)*shaped);
@@ -342,9 +337,9 @@ void main(){
     vec3 fogColor=materialKind==1?vec3(.58,.66,.72):(materialKind==4?vec3(.62,.70,.76):vec3(.78,.70,.62));
     lit=mix(lit,fogColor,clamp(fog,0.0,.02));
     if(ridge>.45){
-        float mist=1.0-smoothstep(1.0,5.6,worldHeight);
-        float puff=.62+.38*noise(eyePosition.xz*.02);
-        lit=mix(lit,vec3(.76,.82,.84),clamp(mist*puff,0.0,.58));
+        float far=smoothstep(42.0,52.0,length(eyePosition));
+        float below=1.0-smoothstep(5.4,7.8,worldHeight);
+        lit=mix(lit,vec3(.79,.77,.73),clamp(far*(.2+.32*below),0.0,.40));
     }
     float opacity=materialKind==1?.86:1.0;
     if(reflectionPass==1){

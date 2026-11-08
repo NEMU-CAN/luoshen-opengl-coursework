@@ -228,13 +228,12 @@ void main(){
     float sunBand=0.0;
     if(materialKind==1){
         float anim=sceneTime>0.0?sceneTime:cloudParams.x;
-        vec2 flow=textureCoord*10.0+vec2(anim*.35,-anim*.22);
-        float wave=sin(flow.x*.65)+sin(flow.y*.9+flow.x*.2);
-        N=normalize(N+vec3(.14*cos(flow.x*.65),0.,.11*cos(flow.y*.9)));
-        color.rgb=mix(vec3(.22,.36,.42),vec3(.42,.52,.58),.52+.06*wave);
-        vec2 waterWorld=textureCoord*10.0;
-        vec2 wobble=vec2(sin(flow.y),cos(flow.x))*.28;
-        vec2 fromSun=waterWorld-vec2(.4+sin(anim*.35)*.4,-2.2+cos(anim*.27)*.25)-wobble;
+        vec2 flow=textureCoord*10.0;
+        float wave=sin(flow.x*.85+flow.y*.45+anim*.9)+.65*sin(flow.y*1.7-anim*.7);
+        N=normalize(N+vec3(.8*cos(flow.x*.85+anim*.9),0.,.7*cos(flow.y*1.7-anim*.7)));
+        color.rgb=mix(vec3(.12,.26,.34),vec3(.62,.76,.82),clamp(wave*.5+.5,0.,1.));
+        vec2 waterWorld=flow;
+        vec2 fromSun=waterWorld-vec2(.4+sin(anim*.35)*.35,-2.2+cos(anim*.27)*.22)-vec2(wave*.5,sin(flow.y*1.7-anim*.7)*.4);
         sunBand=exp(-fromSun.x*fromSun.x/(2.2*2.2)-fromSun.y*fromSun.y/(1.3*1.3));
         float grazing=pow(1.0-max(dot(N,normalize(-eyePosition)),0.0),3.0);
         color.rgb=mix(color.rgb,vec3(.52,.62,.68),grazing*.32);
@@ -306,8 +305,8 @@ void main(){
     float fold=smoothstep(.08,.82,diffuse);
     vec3 lit;
     if(materialKind==1){
-        lit=color.rgb*(vec3(.74,.80,.84)+vec3(.16,.14,.12)*diffuse);
-        lit=mix(lit,vec3(.94,.62,.40),sunBand*.7);
+        lit=color.rgb;
+        lit=mix(lit,vec3(.94,.62,.40),sunBand*.72);
     }else if(ridge>.45){
         float shaped=diffuse*.72+fold*.28;
         lit=color.rgb*(vec3(.42,.46,.50)+vec3(.52,.44,.34)*shaped);
@@ -344,8 +343,10 @@ void main(){
     vec3 fogColor=materialKind==1?vec3(.58,.66,.72):(materialKind==4?vec3(.62,.70,.76):vec3(.78,.70,.62));
     lit=mix(lit,fogColor,clamp(fog,0.0,.02));
     if(ridge>.45){
-        float valley=1.0-smoothstep(.4,3.2,worldHeight);
-        lit=mix(lit,vec3(.68,.76,.80),valley*.16);
+        float mid=smoothstep(.2,1.1,worldHeight)*(1.0-smoothstep(4.2,6.5,worldHeight));
+        float band=sin(worldHeight*5.4+noise(eyePosition.xz*.14)*2.2);
+        float wisp=smoothstep(.42,.8,band)*smoothstep(.4,.72,noise(vec2(eyePosition.x*.2,worldHeight*1.5)));
+        lit=mix(lit,vec3(.83,.86,.85),wisp*mid*.78);
     }
     float opacity=materialKind==1?.86:1.0;
     if(reflectionPass==1){

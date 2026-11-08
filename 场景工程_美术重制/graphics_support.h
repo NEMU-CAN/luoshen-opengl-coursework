@@ -157,10 +157,10 @@ float wakeHeight(vec2 p,vec2 center,vec2 vel,float anim){
     float press=exp(-r*r/1.05);
     float lip=exp(-pow(r-1.25,2.0)/.1)*smoothstep(-.05,.35,ahead);
     float behind=max(-ahead,0.0);
-    float spread=.42+.24*behind;
-    float trail=exp(-side*side/(spread*spread))*exp(-behind*.12)*smoothstep(0.0,.22,behind);
-    float roll=sin(behind*4.2-anim*.15)*trail;
-    return (-.75*press+.28*lip+.08*roll)*moving;
+    float spread=.7+.4*behind;
+    float trail=exp(-side*side/(spread*spread))*exp(-behind*.055)*smoothstep(0.0,.15,behind);
+    float roll=sin(behind*3.2-anim*.15)*trail;
+    return (-2.4*press+1.0*lip+1.35*roll)*moving;
 }
 
 void main()
@@ -173,8 +173,8 @@ void main()
     if(materialKind==5)local.x+=.04*sin(sceneTime*.8+local.z*.9+local.x)*clamp(gl_MultiTexCoord0.y,0.0,1.0);
     if(materialKind==1){
         float anim=sceneTime>0.0?sceneTime:cloudParams.x;
-        local.y+=.04*wakeHeight(local.xz,goddessPosition.xz,goddessVelocity.xz,anim);
-        local.y+=.035*wakeHeight(local.xz,boatPosition.xz,boatVelocity.xz,anim);
+        local.y+=.14*wakeHeight(local.xz,goddessPosition.xz,goddessVelocity.xz,anim);
+        local.y+=.12*wakeHeight(local.xz,boatPosition.xz,boatVelocity.xz,anim);
     }
     vec4 position = gl_ModelViewMatrix * local;
     if(reflectionPass==1){
@@ -232,10 +232,10 @@ float wakeHeight(vec2 p,vec2 center,vec2 vel,float anim){
     float press=exp(-r*r/1.05);
     float lip=exp(-pow(r-1.25,2.0)/.1)*smoothstep(-.05,.35,ahead);
     float behind=max(-ahead,0.0);
-    float spread=.42+.24*behind;
-    float trail=exp(-side*side/(spread*spread))*exp(-behind*.12)*smoothstep(0.0,.22,behind);
-    float roll=sin(behind*4.2-anim*.15)*trail;
-    return (-.75*press+.28*lip+.08*roll)*moving;
+    float spread=.7+.4*behind;
+    float trail=exp(-side*side/(spread*spread))*exp(-behind*.055)*smoothstep(0.0,.15,behind);
+    float roll=sin(behind*3.2-anim*.15)*trail;
+    return (-2.4*press+1.0*lip+1.35*roll)*moving;
 }
 float wakeClear(vec2 p,vec2 center,vec2 vel){
     float speed=length(vel);
@@ -291,7 +291,7 @@ void main(){
         hx-=wakeHeight(flow-vec2(e,0.0),goddessPosition.xz,goddessVelocity.xz,anim)+wakeHeight(flow-vec2(e,0.0),boatPosition.xz,boatVelocity.xz,anim);
         float hz=wakeHeight(flow+vec2(0.0,e),goddessPosition.xz,goddessVelocity.xz,anim)+wakeHeight(flow+vec2(0.0,e),boatPosition.xz,boatVelocity.xz,anim);
         hz-=wakeHeight(flow-vec2(0.0,e),goddessPosition.xz,goddessVelocity.xz,anim)+wakeHeight(flow-vec2(0.0,e),boatPosition.xz,boatVelocity.xz,anim);
-        N=normalize(vec3(-hx*.55,1.0,-hz*.55));
+        N=normalize(vec3(-hx*2.4,1.0,-hz*2.4));
         vec2 fromSun=flow-vec2(-1.1,-2.4);
         sunBand=exp(-fromSun.x*fromSun.x/(2.4*2.4)-fromSun.y*fromSun.y/(1.6*1.6));
     }
@@ -363,6 +363,8 @@ void main(){
     vec3 lit;
     if(materialKind==1){
         lit=color.rgb;
+        lit=mix(lit,vec3(.16,.32,.42),clamp(-rippleH,0.0,1.0)*.72);
+        lit=mix(lit,vec3(.58,.74,.80),clamp(rippleH,0.0,1.0)*.62);
         lit=mix(lit,vec3(.86,.62,.46),sunBand*.40);
     }else if(ridge>.45){
         float shaped=diffuse*.72+fold*.28;
@@ -409,7 +411,7 @@ void main(){
         vec2 flow=textureCoord*10.0;
         openness=wakeClear(flow,goddessPosition.xz,goddessVelocity.xz)+wakeClear(flow,boatPosition.xz,boatVelocity.xz);
     }
-    float opacity=materialKind==1?.78-.42*clamp(openness,0.0,1.0):1.0;
+    float opacity=materialKind==1?.82-.48*clamp(openness,0.0,1.0):1.0;
     if(reflectionPass==1){
         float depth=max(-worldHeight,0.0);
         lit=mix(lit,vec3(.84,.70,.58),.07);

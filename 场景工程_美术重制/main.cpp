@@ -346,6 +346,8 @@ int wmain(int argc,wchar_t** argv){
         auto blossom=prop("01_foreground_blossom_tree",true);
         auto ledge=prop("03_left_bank_platform_steps");
         auto leftRidge=prop("07_left_ridge_facets");
+        auto rightSummit=prop("07_right_summit");
+        auto valleyRidge=prop("07_river_valley_ridge");
         auto distantBank=prop("04_right_bank_slope");
         SceneModel pines[]={prop("02_pine_tree_A",true),prop("02_pine_tree_B",true),prop("02_pine_tree_C",true)};
         SceneModel rocks[]={prop("03_shore_rock_A",true),prop("03_shore_rock_B",true),prop("03_shore_rock_C",true)};
@@ -530,10 +532,11 @@ int wmain(int argc,wchar_t** argv){
             drawModel(mountains[0],view,{-2,-.22f,-51},0,3.4f,{.84f,.91f,1});
             drawModel(mountains[0],view,scene_layout::leftFarPosition,0,1,{.84f,.91f,1},scene_layout::leftFarStretch);
             // Fog slot: between the far and middle mountains.
-            drawModel(mountains[1],view,{9,-.20f,-36},-6,2.9f,{.84f,.91f,1});
+            drawModel(rightSummit,view,{9,-.20f,-36},-6,2.9f,{.84f,.91f,1});
             drawModel(leftRidge,view,scene_layout::leftMountainPosition,0,1,{.84f,.91f,1},scene_layout::leftMountainStretch);
             drawLeftBankRidges(1);
             // Fog slot: between the middle mountains and near foothills.
+            drawModel(valleyRidge,view,{5.8f,-.24f,-26.0f},-7,1,{.84f,.91f,1});
             drawModel(mountains[2],view,scene_layout::leftFoothillPosition,0,1,{.84f,.91f,1},scene_layout::leftFoothillStretch);
             drawLeftBankRidges(2);
             glLoadMatrixf(glm::value_ptr(view));
@@ -577,7 +580,7 @@ int wmain(int argc,wchar_t** argv){
         glDeleteTextures(1,&titleOverlay);
         auto release=[](SceneModel& m){for(auto b:m.batches)sceneDeleteBuffers(1,&b.buffer);};
         release(boat);release(blossom);release(ledge);release(distantBank);
-        release(leftRidge);
+        release(leftRidge);release(rightSummit);release(valleyRidge);
         release(caozhi);release(luoshen);
         for(auto& patch:meadow)release(patch);
         for(auto& m:pines)release(m);

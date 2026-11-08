@@ -29,6 +29,8 @@ GLint reflectionLocation=-1,goddessLocation=-1,worldUpLocation=-1,cameraHeightLo
 using ActiveTextureFn=void(APIENTRY*)(GLenum);
 ActiveTextureFn sceneActiveTexture=nullptr;
 bool reflectionPass=false,shadowPass=false,showHelp=false;
+bool animationPlaying=true;
+double animationTime=0.0;
 glm::mat4 worldPrefix(1);
 GLuint groundColor=0,groundNormal=0;
 std::map<std::string,GLuint> textures;
@@ -97,9 +99,11 @@ void material(glm::vec3 color,int kind=0,GLuint texture=0){
     pUniform1i(reflectionLocation,reflectionPass?1:0);
     pUniform1i(textureLocation,texture?1:0);glBindTexture(GL_TEXTURE_2D,texture);
 }
-void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,float angle,float scale,glm::vec3 tint=glm::vec3(1),glm::vec3 stretch=glm::vec3(1)){
+void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,float angle,float scale,glm::vec3 tint=glm::vec3(1),glm::vec3 stretch=glm::vec3(1),glm::vec2 tilt=glm::vec2(0)){
     auto m=glm::translate(worldPrefix*(reflectionPass?glm::scale(glm::mat4(1),glm::vec3(1,-1,1)):glm::mat4(1)),position);
-    m=glm::rotate(m,glm::radians(angle),glm::vec3(0,1,0));m=glm::scale(m,stretch*scale);
+    m=glm::rotate(m,glm::radians(angle),glm::vec3(0,1,0));
+    m=glm::rotate(m,glm::radians(tilt.x),glm::vec3(1,0,0));
+    m=glm::rotate(m,glm::radians(tilt.y),glm::vec3(0,0,1));m=glm::scale(m,stretch*scale);
     m=glm::translate(m,glm::vec3(-model.center.x,-model.bottom,-model.center.z));
     auto mv=view*m;glMatrixMode(GL_MODELVIEW);glLoadMatrixf(glm::value_ptr(mv));
     glEnableClientState(GL_VERTEX_ARRAY);glEnableClientState(GL_NORMAL_ARRAY);glEnableClientState(GL_TEXTURE_COORD_ARRAY);
@@ -235,7 +239,8 @@ void keyboard(GLFWwindow* w,int key,int,int action,int mods){
     }
     if(key==GLFW_KEY_ESCAPE)glfwSetWindowShouldClose(w,1);
     if(key==GLFW_KEY_H)showHelp=!showHelp;
-    if(key==GLFW_KEY_R)resetView();
+    if(key==GLFW_KEY_SPACE)animationPlaying=!animationPlaying;
+    if(key==GLFW_KEY_R){animationTime=0.0;animationPlaying=true;resetView();}
     if(key==GLFW_KEY_F9)captureRequested=true;
     if(key==GLFW_KEY_1)resetView();
     if(key==GLFW_KEY_2){yaw=48;pitch=29;distanceToTarget=23;target=glm::vec3(-1,1,-3);}
@@ -264,6 +269,7 @@ int wmain(int argc,wchar_t** argv){
         bool noShadows=argc>1&&std::wstring(argv[1])==L"--capture-no-shadows";
         capture=capture||noShadows;
         bool smoke=argc>1&&std::wstring(argv[1])==L"--smoke";
+        bool environmentDemo=argc>1&&std::wstring(argv[1])==L"--environment-demo";
         CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
         if(!glfwInit())throw std::runtime_error("GLFW initialization failed");
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,2);glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,1);
@@ -316,7 +322,9 @@ int wmain(int argc,wchar_t** argv){
             editableModels.push_back({&model,stretch});
             layoutEditor.items.push_back({id,name,pose,model.size*stretch,waterLocked,&model.pickTriangles,stretch});
         };
+        const auto boatItem=layoutEditor.items.size();
         editable(boat,"boat",u8"小舟",{scene_layout::boatPosition,scene_layout::boatYaw,scene_layout::boatScale},glm::vec3(1),true);
+        const auto blossomItem=layoutEditor.items.size();
         editable(blossom,"blossom",u8"桃花树",{scene_layout::blossomPosition,scene_layout::blossomYaw,scene_layout::blossomScale},scene_layout::blossomStretch);
         for(int i=1;i<int(scene_layout::ledges.size());++i){
             const auto& rock=scene_layout::ledges[i];
@@ -366,6 +374,7 @@ int wmain(int argc,wchar_t** argv){
         }
         layoutEditor.path=assetRoot.parent_path().parent_path()/"scene-layout.txt";
         layoutEditor.load();
+        if(environmentDemo){yaw=-4.f;pitch=14.f;distanceToTarget=10.f;target=glm::vec3(-1.1f,1.2f,-3.4f);}
         SceneMaterial groundMat;groundMat.colorMap=assetRoot/"ground/color.png";groundColor=loadMaterialTexture(groundMat);
         groundMat.colorMap=assetRoot/"ground/normal.png";groundNormal=loadMaterialTexture(groundMat);
         sceneActiveTexture(0x84C1);glBindTexture(GL_TEXTURE_2D,groundNormal);sceneActiveTexture(0x84C0);
@@ -377,13 +386,17 @@ int wmain(int argc,wchar_t** argv){
         if(yaw==originalYaw)throw std::runtime_error("Orbit control failed");
         auto beforeZoom=distanceToTarget;scroll(window,0,2);
         if(distanceToTarget>=beforeZoom)throw std::runtime_error("Zoom control failed");
+        animationTime=2.0;keyboard(window,GLFW_KEY_SPACE,0,GLFW_PRESS,0);
+        if(animationPlaying)throw std::runtime_error("Pause control failed");
         keyboard(window,GLFW_KEY_R,0,GLFW_PRESS,0);
-        if(yaw!=scene_layout::mainYaw||distanceToTarget!=scene_layout::mainDistance)
-            throw std::runtime_error("Reset view failed");
-        std::cout<<"Control callbacks: orbit, zoom, reset PASS\n";
+        if(yaw!=scene_layout::mainYaw||distanceToTarget!=scene_layout::mainDistance||animationTime!=0.0||!animationPlaying)
+            throw std::runtime_error("Reset control failed");
+        if(environmentDemo){yaw=-4.f;pitch=14.f;distanceToTarget=10.f;target=glm::vec3(-1.1f,1.2f,-3.4f);}
+        std::cout<<"Control callbacks: orbit, zoom, pause, reset PASS\n";
         double previous=glfwGetTime(),start=previous;int frame=0;size_t frames=0;double fpsStart=previous;
         while(!glfwWindowShouldClose(window)){
             glfwPollEvents();double now=glfwGetTime();float dt=glm::clamp(float(now-previous),0.0f,.05f);previous=now;
+            if(animationPlaying)animationTime+=dt;
             float speed=dt*distanceToTarget*.15f;
             if(!layoutEditor.active){
             if(glfwGetKey(window,GLFW_KEY_A)==GLFW_PRESS)target.x-=speed;
@@ -404,13 +417,16 @@ int wmain(int argc,wchar_t** argv){
                 drawModel(*entry.model,cameraView,item.pose.position,item.pose.yaw,item.pose.scale,glm::vec3(1),entry.stretch);
             };
             auto drawCasters=[&](const glm::mat4& view){
-            for(size_t i=0;i<firstMeadowItem;++i)drawEditable(i,view);
+            for(size_t i=0;i<firstMeadowItem;++i){
+                if(environmentDemo&&(i==caozhiItem||i==luoshenItem))continue;
+                drawEditable(i,view);
+            }
             drawModel(distantBank,view,scene_layout::distantBankPosition,0,1,glm::vec3(1),glm::vec3(1.55f,.42f,8.5f));
             drawModel(ledge,view,scene_layout::ledges[0].position,-8,1);
             };
-            pUseProgram(program);uniform1f(timeLocation,0.f);shadows.begin();drawCasters(shadows.lightView);shadows.end(w,h,view,!noShadows);
+            pUseProgram(program);uniform1f(timeLocation,static_cast<float>(animationTime));shadows.begin();drawCasters(shadows.lightView);shadows.end(w,h,view,!noShadows);
             glMatrixMode(GL_PROJECTION);glLoadMatrixf(glm::value_ptr(projection));
-            pUseProgram(program);uniform1f(timeLocation,0.f);
+            pUseProgram(program);uniform1f(timeLocation,static_cast<float>(animationTime));
             auto worldUp=glm::vec3(view*glm::vec4(0,1,0,0));pUniform3f(worldUpLocation,worldUp.x,worldUp.y,worldUp.z);uniform1f(cameraHeightLocation,eye.y);
             glm::vec3 light=glm::vec3(view*glm::vec4(-12,16,9,1));pUniform3f(lightLocation,light.x,light.y,light.z);
 
@@ -444,7 +460,8 @@ int wmain(int argc,wchar_t** argv){
             for(size_t i=firstMeadowItem;i<editableModels.size();++i)drawEditable(i,view);
             drawCasters(view);
             glLoadMatrixf(glm::value_ptr(view));
-            environment_effects::drawWaterPetals(0.,goddess,view,petals);
+            environment_effects::drawWaterPetals(animationTime,goddess,layoutEditor.items[boatItem].pose.position,view,petals);
+            environment_effects::drawFallingPetals(animationTime,layoutEditor.items[blossomItem].pose.position,view,petals);
             drawSceneOverlay(showHelp?overlay:titleOverlay,showHelp);
             int windowWidth,windowHeight;
             glfwGetWindowSize(window,&windowWidth,&windowHeight);

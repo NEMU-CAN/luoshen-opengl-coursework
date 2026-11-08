@@ -3,6 +3,8 @@
 #include <iostream>
 #include <stdexcept>
 #include "scene_motion.h"
+#define ENVIRONMENT_EFFECTS_MATH_ONLY
+#include "environment_effects.h"
 
 void require(bool ok,const char* message) { if(!ok) throw std::runtime_error(message); }
 int wmain(int argc,wchar_t** argv) {
@@ -13,6 +15,25 @@ int wmain(int argc,wchar_t** argv) {
         require(glm::length(farewellPosition(-1)-farewellPosition(0))<1e-5f,"negative time clamps");
         require(farewellPosition(22.5).x>1.5f && farewellPosition(22.5).x<4,"Bezier midpoint advances");
         std::cout<<"PASS: farewell path endpoints, midpoint and clamping\n";
+        const glm::vec3 goddess(1,.045f,-1.2f),boat(-2,.025f,-6.9f),blossom(-3.34f,.46f,-2.65f);
+        int visible=0;
+        for(double time:{0.0,9.0,23.0})for(int i=0;i<environment_effects::waterPetalCount;++i){
+            const auto pose=environment_effects::waterPetalPose(i,time);
+            if(!environment_effects::visibleWaterPetal(pose,goddess,boat))continue;
+            require(pose.position.x>=environment_effects::shoreline(pose.position.z)+.32f,"water petal crossed the bank");
+            require(!environment_effects::inCentralClearance(pose.position),"water petal entered central clearance");
+            ++visible;
+        }
+        require(visible>=105,"too few water petals remain after avoidance");
+        const auto waterStart=environment_effects::waterPetalPose(5,0.0);
+        require(glm::length(waterStart.position-environment_effects::waterPetalPose(5,0.0).position)<1e-7f,"water petals must be deterministic");
+        require(glm::length(waterStart.position-environment_effects::waterPetalPose(5,2.0).position)>.001f,"water petals must move with shared time");
+        for(int i=0;i<environment_effects::fallingPetalCount;++i){
+            const auto pose=environment_effects::fallingPetalPose(i,12.0,blossom);
+            require(pose.position.y>=blossom.y+.19f && pose.position.y<=blossom.y+3.96f,"falling petal height range");
+            require(std::abs(pose.position.x-blossom.x)<1.8f,"falling petals must stay near blossom tree");
+        }
+        std::cout<<"PASS: deterministic water/falling petals, bank and narrative clearances\n";
         auto dir=std::filesystem::temp_directory_path()/"luoshen-obj-fixture-20261104";
         std::filesystem::create_directories(dir);
         std::ofstream(dir/"colors.png")<<"fixture";

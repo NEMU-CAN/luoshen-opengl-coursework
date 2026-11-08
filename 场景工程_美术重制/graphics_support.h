@@ -140,10 +140,27 @@ uniform float sceneTime;
 uniform vec3 cloudParams;
 uniform vec3 goddessPosition;
 uniform vec3 boatPosition;
+uniform vec3 goddessVelocity;
+uniform vec3 boatVelocity;
 uniform int reflectionPass;
 uniform vec3 worldUpEye;
 uniform float cameraHeight;
 uniform mat4 shadowFromEye;
+float wakeHeight(vec2 p,vec2 center,vec2 vel,float anim){
+    float speed=length(vel);
+    float moving=smoothstep(.05,.22,speed);
+    vec2 dir=vel/max(speed,.001);
+    vec2 origin=center-dir*(1.5+.3*min(speed,1.2));
+    vec2 d=p-origin;
+    float along=dot(d,-dir);
+    float side=d.x*dir.y-d.y*dir.x;
+    float r=length(d);
+    float spread=.26+.14*max(along,0.0);
+    float wake=smoothstep(.2,.75,along)*exp(-side*side/(spread*spread));
+    wake*=exp(-max(r-1.1,0.0)*.075);
+    float u=abs(fract((r*3.6-anim*.16)*.1591549)-.5);
+    return exp(-pow(u/.026,2.0))*wake*moving;
+}
 
 void main()
 {
@@ -155,11 +172,8 @@ void main()
     if(materialKind==5)local.x+=.04*sin(sceneTime*.8+local.z*.9+local.x)*clamp(gl_MultiTexCoord0.y,0.0,1.0);
     if(materialKind==1){
         float anim=sceneTime>0.0?sceneTime:cloudParams.x;
-        vec2 p=local.xz;
-        float g=length(p-goddessPosition.xz);
-        float b=length(p-boatPosition.xz);
-        local.y+=.06*sin(g*2.2-anim*1.6)*exp(-g*.28);
-        local.y+=.05*sin(b*2.0-anim*1.4)*exp(-b*.24);
+        local.y+=.04*wakeHeight(local.xz,goddessPosition.xz,goddessVelocity.xz,anim);
+        local.y+=.035*wakeHeight(local.xz,boatPosition.xz,boatVelocity.xz,anim);
     }
     vec4 position = gl_ModelViewMatrix * local;
     if(reflectionPass==1){
@@ -186,6 +200,8 @@ uniform int shadowsEnabled;
 uniform int reflectionPass;
 uniform vec3 goddessPosition;
 uniform vec3 boatPosition;
+uniform vec3 goddessVelocity;
+uniform vec3 boatVelocity;
 uniform vec3 worldUpEye;
 uniform float cameraHeight;
 uniform vec3 lightPositionEye;
@@ -204,6 +220,21 @@ varying vec4 shadowCoord;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}
 float shadowTap(vec3 sc,vec2 offset,float bias){return shadow2D(shadowMap,vec3(sc.xy+offset*8.0/2048.0,sc.z-bias)).r;}
+float wakeHeight(vec2 p,vec2 center,vec2 vel,float anim){
+    float speed=length(vel);
+    float moving=smoothstep(.05,.22,speed);
+    vec2 dir=vel/max(speed,.001);
+    vec2 origin=center-dir*(1.5+.3*min(speed,1.2));
+    vec2 d=p-origin;
+    float along=dot(d,-dir);
+    float side=d.x*dir.y-d.y*dir.x;
+    float r=length(d);
+    float spread=.26+.14*max(along,0.0);
+    float wake=smoothstep(.2,.75,along)*exp(-side*side/(spread*spread));
+    wake*=exp(-max(r-1.1,0.0)*.075);
+    float u=abs(fract((r*3.6-anim*.16)*.1591549)-.5);
+    return exp(-pow(u/.026,2.0))*wake*moving;
+}
 void main(){
     if(materialKind==8 && renderDepth==0){
         vec2 uv=gl_FragCoord.xy/max(cloudParams.yz,vec2(1.0));
@@ -237,25 +268,14 @@ void main(){
         vec2 flow=textureCoord*10.0;
         float away=smoothstep(2.0,-10.0,flow.y);
         color.rgb=mix(vec3(.27,.45,.54),vec3(.34,.52,.60),away);
-        vec2 grad=vec2(0.0);
-        vec2 centers[2];
-        centers[0]=goddessPosition.xz;
-        centers[1]=boatPosition.xz;
-        float freq[2]; freq[0]=2.2; freq[1]=2.0;
-        float fall[2]; fall[0]=.28; fall[1]=.24;
-        float weight[2]; weight[0]=.55; weight[1]=.45;
-        for(int i=0;i<2;++i){
-            vec2 d=flow-centers[i];
-            float r=length(d);
-            vec2 dir=d/max(r,.08);
-            float atten=exp(-r*fall[i]);
-            float phase=r*freq[i]-anim*(1.5-float(i)*.2);
-            float s=sin(phase);
-            float co=cos(phase);
-            rippleH+=s*atten*weight[i];
-            grad+=dir*(co*freq[i]-s*fall[i])*atten*weight[i];
-        }
-        N=normalize(vec3(-grad.x*1.5,1.0,-grad.y*1.5));
+        rippleH=wakeHeight(flow,goddessPosition.xz,goddessVelocity.xz,anim);
+        rippleH+=wakeHeight(flow,boatPosition.xz,boatVelocity.xz,anim);
+        float e=.02;
+        float hx=wakeHeight(flow+vec2(e,0.0),goddessPosition.xz,goddessVelocity.xz,anim)+wakeHeight(flow+vec2(e,0.0),boatPosition.xz,boatVelocity.xz,anim);
+        hx-=wakeHeight(flow-vec2(e,0.0),goddessPosition.xz,goddessVelocity.xz,anim)+wakeHeight(flow-vec2(e,0.0),boatPosition.xz,boatVelocity.xz,anim);
+        float hz=wakeHeight(flow+vec2(0.0,e),goddessPosition.xz,goddessVelocity.xz,anim)+wakeHeight(flow+vec2(0.0,e),boatPosition.xz,boatVelocity.xz,anim);
+        hz-=wakeHeight(flow-vec2(0.0,e),goddessPosition.xz,goddessVelocity.xz,anim)+wakeHeight(flow-vec2(0.0,e),boatPosition.xz,boatVelocity.xz,anim);
+        N=normalize(vec3(-hx*1.35,1.0,-hz*1.35));
         vec2 fromSun=flow-vec2(-1.1,-2.4);
         sunBand=exp(-fromSun.x*fromSun.x/(2.4*2.4)-fromSun.y*fromSun.y/(1.6*1.6));
     }

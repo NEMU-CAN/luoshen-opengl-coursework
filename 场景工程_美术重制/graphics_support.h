@@ -344,9 +344,22 @@ void main(){
     vec3 fogColor=materialKind==1?vec3(.58,.66,.72):(materialKind==4?vec3(.62,.70,.76):vec3(.78,.70,.62));
     lit=mix(lit,fogColor,clamp(fog,0.0,.02));
     if(ridge>.45){
-        float far=smoothstep(30.0,46.0,length(eyePosition));
-        float waist=smoothstep(1.5,3.2,worldHeight)*(1.0-smoothstep(5.2,7.2,worldHeight));
-        lit=mix(lit,vec3(.68,.72,.71),clamp(far*waist,0.0,.40));
+        vec3 mesh=(gl_ModelViewMatrixInverse*vec4(eyePosition,1.0)).xyz;
+        vec3 mx=gl_ModelViewMatrix[0].xyz;
+        vec3 my=gl_ModelViewMatrix[1].xyz;
+        float xScale=length(camRight*mx.x+camUp*mx.y+camBack*mx.z);
+        float yScale=length(camRight*my.x+camUp*my.y+camBack*my.z);
+        float peakX=1.3;
+        if(yScale>3.1)peakX=.8;
+        else if(xScale>2.65&&yScale<2.4)peakX=.8;
+        else if(xScale>2.55)peakX=3.5;
+        float away=smoothstep(1.2,5.5,abs(mesh.x-peakX));
+        float rel=clamp(mesh.y/3.2,0.0,1.0);
+        float foot=pow(clamp(1.0-smoothstep(.08,.40,rel),0.0,1.0),1.15);
+        float notch=pow(clamp(1.0-smoothstep(.22,.80,rel),0.0,1.0),1.1);
+        float settle=mix(foot,notch,smoothstep(.2,.8,away));
+        float far=smoothstep(22.0,40.0,length(eyePosition));
+        lit=mix(lit,vec3(.70,.77,.79),clamp(far*settle,0.0,.70));
     }
     float opacity=materialKind==1?.82:1.0;
     if(reflectionPass==1){

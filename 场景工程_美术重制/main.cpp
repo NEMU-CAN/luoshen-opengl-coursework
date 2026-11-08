@@ -424,7 +424,15 @@ int wmain(int argc,wchar_t** argv){
             glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);reflectionPass=true;
             drawCasters(view);
             reflectionPass=false;glDisable(GL_BLEND);glDisable(GL_STENCIL_TEST);
-            glLoadMatrixf(glm::value_ptr(view));glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);drawWater();glDisable(GL_BLEND);
+            glLoadMatrixf(glm::value_ptr(view));
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+            // Keep comparison screenshots fixed and animate only the visible water pass.
+            const float waterTime = capture ? 0.f : static_cast<float>(glfwGetTime());
+            uniform1f(timeLocation,waterTime);
+            drawWater();
+            uniform1f(timeLocation,0.f);
+            glDisable(GL_BLEND);
             drawModel(mountains[0],view,{-2,-.22f,-51},0,3.4f,{.84f,.91f,1});
             drawModel(mountains[1],view,{9,-.20f,-36},-6,2.9f,{.84f,.91f,1});
             drawModel(mountains[0],view,scene_layout::leftFarPosition,0,1,{.84f,.91f,1},scene_layout::leftFarStretch);

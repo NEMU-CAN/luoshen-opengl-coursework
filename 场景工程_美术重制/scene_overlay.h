@@ -18,7 +18,7 @@ inline GLuint makeSceneOverlay(bool help=false){
     for(int i=0;i<8;++i){wchar_t glyph[]={poem[i],0};text(glyph,18,1287,73+i*23,40,L"KaiTi");}
     if(help){
         text(L"左键旋转   ·   右键平移   ·   滚轮缩放",16,46,823,850);
-        text(L"1 主景    2 全景    3 洛神    4 曹植       空格 暂停    R 重播    P 路径    H 操作提示    F9 截图",15,46,855,1320);
+        text(L"1 主景    2 全景    3 洛神    4 曹植       R 回到主镜头    Tab 摆放    H 操作提示    F9 截图",15,46,855,1320);
     }
     GdiFlush(); // Complete batched GDI writes before reading DIB pixels on the CPU.
     std::vector<unsigned char> rgba(size_t(w)*h*4);auto* source=static_cast<unsigned char*>(bits);

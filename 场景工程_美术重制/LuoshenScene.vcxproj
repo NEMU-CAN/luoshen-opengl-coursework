@@ -44,6 +44,7 @@
     <ClInclude Include="graphics_support.h" />
     <ClInclude Include="scene_motion.h" />
     <ClInclude Include="scene_layout.h" />
+    <ClInclude Include="layout_editor.h" />
     <ClInclude Include="environment_effects.h" />
     <ClInclude Include="scene_overlay.h" />
     <ClInclude Include="shadow_map.h" />

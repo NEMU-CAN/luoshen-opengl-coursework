@@ -254,7 +254,7 @@ void main(){
         float away=smoothstep(2.0,-10.0,flow.y);
         color.rgb=mix(vec3(.45,.56,.61),vec3(.53,.63,.66),away);
         vec2 fromSun=flow-vec2(-1.1,-2.4);
-        sunBand=exp(-fromSun.x*fromSun.x/(1.15*1.15)-fromSun.y*fromSun.y/(.85*.85));
+        sunBand=exp(-fromSun.x*fromSun.x/(.72*.72)-fromSun.y*fromSun.y/(.50*.50));
         if(reflectionPass==0){
             float h=wakeAt(flow);
             if(abs(h)>.003){
@@ -338,7 +338,7 @@ void main(){
     vec3 lit;
     if(materialKind==1){
         lit=color.rgb;
-        lit=mix(lit,vec3(.78,.58,.46),sunBand*.34);
+        lit=mix(lit,vec3(.93,.76,.64),sunBand*.62);
         if(wakeMoved>.5){
             vec3 nEye=normalize((gl_ModelViewMatrix*vec4(wakeNormal,0.0)).xyz);
             float flatD=max(dot(normalize(worldUpEye),L),0.0);
@@ -350,7 +350,12 @@ void main(){
         lit=color.rgb*(vec3(.76,.78,.75)+vec3(.20,.18,.16)*shaped);
         float shade=1.0-smoothstep(.12,.65,shaped);
         lit=mix(lit,vec3(.52,.54,.52),shade*.12);
-        lit=mix(lit,vec3(.66,.64,.63),.48);
+        float top=max(lit.r,max(lit.g,lit.b));
+        float dark=1.0-smoothstep(.42,.70,top);
+        lit=mix(lit,vec3(.58,.63,.62),mix(.50,.93,dark));
+        float hot=smoothstep(.55,.66,lit.g)*smoothstep(.04,.12,lit.g-lit.r);
+        lit.r=mix(lit.r,.58,hot*.65);
+        lit.g=mix(lit.g,.635,hot*.45);
     }else if(materialKind==4){
         float shaped=clamp(diffuse*.85+.1,0.0,1.0);
         shaped=shaped*.7+smoothstep(.05,.8,diffuse)*.3;

@@ -1,0 +1,33 @@
+# Luoshen賦 Low-Poly Origami Riverbank Rocks Material Library (Pure-Color Flat Shading)
+
+newmtl Rock_Top_WarmGrey
+Ka 0.725000 0.678000 0.592000
+Kd 0.725000 0.678000 0.592000
+Ks 0.040000 0.040000 0.040000
+Ns 15.000000
+d 1.000000
+illum 1
+
+newmtl Rock_Slope_WarmSage
+Ka 0.592000 0.600000 0.549000
+Kd 0.592000 0.600000 0.549000
+Ks 0.040000 0.040000 0.040000
+Ns 15.000000
+d 1.000000
+illum 1
+
+newmtl Rock_Side_SlateCyan
+Ka 0.435000 0.494000 0.482000
+Kd 0.435000 0.494000 0.482000
+Ks 0.040000 0.040000 0.040000
+Ns 15.000000
+d 1.000000
+illum 1
+
+newmtl Rock_Fault_DeepSlate
+Ka 0.318000 0.373000 0.376000
+Kd 0.318000 0.373000 0.376000
+Ks 0.040000 0.040000 0.040000
+Ns 15.000000
+d 1.000000
+illum 1

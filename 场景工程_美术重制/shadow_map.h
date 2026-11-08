@@ -1,5 +1,8 @@
 #pragma once
+#include "scene_layout.h"
+#include "layout_editor.h"
 // Depth-map shadows; colour and normal textures keep units 0 and 1.
+extern LayoutEditor layoutEditor;
 struct ShadowMap {
     static constexpr int size=2048;
     using Gen=void(APIENTRY*)(GLsizei,GLuint*);
@@ -10,7 +13,7 @@ struct ShadowMap {
     using Active=void(APIENTRY*)(GLenum);
     GLuint framebuffer=0,depth=0;Gen gen=nullptr,remove=nullptr;Bind bind=nullptr;Attach attach=nullptr;Status status=nullptr;Matrix matrix=nullptr;Active active=nullptr;
     glm::mat4 lightView,lightProjection;
-    GLint depthLocation=-1,matrixLocation=-1,enabledLocation=-1,kindLocation=-1,textureLocation=-1,cloudLocation=-1,rightLocation=-1,upLocation=-1,backLocation=-1;
+    GLint depthLocation=-1,matrixLocation=-1,enabledLocation=-1,kindLocation=-1,textureLocation=-1,cloudLocation=-1,rightLocation=-1,upLocation=-1,backLocation=-1,boatLocation=-1;
     void init(GLuint program){
         gen=reinterpret_cast<Gen>(glfwGetProcAddress("glGenFramebuffers"));bind=reinterpret_cast<Bind>(glfwGetProcAddress("glBindFramebuffer"));
         remove=reinterpret_cast<Gen>(glfwGetProcAddress("glDeleteFramebuffers"));attach=reinterpret_cast<Attach>(glfwGetProcAddress("glFramebufferTexture2D"));
@@ -24,7 +27,7 @@ struct ShadowMap {
         gen(1,&framebuffer);bind(0x8D40,framebuffer);attach(0x8D40,0x8D00,GL_TEXTURE_2D,depth,0);glDrawBuffer(GL_NONE);glReadBuffer(GL_NONE);
         if(status(0x8D40)!=0x8CD5)throw std::runtime_error("Shadow framebuffer incomplete");
         bind(0x8D40,0);glDrawBuffer(GL_BACK);glReadBuffer(GL_BACK);
-        depthLocation=pGetUniformLocation(program,"renderDepth");matrixLocation=pGetUniformLocation(program,"shadowFromEye");enabledLocation=pGetUniformLocation(program,"shadowsEnabled");kindLocation=pGetUniformLocation(program,"materialKind");textureLocation=pGetUniformLocation(program,"useTexture");cloudLocation=pGetUniformLocation(program,"cloudParams");rightLocation=pGetUniformLocation(program,"camRight");upLocation=pGetUniformLocation(program,"camUp");backLocation=pGetUniformLocation(program,"camBack");pUniform1i(pGetUniformLocation(program,"shadowMap"),2);
+        depthLocation=pGetUniformLocation(program,"renderDepth");matrixLocation=pGetUniformLocation(program,"shadowFromEye");enabledLocation=pGetUniformLocation(program,"shadowsEnabled");kindLocation=pGetUniformLocation(program,"materialKind");textureLocation=pGetUniformLocation(program,"useTexture");cloudLocation=pGetUniformLocation(program,"cloudParams");rightLocation=pGetUniformLocation(program,"camRight");upLocation=pGetUniformLocation(program,"camUp");backLocation=pGetUniformLocation(program,"camBack");boatLocation=pGetUniformLocation(program,"boatPosition");pUniform1i(pGetUniformLocation(program,"shadowMap"),2);
         // Same sun as the shader: world (-12, 5.5, 9), aimed at the folded bank and the two figures.
         lightView=glm::lookAt(glm::vec3(-12.f,5.5f,9.f),glm::vec3(-4.2f,.5f,-2.8f),glm::vec3(0,1,0));lightProjection=glm::ortho(-13.f,13.f,-13.f,13.f,.2f,64.f);
         std::cout<<"Shadow framebuffer COMPLETE "<<size<<"x"<<size<<"\n";
@@ -47,6 +50,9 @@ struct ShadowMap {
         pUniform3f(backLocation,back.x,back.y,back.z);
         // main.cpp writes sceneTime as 0 after this pass. Keep the frame clock in the unused x so water can move.
         pUniform3f(cloudLocation,float(glfwGetTime()),float(w),float(h));
+        glm::vec3 boat=scene_layout::boatPosition;
+        for(const auto& item:layoutEditor.items)if(item.id=="boat"){boat=item.pose.position;break;}
+        pUniform3f(boatLocation,boat.x,boat.y,boat.z);
         pUniform1i(textureLocation,0);pUniform1i(kindLocation,8);
         glPushAttrib(GL_ENABLE_BIT|GL_DEPTH_BUFFER_BIT|GL_COLOR_BUFFER_BIT);
         glDisableClientState(GL_VERTEX_ARRAY);glDisableClientState(GL_NORMAL_ARRAY);glDisableClientState(GL_TEXTURE_COORD_ARRAY);

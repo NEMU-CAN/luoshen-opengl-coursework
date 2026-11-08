@@ -138,6 +138,8 @@ varying vec4 shadowCoord;
 uniform int materialKind;
 uniform float sceneTime;
 uniform vec3 cloudParams;
+uniform vec3 goddessPosition;
+uniform vec3 boatPosition;
 uniform int reflectionPass;
 uniform vec3 worldUpEye;
 uniform float cameraHeight;
@@ -151,6 +153,14 @@ void main()
         local.z+=.035*sin(local.y*3.0-sceneTime*.8);
     }
     if(materialKind==5)local.x+=.04*sin(sceneTime*.8+local.z*.9+local.x)*clamp(gl_MultiTexCoord0.y,0.0,1.0);
+    if(materialKind==1){
+        float anim=sceneTime>0.0?sceneTime:cloudParams.x;
+        vec2 p=local.xz;
+        float g=length(p-goddessPosition.xz);
+        float b=length(p-boatPosition.xz);
+        local.y+=.06*sin(g*2.2-anim*1.6)*exp(-g*.28);
+        local.y+=.05*sin(b*2.0-anim*1.4)*exp(-b*.24);
+    }
     vec4 position = gl_ModelViewMatrix * local;
     if(reflectionPass==1){
         float depth=max(-(dot(position.xyz,worldUpEye)+cameraHeight),0.0);
@@ -175,6 +185,7 @@ uniform int renderDepth;
 uniform int shadowsEnabled;
 uniform int reflectionPass;
 uniform vec3 goddessPosition;
+uniform vec3 boatPosition;
 uniform vec3 worldUpEye;
 uniform float cameraHeight;
 uniform vec3 lightPositionEye;
@@ -220,15 +231,31 @@ void main(){
     if(materialKind==6){gl_FragColor=vec4(.035,.065,.06,.24);return;}
     vec3 N=normalize(eyeNormal);if(!gl_FrontFacing)N=-N;
     float sunBand=0.0;
+    float rippleH=0.0;
     if(materialKind==1){
+        float anim=sceneTime>0.0?sceneTime:cloudParams.x;
         vec2 flow=textureCoord*10.0;
-        float away=smoothstep(2.2,-8.0,flow.y);
-        color.rgb=mix(vec3(.14,.30,.42),vec3(.50,.66,.72),away);
-        float shore=-3.5+.65*sin(flow.y*.16)+.35*sin(flow.y*.53+.8)-flow.x;
-        float shallow=exp(-max(-shore,0.0)*.35);
-        color.rgb=mix(color.rgb,vec3(.48,.64,.70),shallow*.16);
-        float shade=pow(1.0-max(dot(N,normalize(-eyePosition)),0.0),2.2);
-        color.rgb=mix(color.rgb,vec3(.52,.66,.72),shade*.12);
+        float away=smoothstep(2.0,-10.0,flow.y);
+        color.rgb=mix(vec3(.27,.45,.54),vec3(.34,.52,.60),away);
+        vec2 grad=vec2(0.0);
+        vec2 centers[2];
+        centers[0]=goddessPosition.xz;
+        centers[1]=boatPosition.xz;
+        float freq[2]; freq[0]=2.2; freq[1]=2.0;
+        float fall[2]; fall[0]=.28; fall[1]=.24;
+        float weight[2]; weight[0]=.55; weight[1]=.45;
+        for(int i=0;i<2;++i){
+            vec2 d=flow-centers[i];
+            float r=length(d);
+            vec2 dir=d/max(r,.08);
+            float atten=exp(-r*fall[i]);
+            float phase=r*freq[i]-anim*(1.5-float(i)*.2);
+            float s=sin(phase);
+            float co=cos(phase);
+            rippleH+=s*atten*weight[i];
+            grad+=dir*(co*freq[i]-s*fall[i])*atten*weight[i];
+        }
+        N=normalize(vec3(-grad.x*1.5,1.0,-grad.y*1.5));
         vec2 fromSun=flow-vec2(-1.1,-2.4);
         sunBand=exp(-fromSun.x*fromSun.x/(2.4*2.4)-fromSun.y*fromSun.y/(1.6*1.6));
     }
@@ -282,7 +309,7 @@ void main(){
     vec3 sunEye=lightPositionEye-10.5*worldUpEye;
     vec3 L=normalize(sunEye-eyePosition),V=normalize(-eyePosition),R=reflect(-L,N);
     float diffuse=max(dot(N,L),0.0);
-    float shininess=materialKind==1?150.0:(materialKind==7?40.0:22.0);
+    float shininess=materialKind==1?28.0:(materialKind==7?40.0:22.0);
     float specular=diffuse>0.0?pow(max(dot(R,V),0.0),shininess):0.0;
     float visibility=1.0;
     vec3 sc=shadowCoord.xyz/shadowCoord.w;
@@ -299,7 +326,8 @@ void main(){
     float fold=smoothstep(.08,.82,diffuse);
     vec3 lit;
     if(materialKind==1){
-        lit=color.rgb;
+        float slope=clamp(1.0-N.y,0.0,1.0);
+        lit=color.rgb*(.90+.16*rippleH-slope*.9);
         lit=mix(lit,vec3(.86,.62,.46),sunBand*.40);
     }else if(ridge>.45){
         float shaped=diffuse*.72+fold*.28;
@@ -329,7 +357,7 @@ void main(){
         float rim=pow(1.0-max(dot(N,V),0.0),2.4);
         lit+=vec3(.11,.09,.07)*rim*(.22+.78*shaped);
     }
-    float specStrength=materialKind==1?.03:(materialKind==7?.035:.010);
+    float specStrength=materialKind==1?.006:(materialKind==7?.035:.010);
     vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
     lit+=specColor*specular*visibility*specStrength;
     float fog=1.0-exp(-max(length(eyePosition)-22.0,0.0)*(materialKind==4?.004:(materialKind==1?.003:.004)));
@@ -341,7 +369,7 @@ void main(){
         float below=1.0-smoothstep(5.4,7.8,worldHeight);
         lit=mix(lit,vec3(.79,.77,.73),clamp(far*(.2+.32*below),0.0,.40));
     }
-    float opacity=materialKind==1?.86:1.0;
+    float opacity=materialKind==1?.88-.16*abs(rippleH):1.0;
     if(reflectionPass==1){
         float depth=max(-worldHeight,0.0);
         lit=mix(lit,vec3(.84,.70,.58),.07);

@@ -186,6 +186,10 @@ uniform int useTexture;
 uniform int materialKind;
 uniform float sceneTime;
 uniform vec3 cloudParams;
+uniform vec3 goddessPosition;
+uniform vec3 boatPosition;
+uniform vec3 goddessVelocity;
+uniform vec3 boatVelocity;
 uniform vec3 camRight;
 uniform vec3 camUp;
 uniform vec3 camBack;
@@ -196,7 +200,24 @@ varying vec4 shadowCoord;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}
 float shadowTap(vec3 sc,vec2 offset,float bias){return shadow2D(shadowMap,vec3(sc.xy+offset*8.0/2048.0,sc.z-bias)).r;}
+float wakeHeight(vec2 p,vec2 center,vec2 vel){
+    float speed=length(vel);
+    float moving=smoothstep(.045,.16,speed);
+    vec2 dir=vel/max(speed,.001);
+    vec2 rel=p-center;
+    float along=dot(rel,dir);
+    float side=rel.x*dir.y-rel.y*dir.x;
+    float press=exp(-along*along/.10-side*side/.12);
+    vec2 tail=rel+dir*1.65;
+    float rim=exp(-pow(length(tail)-.72,2.0)/.018);
+    float rear=smoothstep(.05,-.35,along);
+    return (-.08*press+.05*rim*rear)*moving;
+}
+float wakeAt(vec2 p){
+    return wakeHeight(p,goddessPosition.xz,goddessVelocity.xz)+wakeHeight(p,boatPosition.xz,boatVelocity.xz);
+}
 void main(){
+    gl_FragDepth=gl_FragCoord.z;
     if(materialKind==8 && renderDepth==0){
         vec2 uv=gl_FragCoord.xy/max(cloudParams.yz,vec2(1.0));
         vec2 ndc=uv*2.0-1.0;
@@ -223,12 +244,47 @@ void main(){
     if(materialKind==6){gl_FragColor=vec4(.035,.065,.06,.24);return;}
     vec3 N=normalize(eyeNormal);if(!gl_FrontFacing)N=-N;
     float sunBand=0.0;
+    vec3 wakePoint=vec3(0.0);
+    float wakeMoved=0.0;
+    float wakeRaised=0.0;
+    vec3 wakeNormal=vec3(0.0,1.0,0.0);
     if(materialKind==1){
         vec2 flow=textureCoord*10.0;
         float away=smoothstep(2.0,-10.0,flow.y);
         color.rgb=mix(vec3(.48,.54,.55),vec3(.56,.60,.59),away);
         vec2 fromSun=flow-vec2(-1.1,-2.4);
         sunBand=exp(-fromSun.x*fromSun.x/(1.15*1.15)-fromSun.y*fromSun.y/(.85*.85));
+        float moving=max(length(goddessVelocity.xz),length(boatVelocity.xz));
+        vec3 flatWorld=(gl_ModelViewMatrixInverse*vec4(eyePosition,1.0)).xyz;
+        float nearFig=min(length(flatWorld.xz-goddessPosition.xz),length(flatWorld.xz-boatPosition.xz));
+        if(reflectionPass==0 && moving>.04 && nearFig<3.2){
+            vec3 ro=(gl_ModelViewMatrixInverse*vec4(0.0,0.0,0.0,1.0)).xyz;
+            vec3 rd=flatWorld-ro;
+            float tFlat=length(rd);
+            rd/=max(tFlat,.001);
+            float t0=max(tFlat-.4,.02);
+            float t1=tFlat+.4;
+            vec3 p0=ro+rd*t0;
+            float gapPrev=p0.y-wakeAt(p0.xz);
+            float tPrev=t0;
+            float tHit=tFlat;
+            for(int i=1;i<=16;i++){
+                float t=mix(t0,t1,float(i)/16.0);
+                vec3 p=ro+rd*t;
+                float gap=p.y-wakeAt(p.xz);
+                float crossed=step(gap,0.0)*step(0.0,gapPrev)*(1.0-wakeMoved);
+                float a=clamp(gapPrev/max(gapPrev-gap,.0001),0.0,1.0);
+                tHit=mix(tHit,mix(tPrev,t,a),crossed);
+                wakeMoved=max(wakeMoved,crossed);
+                gapPrev=gap;tPrev=t;
+            }
+            wakePoint=mix(flatWorld,ro+rd*tHit,wakeMoved);
+            flow=wakePoint.xz;
+            float hx=(wakeAt(flow+vec2(.07,0.0))-wakeAt(flow-vec2(.07,0.0)))/.14;
+            float hz=(wakeAt(flow+vec2(0.0,.07))-wakeAt(flow-vec2(0.0,.07)))/.14;
+            wakeNormal=normalize(vec3(-hx,1.0,-hz));
+            wakeRaised=step(.004,wakeAt(flow));
+        }
     }
     if(materialKind==2){
         float patch=.5+.5*sin(textureCoord.x*2.0+sin(textureCoord.y*1.8))*cos(textureCoord.y*2.4);
@@ -299,6 +355,12 @@ void main(){
     if(materialKind==1){
         lit=color.rgb;
         lit=mix(lit,vec3(.78,.58,.46),sunBand*.28);
+        if(wakeMoved>.5){
+            vec3 nEye=normalize((gl_ModelViewMatrix*vec4(wakeNormal,0.0)).xyz);
+            float flatD=max(dot(normalize(worldUpEye),L),0.0);
+            float wakeD=max(dot(nEye,L),0.0);
+            lit*=1.0+clamp((wakeD-flatD)*1.35,-.08,.06);
+        }
     }else if(ridge>.45){
         float shaped=diffuse*.5+fold*.5;
         lit=color.rgb*(vec3(.70,.74,.78)+vec3(.26,.20,.14)*shaped);
@@ -366,6 +428,11 @@ void main(){
         float depth=max(-worldHeight,0.0);
         lit=mix(lit,vec3(.84,.70,.58),.07);
         opacity=.68*exp(-depth*.65);
+    }
+    if(materialKind==1 && wakeMoved>.5){
+        vec4 clip=gl_ProjectionMatrix*gl_ModelViewMatrix*vec4(wakePoint,1.0);
+        float displaced=clamp(clip.z/clip.w*.5+.5,0.0,1.0);
+        gl_FragDepth=wakeRaised>.5?min(displaced,gl_FragCoord.z):max(displaced,gl_FragCoord.z);
     }
     gl_FragColor=vec4(lit,opacity);
 }

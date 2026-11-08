@@ -228,15 +228,21 @@ void main(){
         float lines=pow(.5+.5*sin(textureCoord.y*39.0+sin(textureCoord.x*8.0+sceneTime*.2)*3.0),18.0);
         color.rgb+=vec3(.48,.56,.60)*lines*.02;
         vec2 waterWorld=textureCoord*10.0;
-        vec2 fromSun=waterWorld-vec2(-1.4,-5.2);
-        sunBand=exp(-fromSun.x*fromSun.x/(2.1*2.1)-fromSun.y*fromSun.y/(1.15*1.15));
+        float anim=sceneTime>0.0?sceneTime:cloudParams.x;
+        vec2 fromSun=waterWorld-vec2(-1.4+sin(anim*.35)*.55,-5.2+cos(anim*.27)*.35);
+        sunBand=exp(-fromSun.x*fromSun.x/(1.7*1.7)-fromSun.y*fromSun.y/(1.05*1.05));
         float grazing=pow(1.0-max(dot(N,normalize(-eyePosition)),0.0),3.0);
         color.rgb=mix(color.rgb,vec3(.52,.62,.68),grazing*.32);
-        vec2 rippleOffset=textureCoord*10.0-goddessPosition.xz;
-        float angle=atan(rippleOffset.y,rippleOffset.x);
-        float radius=length(rippleOffset*vec2(.94,1.08))+.035*sin(angle*3.0+sceneTime*.2);
-        float arcs=smoothstep(.20,.65,.5+.5*sin(angle*3.0+radius*2.0-sceneTime*.25));
-        color.rgb+=vec3(.05,.07,.08)*pow(.5+.5*cos(radius*18.0-sceneTime*1.5),14.0)*exp(-radius*1.9)*arcs;
+        vec2 centers[2];
+        centers[0]=goddessPosition.xz;
+        centers[1]=vec2(-2.0,-6.9);
+        for(int i=0;i<2;i++){
+            vec2 rippleOffset=waterWorld-centers[i];
+            float angle=atan(rippleOffset.y,rippleOffset.x);
+            float radius=length(rippleOffset*vec2(.94,1.08))+.04*sin(angle*3.0+anim*.2);
+            float arcs=smoothstep(.20,.65,.5+.5*sin(angle*3.0+radius*2.0-anim*.25));
+            color.rgb+=vec3(.07,.09,.10)*pow(.5+.5*cos(radius*16.0-anim*1.6),12.0)*exp(-radius*1.6)*arcs;
+        }
     }
     if(materialKind==2){
         float patch=.5+.5*sin(textureCoord.x*2.0+sin(textureCoord.y*1.8))*cos(textureCoord.y*2.4);
@@ -308,19 +314,26 @@ void main(){
         lit=color.rgb*(vec3(.74,.80,.84)+vec3(.16,.14,.12)*diffuse);
         lit=mix(lit,vec3(.94,.62,.40),sunBand*.55);
     }else if(ridge>.45){
-        float shaped=diffuse*.48+fold*.52;
-        lit=color.rgb*(vec3(.46,.52,.56)+vec3(.52,.42,.34)*shaped);
+        float shaped=diffuse*.72+fold*.28;
+        lit=color.rgb*(vec3(.32,.36,.40)+vec3(.78,.62,.48)*shaped);
     }else if(materialKind==4){
-        float shaped=clamp(diffuse*.8+.16,0.0,1.0);
-        shaped=shaped*.68+smoothstep(.05,.8,diffuse)*.32;
-        lit=color.rgb*(vec3(.48,.54,.58)+vec3(.58,.48,.40)*shaped);
-    }else if(materialKind==2 || (materialKind==0 && useTexture==0)){
-        float wrap=clamp(diffuse*.65+.34,0.0,1.0);
-        float shaped=wrap*.58+fold*.42;
-        lit=color.rgb*(vec3(.72,.70,.66)+vec3(.36,.32,.26)*shaped*visibility);
+        float shaped=clamp(diffuse*.85+.1,0.0,1.0);
+        shaped=shaped*.7+smoothstep(.05,.8,diffuse)*.3;
+        lit=color.rgb*(vec3(.34,.38,.42)+vec3(.74,.60,.46)*shaped);
+    }else if(materialKind==2){
+        float shaped=diffuse*.7+fold*.3;
+        lit=color.rgb*(vec3(.38,.36,.32)+vec3(.72,.62,.48)*shaped*visibility);
+    }else if(materialKind==0 && useTexture==0){
+        float peak=max(color.r,color.g);
+        float ink=1.0-smoothstep(.16,.26,peak);
+        float wrap=clamp(diffuse*.7+.22,0.0,1.0);
+        float shaped=wrap*.6+fold*.4;
+        vec3 amb=mix(vec3(.40,.38,.34),vec3(.16,.13,.11),ink);
+        vec3 key=mix(vec3(.62,.54,.42),vec3(.28,.22,.16),ink);
+        lit=color.rgb*(amb+key*shaped*visibility);
     }else{
-        float shaped=diffuse*.55+fold*.45;
-        lit=color.rgb*(vec3(.56,.54,.52)+vec3(.42,.40,.38)*shaped*visibility);
+        float shaped=diffuse*.62+fold*.38;
+        lit=color.rgb*(vec3(.40,.38,.36)+vec3(.64,.58,.52)*shaped*visibility);
         float fill=max(dot(N,normalize(vec3(-.25,.7,.42))),0.0);
         lit+=color.rgb*vec3(.05,.06,.07)*fill;
         float up=max(dot(N,normalize(worldUpEye)),0.0);
@@ -333,13 +346,8 @@ void main(){
     lit+=specColor*specular*visibility*specStrength;
     float fog=1.0-exp(-max(length(eyePosition)-22.0,0.0)*(materialKind==4?.004:(materialKind==1?.003:.004)));
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;
-    if(materialKind==4 || ridge>.45){
-        float valley=1.0-smoothstep(.6,5.2,worldHeight);
-        float far=smoothstep(16.0,52.0,length(eyePosition));
-        lit=mix(lit,vec3(.80,.84,.86),clamp(valley*(.62-.28*smoothstep(3.0,6.5,worldHeight))+far*.28,0.0,.58));
-    }
-    vec3 fogColor=materialKind==1?vec3(.58,.66,.72):(materialKind==4?vec3(.70,.76,.80):vec3(.86,.80,.72));
-    lit=mix(lit,fogColor,clamp(fog,0.0,materialKind==4?.05:.06));
+    vec3 fogColor=materialKind==1?vec3(.58,.66,.72):(materialKind==4?vec3(.62,.70,.76):vec3(.78,.70,.62));
+    lit=mix(lit,fogColor,clamp(fog,0.0,.02));
     float opacity=materialKind==1?.86:1.0;
     if(reflectionPass==1){
         float depth=max(-worldHeight,0.0);

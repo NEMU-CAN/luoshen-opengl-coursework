@@ -45,7 +45,8 @@ struct ShadowMap {
         pUniform3f(rightLocation,right.x,right.y,right.z);
         pUniform3f(upLocation,upAxis.x,upAxis.y,upAxis.z);
         pUniform3f(backLocation,back.x,back.y,back.z);
-        pUniform3f(cloudLocation,0.f,float(w),float(h));
+        // main.cpp writes sceneTime as 0 after this pass. Keep the frame clock in the unused x so water can move.
+        pUniform3f(cloudLocation,float(glfwGetTime()),float(w),float(h));
         pUniform1i(textureLocation,0);pUniform1i(kindLocation,8);
         glPushAttrib(GL_ENABLE_BIT|GL_DEPTH_BUFFER_BIT|GL_COLOR_BUFFER_BIT);
         glDisableClientState(GL_VERTEX_ARRAY);glDisableClientState(GL_NORMAL_ARRAY);glDisableClientState(GL_TEXTURE_COORD_ARRAY);

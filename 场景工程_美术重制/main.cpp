@@ -3,6 +3,7 @@
 #include "mesh_data.h"
 #include "scene_layout.h"
 #include <map>
+#include <optional>
 #include <chrono>
 #include <cstddef>
 #include <cstring>
@@ -12,7 +13,7 @@
 #pragma comment(lib,"gdi32.lib")
 #pragma comment(lib,"user32.lib")
 
-struct GpuBatch {GLuint buffer=0,texture=0;GLsizei count=0;glm::vec3 color{1};int kind=0;};
+struct GpuBatch {GLuint buffer=0,texture=0;GLsizei count=0;glm::vec3 color{1},center{0};int kind=0;};
 using GenBuffersFn=void(APIENTRY*)(GLsizei,GLuint*);
 using BindBufferFn=void(APIENTRY*)(GLenum,GLuint);
 using BufferDataFn=void(APIENTRY*)(GLenum,std::ptrdiff_t,const void*,GLenum);
@@ -30,7 +31,13 @@ using ActiveTextureFn=void(APIENTRY*)(GLenum);
 ActiveTextureFn sceneActiveTexture=nullptr;
 bool reflectionPass=false,shadowPass=false,showHelp=false;
 bool animationPlaying=true;
-double animationTime=0.0;
+double animationTime=0.0,clothTime=0.0;
+bool clothPlaying=true;
+float clothStrength=1.f;
+GLint clothTimeLocation=-1,clothStrengthLocation=-1;
+int clothPreviewMin=8,clothPreviewMax=16;
+GLint veilPassLocation=-1,clothMotionLocation=-1;
+bool isVeilKind(int kind){return kind==9||kind==16;}
 glm::mat4 worldPrefix(1);
 GLuint groundColor=0,groundNormal=0;
 std::map<std::string,GLuint> textures;
@@ -72,9 +79,15 @@ GLuint loadMaterialTexture(const SceneMaterial& mat) {
     return texture;
 }
 
-SceneModel loadModel(const std::string& relative,bool pickable=false){
+SceneModel loadModel(const std::string& relative,bool pickable=false,
+                     std::optional<glm::vec3> localOrigin=std::nullopt){
     auto mesh=readSceneObj(assetRoot/std::filesystem::u8path(relative));
     SceneModel model;model.center=(mesh.minimum+mesh.maximum)*.5f;model.size=mesh.maximum-mesh.minimum;model.bottom=mesh.minimum.y;model.triangles=mesh.triangles;
+    if(localOrigin){
+        model.center.x=localOrigin->x;
+        model.bottom=localOrigin->y;
+        model.center.z=localOrigin->z;
+    }
     for(const auto& batch:mesh.batches){
         if(pickable){
             auto pivot=glm::vec3(model.center.x,model.bottom,model.center.z);
@@ -84,8 +97,24 @@ SceneModel loadModel(const std::string& relative,bool pickable=false){
         GpuBatch gpu;gpu.texture=loadMaterialTexture(mat);gpu.color=gpu.texture?glm::vec3(1):mat.diffuse;
         gpu.kind=mat.name.find("Under_robe")!=std::string::npos||mat.name.find("Under robe")!=std::string::npos?3:0;
         if(mat.name.find("Hair_knot")!=std::string::npos)gpu.kind=7;
+        if(mat.name=="Wind_RedRibbon"||mat.name=="Wind_RedEdge")gpu.kind=8;
+        else if(mat.name=="Wind_GoldPibo")gpu.kind=9;
+        else if(mat.name=="Wind_Sleeve")gpu.kind=10;
+        else if(mat.name=="Wind_UpperSkirt")gpu.kind=11;
+        else if(mat.name=="Wind_LowerSkirt")gpu.kind=12;
+        else if(mat.name=="Wind_FarSleeve")gpu.kind=13;
+        else if(mat.name=="Wind_WaistTie"||mat.name=="Wind_WaistTieEdge")gpu.kind=14;
+        else if(mat.name=="Wind_InnerSkirt")gpu.kind=15;
+        else if(mat.name=="Wind_SleeveVeil")gpu.kind=16;
+        else if(mat.name=="Costume_pattern_near_wide_sleeve"||
+                mat.name=="Costume_pattern_far_wide_sleeve"||
+                mat.name=="Wind_CuffLining")gpu.kind=17;
         sceneGenBuffers(1,&gpu.buffer);if(!gpu.buffer)throw std::runtime_error("Geometry buffer allocation failed");
         gpu.count=static_cast<GLsizei>(batch.vertices.size());
+        if(isVeilKind(gpu.kind)){
+            for(const auto& vertex:batch.vertices)gpu.center+=vertex.position;
+            gpu.center/=static_cast<float>(gpu.count);
+        }
         sceneBindBuffer(SCENE_ARRAY_BUFFER,gpu.buffer);
         sceneBufferData(SCENE_ARRAY_BUFFER,std::ptrdiff_t(batch.vertices.size()*sizeof(SceneVertex)),batch.vertices.data(),SCENE_STATIC_DRAW);
         sceneBindBuffer(SCENE_ARRAY_BUFFER,0);model.batches.push_back(gpu);
@@ -99,7 +128,7 @@ void material(glm::vec3 color,int kind=0,GLuint texture=0){
     pUniform1i(reflectionLocation,reflectionPass?1:0);
     pUniform1i(textureLocation,texture?1:0);glBindTexture(GL_TEXTURE_2D,texture);
 }
-void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,float angle,float scale,glm::vec3 tint=glm::vec3(1),glm::vec3 stretch=glm::vec3(1),glm::vec2 tilt=glm::vec2(0)){
+void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,float angle,float scale,glm::vec3 tint=glm::vec3(1),glm::vec3 stretch=glm::vec3(1),glm::vec2 tilt=glm::vec2(0),bool veilPass=false){
     auto m=glm::translate(worldPrefix*(reflectionPass?glm::scale(glm::mat4(1),glm::vec3(1,-1,1)):glm::mat4(1)),position);
     m=glm::rotate(m,glm::radians(angle),glm::vec3(0,1,0));
     m=glm::rotate(m,glm::radians(tilt.x),glm::vec3(1,0,0));
@@ -107,12 +136,26 @@ void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,
     m=glm::translate(m,glm::vec3(-model.center.x,-model.bottom,-model.center.z));
     auto mv=view*m;glMatrixMode(GL_MODELVIEW);glLoadMatrixf(glm::value_ptr(mv));
     glEnableClientState(GL_VERTEX_ARRAY);glEnableClientState(GL_NORMAL_ARRAY);glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    for(const auto& b:model.batches){
+    auto drawBatch=[&](const GpuBatch& b){
+        const bool previewEnabled=(b.kind>=clothPreviewMin&&b.kind<=clothPreviewMax)
+            ||(clothPreviewMin==10&&(b.kind==13||b.kind==16))||(clothPreviewMax==9&&b.kind==14)
+            ||(clothPreviewMin==11&&b.kind==15);
+        pUniform1i(clothMotionLocation,b.kind<8||previewEnabled?1:0);
         material(b.color*tint,b.kind,b.texture);sceneBindBuffer(SCENE_ARRAY_BUFFER,b.buffer);
         glVertexPointer(3,GL_FLOAT,sizeof(SceneVertex),reinterpret_cast<const void*>(offsetof(SceneVertex,position)));
         glNormalPointer(GL_FLOAT,sizeof(SceneVertex),reinterpret_cast<const void*>(offsetof(SceneVertex,normal)));
         glTexCoordPointer(2,GL_FLOAT,sizeof(SceneVertex),reinterpret_cast<const void*>(offsetof(SceneVertex,uv)));
         glDrawArrays(GL_TRIANGLES,0,b.count);
+    };
+    if(veilPass){
+        std::vector<const GpuBatch*> layers;
+        for(const auto& b:model.batches)if(isVeilKind(b.kind))layers.push_back(&b);
+        std::sort(layers.begin(),layers.end(),[&](const GpuBatch* a,const GpuBatch* b){
+            return (mv*glm::vec4(a->center,1)).z<(mv*glm::vec4(b->center,1)).z;
+        });
+        for(const auto* layer:layers)drawBatch(*layer);
+    }else{
+        for(const auto& b:model.batches)drawBatch(b);
     }
     sceneBindBuffer(SCENE_ARRAY_BUFFER,0);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);glDisableClientState(GL_NORMAL_ARRAY);glDisableClientState(GL_VERTEX_ARRAY);
@@ -276,7 +319,11 @@ void keyboard(GLFWwindow* w,int key,int,int action,int mods){
     if(key==GLFW_KEY_ESCAPE)glfwSetWindowShouldClose(w,1);
     if(key==GLFW_KEY_H)showHelp=!showHelp;
     if(key==GLFW_KEY_SPACE)animationPlaying=!animationPlaying;
-    if(key==GLFW_KEY_R){animationTime=0.0;animationPlaying=true;resetView();}
+    if(key==GLFW_KEY_P)clothPlaying=!clothPlaying;
+    if(key==GLFW_KEY_0){clothTime=0.0;clothPlaying=false;}
+    if(key==GLFW_KEY_LEFT_BRACKET)clothStrength=std::max(0.f,clothStrength-.2f);
+    if(key==GLFW_KEY_RIGHT_BRACKET)clothStrength=std::min(1.6f,clothStrength+.2f);
+    if(key==GLFW_KEY_R){animationTime=clothTime=0.0;animationPlaying=clothPlaying=true;resetView();}
     if(key==GLFW_KEY_F9)captureRequested=true;
     if(key==GLFW_KEY_1)resetView();
     if(key==GLFW_KEY_2){yaw=48;pitch=29;distanceToTarget=23;target=glm::vec3(-1,1,-3);}
@@ -303,7 +350,14 @@ int wmain(int argc,wchar_t** argv){
         if(assetRoot.empty())throw std::runtime_error("Asset folder not found beside executable or project.");
         bool capture=argc>1&&std::wstring(argv[1])==L"--capture";
         bool noShadows=argc>1&&std::wstring(argv[1])==L"--capture-no-shadows";
-        capture=capture||noShadows;
+        const bool clothCapture=argc>1&&std::wstring(argv[1])==L"--capture-cloth";
+        const std::wstring clothView=clothCapture&&argc>2?argv[2]:L"main";
+        if(clothView!=L"main"&&clothView!=L"side"&&clothView!=L"ribbons"&&clothView!=L"sleeve"&&clothView!=L"skirt"&&clothView!=L"veil-probe")
+            throw std::runtime_error("Use --capture-cloth with main, side, ribbons, sleeve, skirt or veil-probe");
+        if(clothView==L"ribbons")clothPreviewMax=9;
+        if(clothView==L"sleeve")clothPreviewMin=clothPreviewMax=10;
+        if(clothView==L"skirt"){clothPreviewMin=11;clothPreviewMax=12;}
+        capture=capture||noShadows||clothCapture;
         const int bankRounds=capture&&argc==4&&std::wstring(argv[2])==L"--bank-round"
             ?std::clamp(std::stoi(argv[3]),0,scene_layout::leftBankRounds):scene_layout::leftBankRounds;
         bool smoke=argc>1&&std::wstring(argv[1])==L"--smoke";
@@ -314,7 +368,7 @@ int wmain(int argc,wchar_t** argv){
         glfwWindowHint(GLFW_SAMPLES,4);
         glfwWindowHint(GLFW_STENCIL_BITS,8);
         if(capture||smoke)glfwWindowHint(GLFW_VISIBLE,GLFW_FALSE);
-        auto window=glfwCreateWindow(1600,900,"Luoshen | 1/2/3/4 views | R reset view | H text | F9 screenshot",nullptr,nullptr);
+        auto window=glfwCreateWindow(1600,900,"Luoshen | 1/2/3/4 views | P cloth pause | 0 rest | [ ] wind | H text | F9",nullptr,nullptr);
         if(!window)throw std::runtime_error("Window creation failed");
         glfwMakeContextCurrent(window);glfwSwapInterval(capture?0:1);
         glfwSetMouseButtonCallback(window,mouseButton);glfwSetCursorPosCallback(window,mouseMove);
@@ -338,6 +392,10 @@ int wmain(int argc,wchar_t** argv){
         if(!uniform1f)throw std::runtime_error("glUniform1f unavailable");
         pUseProgram(program);pUniform1i(uniform("texture0"),0);
         pUniform1i(uniform("normalMap"),1);
+        clothTimeLocation=uniform("clothTime");clothStrengthLocation=uniform("clothStrength");
+        veilPassLocation=uniform("veilPass");clothMotionLocation=uniform("clothMotionEnabled");
+        pUniform1i(veilPassLocation,0);
+        pUniform1i(uniform("veilProbe"),clothView==L"veil-probe"?1:0);
         glEnable(GL_DEPTH_TEST);glDisable(GL_CULL_FACE);
         std::cout<<"GL version: "<<glGetString(GL_VERSION)<<"\nPhong shader linked successfully\n";
         ShadowMap shadows;shadows.init(program);
@@ -355,7 +413,9 @@ int wmain(int argc,wchar_t** argv){
         SceneModel mountains[]={prop("07_mountain_far"),prop("07_mountain_mid"),prop("07_mountain_near")};
         SceneModel petals[]={prop("08_floating_petal_A"),prop("08_floating_petal_B"),prop("08_floating_petal_C")};
         auto caozhi=loadModel("../luoshen-characters/caozhi/caozhi.obj",true);
-        auto luoshen=loadModel("../luoshen-characters/luoshen/luoshen.obj",true);
+        // Lock the rest-pose origin so edits to the garment hem cannot move the figure.
+        const glm::vec3 luoshenOrigin(-.4001205f,.004337f,.0024f);
+        auto luoshen=loadModel("../luoshen-characters/luoshen/luoshen.obj",true,luoshenOrigin);
         struct EditableModel {const SceneModel* model;glm::vec3 stretch;};
         std::vector<EditableModel> editableModels;
         auto editable=[&](const SceneModel& model,std::string id,std::string name,
@@ -434,7 +494,6 @@ int wmain(int argc,wchar_t** argv){
         if(capture&&argc==4&&std::wstring(argv[2])==L"--layout")
             layoutEditor.path=std::filesystem::path(argv[3]);
         layoutEditor.load();
-        if(environmentDemo){yaw=-4.f;pitch=14.f;distanceToTarget=10.f;target=glm::vec3(-1.1f,1.2f,-3.4f);}
         SceneMaterial groundMat;groundMat.colorMap=assetRoot/"ground/color.png";groundColor=loadMaterialTexture(groundMat);
         groundMat.colorMap=assetRoot/"ground/normal.png";groundNormal=loadMaterialTexture(groundMat);
         sceneActiveTexture(0x84C1);glBindTexture(GL_TEXTURE_2D,groundNormal);sceneActiveTexture(0x84C0);
@@ -454,12 +513,32 @@ int wmain(int argc,wchar_t** argv){
         keyboard(window,GLFW_KEY_R,0,GLFW_PRESS,0);
         if(yaw!=scene_layout::mainYaw||distanceToTarget!=scene_layout::mainDistance||animationTime!=0.0||!animationPlaying)
             throw std::runtime_error("Reset control failed");
-        if(environmentDemo){yaw=-4.f;pitch=14.f;distanceToTarget=10.f;target=glm::vec3(-1.1f,1.2f,-3.4f);}
+        if(capture||smoke){
+            clothTime=2.0;keyboard(window,GLFW_KEY_P,0,GLFW_PRESS,0);
+            if(clothPlaying||clothTime!=2.0)throw std::runtime_error("Cloth pause failed");
+            keyboard(window,GLFW_KEY_P,0,GLFW_PRESS,0);
+            keyboard(window,GLFW_KEY_LEFT_BRACKET,0,GLFW_PRESS,0);
+            if(!clothPlaying||std::abs(clothStrength-.8f)>1e-5f)throw std::runtime_error("Cloth resume or wind control failed");
+            keyboard(window,GLFW_KEY_RIGHT_BRACKET,0,GLFW_PRESS,0);
+            keyboard(window,GLFW_KEY_0,0,GLFW_PRESS,0);
+            if(clothPlaying||clothTime!=0.0||std::abs(clothStrength-1.f)>1e-5f)
+                throw std::runtime_error("Cloth rest pose failed");
+            keyboard(window,GLFW_KEY_R,0,GLFW_PRESS,0);
+            if(!clothPlaying||clothTime!=0.0)throw std::runtime_error("Cloth restart failed");
+            std::cout<<"Cloth callbacks: pause, resume, wind, rest, restart PASS\n";
+        }
         std::cout<<"Control callbacks: orbit, zoom, pause, reset PASS\n";
+        if(environmentDemo){yaw=-4.f;pitch=14.f;distanceToTarget=10.f;target=glm::vec3(-1.1f,1.2f,-3.4f);}
+        if(clothView==L"side"){
+            yaw=-50.f;pitch=11.f;distanceToTarget=5.2f;
+            target=layoutEditor.items[luoshenItem].pose.position+glm::vec3(0,1.55f,0);
+        }
         double previous=glfwGetTime(),start=previous;int frame=0;size_t frames=0;double fpsStart=previous;
         while(!glfwWindowShouldClose(window)){
             glfwPollEvents();double now=glfwGetTime();float dt=glm::clamp(float(now-previous),0.0f,.05f);previous=now;
-            if(animationPlaying)animationTime+=dt;
+            if(animationPlaying&&!clothCapture)animationTime+=dt;
+            if(clothCapture)clothTime=frame*.20;
+            else if(animationPlaying&&clothPlaying)clothTime+=dt;
             float speed=dt*distanceToTarget*.15f;
             if(!layoutEditor.active){
             if(glfwGetKey(window,GLFW_KEY_A)==GLFW_PRESS)target.x-=speed;
@@ -474,10 +553,10 @@ int wmain(int argc,wchar_t** argv){
             glm::vec3 eye=target+distanceToTarget*glm::vec3(std::sin(a)*std::cos(b),std::sin(b),std::cos(a)*std::cos(b));
             auto view=glm::lookAt(eye,target,glm::vec3(0,1,0));
             auto goddess=layoutEditor.items[luoshenItem].pose.position;
-            auto drawEditable=[&](size_t i,const glm::mat4& cameraView){
+            auto drawEditable=[&](size_t i,const glm::mat4& cameraView,bool veil=false){
                 const auto& item=layoutEditor.items[i];
                 const auto& entry=editableModels[i];
-                drawModel(*entry.model,cameraView,item.pose.position,item.pose.yaw,item.pose.scale,glm::vec3(1),entry.stretch);
+                drawModel(*entry.model,cameraView,item.pose.position,item.pose.yaw,item.pose.scale,glm::vec3(1),entry.stretch,glm::vec2(0),veil);
             };
             auto drawCasters=[&](const glm::mat4& view){
             for(size_t i=0;i<firstMeadowItem;++i){
@@ -487,7 +566,10 @@ int wmain(int argc,wchar_t** argv){
             drawModel(distantBank,view,scene_layout::distantBankPosition,0,1,glm::vec3(1),glm::vec3(1.55f,.42f,8.5f));
             drawModel(ledge,view,scene_layout::ledges[0].position,-8,1);
             };
-            pUseProgram(program);uniform1f(timeLocation,static_cast<float>(animationTime));shadows.begin();drawCasters(shadows.lightView);shadows.end(w,h,view,!noShadows);
+            pUseProgram(program);
+            uniform1f(clothTimeLocation,static_cast<float>(clothTime));
+            uniform1f(clothStrengthLocation,clothStrength);
+            uniform1f(timeLocation,static_cast<float>(animationTime));shadows.begin();drawCasters(shadows.lightView);shadows.end(w,h,view,!noShadows);
             glMatrixMode(GL_PROJECTION);glLoadMatrixf(glm::value_ptr(projection));
             pUseProgram(program);uniform1f(timeLocation,static_cast<float>(animationTime));
             auto worldUp=glm::vec3(view*glm::vec4(0,1,0,0));pUniform3f(worldUpLocation,worldUp.x,worldUp.y,worldUp.z);uniform1f(cameraHeightLocation,eye.y);
@@ -549,11 +631,27 @@ int wmain(int argc,wchar_t** argv){
             glLoadMatrixf(glm::value_ptr(view));
             environment_effects::drawWaterPetals(animationTime,goddess,layoutEditor.items[boatItem].pose.position,view,petals);
             environment_effects::drawFallingPetals(animationTime,layoutEditor.items[blossomItem].pose.position,view,petals);
+            if(!environmentDemo){
+                // Render translucent cloth after opaque geometry, with depth testing but no depth writes.
+                glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+                glDepthMask(GL_FALSE);glEnable(GL_CULL_FACE);glCullFace(GL_BACK);
+                pUniform1i(veilPassLocation,1);
+                drawEditable(luoshenItem,view,true);
+                pUniform1i(veilPassLocation,0);
+                glDisable(GL_CULL_FACE);glDepthMask(GL_TRUE);glDisable(GL_BLEND);
+            }
+
             drawSceneOverlay(showHelp?overlay:titleOverlay,showHelp);
             int windowWidth,windowHeight;
             glfwGetWindowSize(window,&windowWidth,&windowHeight);
             layoutEditor.draw(projection*view,windowWidth,windowHeight);
-            if(capture){
+            if(clothCapture){
+                const auto folder=exe/"captures"/("cloth-"+std::filesystem::path(clothView).string());
+                std::filesystem::create_directories(folder);
+                const std::string index=std::to_string(1000+frame).substr(1);
+                saveFrame(folder/("frame-"+index+".bmp"),w,h);
+                if(++frame==(clothView==L"veil-probe"?18:50)){checkGL("Cloth sequence rendered");break;}
+            }else if(capture){
                 auto folder=exe/"captures";std::filesystem::create_directories(folder);
                 const char* names[]={"scene-main.bmp","scene-overview.bmp","scene-luoshen.bmp","scene-caozhi.bmp"};
                 saveFrame(folder/names[frame],w,h);

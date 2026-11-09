@@ -163,7 +163,14 @@ void main()
         local.z+=.035*sin(local.y*3.0-sceneTime*.8);
     }
     if(materialKind==5)local.x+=.04*sin(sceneTime*.8+local.z*.9+local.x)*clamp(gl_MultiTexCoord0.y,0.0,1.0);
-    if(clothMotionEnabled==1 && materialKind==12){
+    if(clothMotionEnabled==1 && materialKind==19){
+        vec2 uv=gl_MultiTexCoord0.xy;
+        float pin=sin(3.14159265*uv.x)*uv.y*uv.y;
+        float wave=1.07*clothTime-3.25*uv.y+1.4*uv.x;
+        float wind=min(clothStrength,1.6)*smoothstep(0.0,.9,clothTime);
+        local.xyz+=pin*wind*vec3(.004*sin(wave-.55),.006*sin(wave+.7),
+                                  .011*sin(wave)+.004*sin(.68*clothTime+2.2*uv.x));
+    }else if(clothMotionEnabled==1 && materialKind==12){
         vec2 uv=gl_MultiTexCoord0.xy;
         float across=clamp((uv.x-.18)/.64,0.0,1.0);
         float along=clamp((.88-uv.y)/.75,0.0,1.0);
@@ -315,18 +322,42 @@ float silkHighlight(vec3 N,vec3 warp,vec3 weft,vec3 V,vec3 light,vec2 profile){
     return (.63*peak+.37*shoulder)*sqrt(max(dot(N,light),0.0))
            *smoothstep(.08,.38,facing);
 }
+// Delicate scrolls in a narrow band above the gold-thread hem.
+vec2 gauzeTrim(vec2 uv){
+    vec2 edge=min(uv,1.0-uv);
+    float sides=1.0-smoothstep(.004,.016,edge.x);
+    float bottom=1.0-smoothstep(.005,.024,1.0-uv.y);
+    float border=max(sides*smoothstep(.05,.27,uv.y),bottom);
+    vec2 p=vec2(fract(uv.x*5.0)-.5,(uv.y-.84)*4.8);
+    float arc=abs(length(p*vec2(1.0,1.7))-.24);
+    float curl=abs(length((p-vec2(.17,.018))*vec2(1.0,1.5))-.091);
+    float band=smoothstep(.77,.80,uv.y)*(1.0-smoothstep(.90,.93,uv.y));
+    float motif=(1.0-smoothstep(.010,.034,min(arc,curl)))*band
+                *smoothstep(.04,.14,edge.x);
+    return vec2(border,motif);
+}
 void main(){
     vec4 color=vec4(baseColor,1.0);
     if(useTexture==1)color*=texture2D(texture0,textureCoord);
     if(color.a<0.44)discard;
     float veilAlpha=1.0;
-    bool isVeil=materialKind==9||materialKind==16;
+    bool isVeil=materialKind==9||materialKind==16||materialKind==19;
     if(isVeil){
         float u=clamp((textureCoord.x-.18)/.64,0.0,1.0);
         float edge=abs(u*2.0-1.0);
         if(materialKind==9){
             veilAlpha=mix(.68,.36,smoothstep(.13,1.0,edge));
             if(veilProbe==1)veilAlpha=.14;
+        }else if(materialKind==19){
+            vec2 uv=clamp(textureCoord,0.0,1.0);
+            float side=min(uv.x,1.0-uv.x);
+            float hem=min(uv.y,1.0-uv.y);
+            float fade=smoothstep(0.0,.14,side)*smoothstep(0.0,.15,hem);
+            vec2 weave=uv*vec2(34.0,29.0);
+            vec2 resolve=1.0-smoothstep(vec2(.13),vec2(.47),fwidth(weave));
+            float thread=dot(sin(6.2831853*weave)*resolve,vec2(.009));
+            vec2 trim=gauzeTrim(uv);
+            veilAlpha=mix(.37,.67,fade)+thread*fade+.43*trim.x+.10*trim.y;
         }else{
             float fringe=clamp((textureCoord.x-.82)/.13,0.0,1.0);
             veilAlpha=mix(.64,.28,smoothstep(.08,1.0,fringe));
@@ -513,6 +544,21 @@ void main(){
     }else{
         lit+=vec3(1.0,.85,.65)*specular*visibility
             *((materialKind==1||materialKind==7)?.18:.035);
+    }
+    if(materialKind==18){
+        // Warm reflected light on the metal, with a broad sky band and a tight key glint.
+        float rim=pow(1.0-clamp(dot(N,V),0.0,1.0),4.0);
+        float sky=pow(max(dot(reflect(-V,N),skyFill),0.0),9.0);
+        float key=pow(max(dot(R,V),0.0),38.0)*sqrt(diffuse)*visibility;
+        lit=color.rgb*(.48+.45*diffuse*visibility+.29*rim)
+            +vec3(1.0,.89,.63)*(.61*sky+.64*key);
+    }else if(materialKind==19){
+        float back=max(-dot(N,L),0.0);
+        float sheen=pow(max(dot(R,V),0.0),12.0)*diffuse;
+        vec2 trim=gauzeTrim(textureCoord);
+        vec3 ivory=color.rgb*(.92+.12*diffuse+.10*back)+vec3(.08,.07,.05)*sheen;
+        float gilding=clamp(.94*trim.x+.31*trim.y,0.0,1.0);
+        lit=mix(ivory,vec3(.91,.68,.38)*(1.0+.13*sheen),gilding);
     }
     // Broad cool ridge tones keep distant scenery subordinate to the figures.
     if(materialKind==4)lit=color.rgb*(.85+.15*max(dot(N,normalize(vec3(-.6,1.0,.3))),0.0));

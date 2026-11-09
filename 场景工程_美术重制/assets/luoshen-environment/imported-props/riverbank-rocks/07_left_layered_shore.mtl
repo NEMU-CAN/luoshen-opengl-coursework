@@ -1,0 +1,31 @@
+newmtl Strata_Weathered
+Kd 0.530 0.538 0.498
+illum 1
+
+newmtl Strata_Earth
+Kd 0.400 0.450 0.420
+illum 1
+
+newmtl Strata_Top
+Kd 0.594 0.570 0.505
+illum 1
+
+newmtl Strata_Blue
+Kd 0.400 0.460 0.470
+illum 1
+
+newmtl Strata_Recess
+Kd 0.310 0.370 0.390
+illum 1
+
+newmtl Strata_Seam
+Kd 0.280 0.330 0.340
+illum 1
+
+newmtl Strata_Lower
+Kd 0.380 0.430 0.440
+illum 1
+
+newmtl Strata_Fracture
+Kd 0.446 0.492 0.474
+illum 1

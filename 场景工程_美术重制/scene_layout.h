@@ -28,16 +28,9 @@ inline const std::array<Rock,4> ledges{{
     {{-3.65f,-.30f,-.95f},-24.f,1.30f},
     {{-2.80f,-.30f,.55f},28.f,1.42f}
 }};
-struct ShoreConnector {const char* asset; Rock pose;};
-inline const std::array<ShoreConnector,6> shoreConnectors{{
-    {"01_slope_connector_rock_A",{{-6.12f,.26f,-5.72f},-24.f,1.38f}},
-    {"02_slope_connector_rock_B",{{-5.34f,.15f,-6.12f},16.f,1.20f}},
-    {"03_waterside_flat_rock_A",{{-3.48f,-.055f,-5.42f},28.f,1.18f}},
-    {"04_waterside_wedge_rock_B",{{-3.90f,-.06f,-4.15f},-32.f,1.26f}},
-    {"05_small_wedge_rock_A",{{-4.26f,.09f,-6.02f},53.f,1.05f}},
-    {"06_small_wedge_rock_B",{{-4.62f,.15f,-3.96f},-22.f,1.14f}},
-}};
 struct BankRock {glm::vec3 position;float yaw;glm::vec3 size;int variant;};
+// Slots 1-9 are kept for old layout IDs. Their shoreline is part of the continuous mesh.
+inline constexpr int firstStandaloneBankRock=9;
 inline const std::array<BankRock,23> bankRocks{{
     // Broad slabs at the bends, with smaller broken edges between them.
     {{-4.94f,-.08f,-8.2f},-22.f,{1.50f,.48f,1.65f},0},

@@ -3,8 +3,12 @@
 #include <cmath>
 
 namespace environment_effects {
-inline constexpr int waterPetalCount=48;
-inline constexpr int fallingPetalCount=14;
+inline constexpr int waterPetalCount=134;
+inline constexpr int canopyPetalCount=48;
+inline constexpr int downwindPetalCount=23;
+inline constexpr int farPetalCount=5;
+inline constexpr int foregroundPetalCount=6;
+inline constexpr int fallingPetalCount=canopyPetalCount+downwindPetalCount+farPetalCount+foregroundPetalCount;
 
 struct PetalPose {
     glm::vec3 position{0};
@@ -19,17 +23,22 @@ inline float shoreline(float z){return -3.5f+.65f*std::sin(z*.16f)+.35f*std::sin
 inline PetalPose waterPetalPose(int index,double seconds){
     const float seed=static_cast<float>(index)+7.f;
     const float time=static_cast<float>(seconds);
-    const bool nearBank=index<34;
+    const bool nearBank=index<80;
     float z=(nearBank?-11.5f:-10.5f)+noise(seed+18.f)*(nearBank?13.5f:12.f);
     z+=.18f*std::sin(time*.10f+seed*.43f);
     float x=nearBank
-        ?shoreline(z)+.42f+noise(seed+4.f)*1.45f
+        ?shoreline(z)+.42f+noise(seed+4.f)*2.05f
         :1.65f+noise(seed+4.f)*5.2f;
+    if(index>=112){
+        // A looser band beyond the shoreline cluster, with space between the two.
+        z=-5.1f+6.75f*noise(seed+18.f)+.16f*std::sin(time*.12f+seed);
+        x=shoreline(z)+2.05f+1.65f*noise(seed+4.f);
+    }
     x+=.10f*std::sin(time*.13f+seed);
     PetalPose pose;
     pose.position={x,.014f+.003f*std::sin(time*.72f+seed),z};
     pose.yaw=glm::degrees(noise(seed+6.f)*6.2831853f+time*(.025f+.018f*noise(seed+9.f)));
-    pose.scale=.50f+.36f*noise(seed+40.f);
+    pose.scale=.41f+.46f*noise(seed+40.f);
     pose.tilt={2.f+4.f*noise(seed+22.f),3.f*std::sin(time*.35f+seed)};
     return pose;
 }
@@ -56,13 +65,34 @@ inline PetalPose fallingPetalPose(int index,double seconds,const glm::vec3& blos
     if(elapsed<0)elapsed+=duration;
     const float t=elapsed/duration;
     const float sway=std::sin(t*9.424778f+seed);
+    // Spread the release points along the canopy and carry petals toward open water.
+    const float branch=1.44f*noise(seed+11.f)-.62f;
     PetalPose pose;
     pose.position=blossom+glm::vec3(
-        -.35f+.75f*noise(seed+11.f)+.48f*t+.18f*sway,
+        branch+.72f*t+.17f*sway,
         .20f+3.75f*(1.f-t),
-        -.62f+1.24f*noise(seed+17.f)+.16f*std::sin(t*12.56637f+seed*.7f));
+        -.94f+1.65f*noise(seed+17.f)-.76f*t+.20f*std::sin(t*12.56637f+seed*.7f));
+    // Fewer petals reach each successive band of the breeze.
+    if(index>=canopyPetalCount+downwindPetalCount+farPetalCount){
+        pose.position=blossom+glm::vec3(
+            .48f+.76f*noise(seed+11.f)+.32f*t+.09f*sway,
+            .12f+1.42f*(1.f-t),
+            1.16f+1.18f*noise(seed+17.f)+.22f*t);
+    }else if(index>=canopyPetalCount+downwindPetalCount){
+        pose.position=blossom+glm::vec3(
+            2.68f+1.04f*noise(seed+11.f)+.47f*t+.12f*sway,
+            .13f+1.62f*(1.f-t),
+            -3.65f-1.20f*noise(seed+17.f)-.55f*t);
+    }else if(index>=canopyPetalCount){
+        pose.position=blossom+glm::vec3(
+            1.18f+1.45f*noise(seed+11.f)+.52f*t+.16f*sway,
+            .17f+2.55f*(1.f-t),
+            -1.48f-2.46f*noise(seed+17.f)-.84f*t);
+    }
     pose.yaw=noise(seed+23.f)*360.f+time*16.f*(noise(seed+25.f)>.5f?1.f:-1.f);
-    pose.scale=.56f+.30f*noise(seed+29.f);
+    pose.scale=.45f+.46f*noise(seed+29.f);
+    if(index>=canopyPetalCount+downwindPetalCount+farPetalCount)pose.scale*=1.22f;
+    else if(index>=canopyPetalCount)pose.scale*=.83f;
     pose.tilt={28.f+46.f*noise(seed+31.f),24.f*std::sin(t*12.56637f+seed)};
     return pose;
 }

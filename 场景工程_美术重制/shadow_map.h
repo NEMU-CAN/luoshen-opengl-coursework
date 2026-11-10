@@ -121,7 +121,7 @@ struct ShadowMap {
         pUniform3f(boatLocation,keel.x,keel.y,keel.z);
         pUniform3f(goddessVelocityLocation,goddessVelocity.x,goddessVelocity.y,goddessVelocity.z);
         pUniform3f(boatVelocityLocation,boatVelocity.x,boatVelocity.y,boatVelocity.z);
-        pUniform1i(textureLocation,0);pUniform1i(kindLocation,18);
+        pUniform1i(textureLocation,0);pUniform1i(kindLocation,30);
         glPushAttrib(GL_ENABLE_BIT|GL_DEPTH_BUFFER_BIT|GL_COLOR_BUFFER_BIT);
         glDisableClientState(GL_VERTEX_ARRAY);glDisableClientState(GL_NORMAL_ARRAY);glDisableClientState(GL_TEXTURE_COORD_ARRAY);
         glMatrixMode(GL_PROJECTION);glPushMatrix();glLoadIdentity();

@@ -310,3 +310,31 @@ Ns 18
 d 1
 illum 2
 map_Kd airy-jade.png
+
+newmtl Drape_JadeSilk
+Kd 1 1 1
+Ks .02 .02 .02
+Ns 10
+illum 2
+map_Kd airy-jade.png
+
+newmtl Drape_IvorySilk
+Kd 1 1 1
+Ks .02 .02 .02
+Ns 10
+illum 2
+map_Kd airy-ivory.png
+
+newmtl Drape_IvorySilkBack
+Kd 1 1 1
+Ks .02 .02 .02
+Ns 10
+illum 2
+map_Kd airy-ivory.png
+
+newmtl Drape_IvorySilkMid
+Kd 1 1 1
+Ks .02 .02 .02
+Ns 10
+illum 2
+map_Kd airy-ivory.png

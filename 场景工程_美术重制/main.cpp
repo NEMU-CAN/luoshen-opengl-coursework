@@ -37,7 +37,7 @@ float clothStrength=1.f;
 GLint clothTimeLocation=-1,clothStrengthLocation=-1;
 int clothPreviewMin=8,clothPreviewMax=16;
 GLint veilPassLocation=-1,clothMotionLocation=-1;
-bool isVeilKind(int kind){return kind==9||kind==16||kind==19||(kind>=20&&kind<=25);}
+bool isVeilKind(int kind){return kind==9||kind==16||kind==19||(kind>=20&&kind<=29);}
 glm::mat4 worldPrefix(1);
 GLuint groundColor=0,groundNormal=0;
 std::map<std::string,GLuint> textures;
@@ -117,6 +117,10 @@ SceneModel loadModel(const std::string& relative,bool pickable=false,
         else if(mat.name=="Airy_IvoryWindward")gpu.kind=23;
         else if(mat.name=="Airy_IvoryFront")gpu.kind=24;
         else if(mat.name=="Airy_JadeTrain")gpu.kind=25;
+        else if(mat.name=="Drape_JadeSilk")gpu.kind=26;
+        else if(mat.name=="Drape_IvorySilk")gpu.kind=27;
+        else if(mat.name=="Drape_IvorySilkBack")gpu.kind=28;
+        else if(mat.name=="Drape_IvorySilkMid")gpu.kind=29;
         // Artistic palettes identify props without changing shared texture assets.
         if(relative.find("03_shore_rock_")!=std::string::npos || relative.find("03_left_bank_platform_steps.obj")!=std::string::npos)gpu.kind=31;
         else if(relative.find("05_covered_wooden_boat.obj")!=std::string::npos)gpu.kind=32;

@@ -168,7 +168,15 @@ void main()
         float anim=sceneTime>0.0?sceneTime:cloudParams.x;
         local.y+=.03*sin(local.x*.05+anim*.35)+.02*sin(local.z*.04-anim*.22);
     }
-    if(clothMotionEnabled==1 && materialKind>=20 && materialKind<=25){
+    if(clothMotionEnabled==1 && materialKind>=26 && materialKind<=29){
+        float t=clamp((.88-gl_MultiTexCoord0.y)/.75,0.0,1.0);
+        float u=clamp((gl_MultiTexCoord0.x-.18)/.64,0.0,1.0);
+        float phase=.73*clothTime-5.4*t+.32*float(materialKind-26);
+        float free=t*t*smoothstep(0.0,.9,clothTime)*clothStrength;
+        // The fitted seam stays pinned; free tips lift and turn across the wind.
+        local.xyz+=free*vec3(.014*sin(phase-.5),.030*sin(phase)+.012*(u-.5)*sin(phase-.8),
+                            .034*sin(phase+1.1)+.018*(u-.5)*sin(phase));
+    }else if(clothMotionEnabled==1 && materialKind>=20 && materialKind<=25){
         vec2 uv=gl_MultiTexCoord0.xy;
         float t=clamp((.88-uv.y)/.75,0.0,1.0);
         float u=clamp((uv.x-.18)/.64,0.0,1.0);
@@ -289,7 +297,7 @@ void main()
 
     shadowCoord=shadowFromEye*position;
     eyePosition = position.xyz;
-    clothRestPosition = materialKind>=8 && materialKind<=17
+    clothRestPosition = (materialKind>=8 && materialKind<=17)||(materialKind>=26&&materialKind<=29)
         ?(gl_ModelViewMatrix * gl_Vertex).xyz:position.xyz;
     eyeNormal = normalize(gl_NormalMatrix * gl_Normal);
     textureCoord = gl_MultiTexCoord0.xy;
@@ -463,11 +471,24 @@ void main(){
     if(color.a<0.44)discard;
     float veilAlpha=1.0;
     bool airy=materialKind>=20 && materialKind<=25;
-    bool isVeil=materialKind==9||materialKind==16||materialKind==19||airy;
+    bool drape=materialKind>=26 && materialKind<=29;
+    bool isVeil=materialKind==9||materialKind==16||materialKind==19||airy||drape;
     if(isVeil){
         float u=clamp((textureCoord.x-.18)/.64,0.0,1.0);
         float edge=abs(u*2.0-1.0);
-        if(airy){
+        if(drape){
+            float edgeFade=smoothstep(0.0,.20,min(u,1.0-u));
+            float t=clamp((.88-textureCoord.y)/.75,0.0,1.0);
+            float panel=materialKind==26?.82:.86;
+            float falloff=smoothstep(.55,.98,t);
+            float hemTurn=sin(6.2831853*(u+.13*float(materialKind-26)));
+            float bodyAlpha=mix(panel,.68,falloff*(.42+.18*hemTurn));
+            float clothCoverage=mix(.58,.96,edgeFade);
+            veilAlpha=bodyAlpha*clothCoverage;
+            vec2 yarn=textureCoord*vec2(82.0,118.0);
+            vec2 resolve=1.0-smoothstep(vec2(.12),vec2(.42),fwidth(yarn));
+            color.rgb*=1.0+.009*dot(sin(6.2831853*yarn)*resolve,vec2(.5));
+        }else if(airy){
             float t=clamp((.88-textureCoord.y)/.75,0.0,1.0);
             float selvedge=1.0-smoothstep(.73,.998,edge);
             float density=(materialKind==20||materialKind==21||materialKind==25)?.27:.34;
@@ -504,9 +525,9 @@ void main(){
     if(materialKind==6){gl_FragColor=vec4(.035,.065,.06,.24);return;}
     vec3 N=normalize(eyeNormal);if(!gl_FrontFacing)N=-N;
     float sunBand=0.0;
-    bool silk=(materialKind>=8 && materialKind<=17)||airy;
-    bool ivory=materialKind==11||materialKind==12||materialKind==15||(materialKind>=22&&materialKind<=24);
-    bool sleeve=materialKind==10||materialKind==13||materialKind==17||materialKind==20||materialKind==21||materialKind==25;
+    bool silk=(materialKind>=8 && materialKind<=17)||airy||drape;
+    bool ivory=materialKind==11||materialKind==12||materialKind==15||(materialKind>=22&&materialKind<=24)||(materialKind>=27&&materialKind<=29);
+    bool sleeve=materialKind==10||materialKind==13||materialKind==17||materialKind==20||materialKind==21||materialKind==25||materialKind==26;
     vec3 warp=vec3(0.0),weft=vec3(0.0);
     vec3 sheenNormal=N;
     float valley=0.0,overlap=0.0,grainRoughness=1.0;
@@ -681,7 +702,8 @@ R"(
     float fold=smoothstep(.08,.82,diffuse);
     vec3 lit;
     if(silk){
-        vec3 directTint=vec3(.88,.70,.49);
+        if(drape)visibility=mix(.72,1.0,visibility);
+    vec3 directTint=vec3(.88,.70,.49);
         if(ivory)directTint=vec3(.50,.47,.43);
         else if(sleeve)directTint=vec3(.68,.60,.49);
         else if(materialKind==9)directTint=vec3(.67,.56,.40);
@@ -700,6 +722,7 @@ R"(
         }else if(materialKind==15)strength*=.79;
         else if(materialKind==17)strength=vec2(.29,.15);
         else if(materialKind==10){strength=vec2(.25,.14);profile=vec2(2.4,13.0);}
+        else if(drape){strength=vec2(.14,.10);profile=vec2(2.0,10.0);}
         else if(isVeil){
             strength=vec2(.145,.052);
             profile=vec2(3.2,9.0);
@@ -776,6 +799,11 @@ R"(
         float key=pow(max(dot(R,V),0.0),38.0)*sqrt(diffuse)*visibility;
         lit=color.rgb*(.48+.45*diffuse*visibility+.29*rim)
             +vec3(1.0,.89,.63)*(.61*sky+.64*key);
+    }else if(drape){
+        float back=max(-dot(N,L),0.0);
+        // Thin silk has broad diffuse transmission, without a padded specular ridge.
+        vec3 soft=color.rgb*(.51+.33*diffuse*visibility+.16*back);
+        lit=mix(lit,soft,.46);
     }else if(airy){
         float back=max(-dot(N,L),0.0);
         float rim=pow(1.0-abs(dot(N,V)),2.0);

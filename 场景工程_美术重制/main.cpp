@@ -37,7 +37,7 @@ float clothStrength=1.f;
 GLint clothTimeLocation=-1,clothStrengthLocation=-1;
 int clothPreviewMin=8,clothPreviewMax=16;
 GLint veilPassLocation=-1,clothMotionLocation=-1;
-bool isVeilKind(int kind){return kind==9||kind==16;}
+bool isVeilKind(int kind){return kind==9||kind==16||kind==19||(kind>=20&&kind<=29);}
 glm::mat4 worldPrefix(1);
 GLuint groundColor=0,groundNormal=0;
 std::map<std::string,GLuint> textures;
@@ -109,9 +109,21 @@ SceneModel loadModel(const std::string& relative,bool pickable=false,
         else if(mat.name=="Costume_pattern_near_wide_sleeve"||
                 mat.name=="Costume_pattern_far_wide_sleeve"||
                 mat.name=="Wind_CuffLining")gpu.kind=17;
+        else if(mat.name=="Luoshen_PaleGold"||mat.name=="Costume_gold_metal")gpu.kind=18;
+        else if(mat.name=="Luoshen_FaceGauze")gpu.kind=19;
+        else if(mat.name=="Airy_JadeSleeveA")gpu.kind=20;
+        else if(mat.name=="Airy_JadeSleeveB")gpu.kind=21;
+        else if(mat.name=="Airy_IvoryUpper")gpu.kind=22;
+        else if(mat.name=="Airy_IvoryWindward")gpu.kind=23;
+        else if(mat.name=="Airy_IvoryFront")gpu.kind=24;
+        else if(mat.name=="Airy_JadeTrain")gpu.kind=25;
+        else if(mat.name=="Drape_JadeSilk")gpu.kind=26;
+        else if(mat.name=="Drape_IvorySilk")gpu.kind=27;
+        else if(mat.name=="Drape_IvorySilkBack")gpu.kind=28;
+        else if(mat.name=="Drape_IvorySilkMid")gpu.kind=29;
         // Artistic palettes identify props without changing shared texture assets.
-        if(relative.find("03_shore_rock_")!=std::string::npos || relative.find("03_left_bank_platform_steps.obj")!=std::string::npos)gpu.kind=19;
-        else if(relative.find("05_covered_wooden_boat.obj")!=std::string::npos)gpu.kind=20;
+        if(relative.find("03_shore_rock_")!=std::string::npos || relative.find("03_left_bank_platform_steps.obj")!=std::string::npos)gpu.kind=31;
+        else if(relative.find("05_covered_wooden_boat.obj")!=std::string::npos)gpu.kind=32;
         sceneGenBuffers(1,&gpu.buffer);if(!gpu.buffer)throw std::runtime_error("Geometry buffer allocation failed");
         gpu.count=static_cast<GLsizei>(batch.vertices.size());
         if(isVeilKind(gpu.kind)){
@@ -143,7 +155,7 @@ void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,
         const bool previewEnabled=(b.kind>=clothPreviewMin&&b.kind<=clothPreviewMax)
             ||(clothPreviewMin==10&&(b.kind==13||b.kind==16))||(clothPreviewMax==9&&b.kind==14)
             ||(clothPreviewMin==11&&b.kind==15);
-        pUniform1i(clothMotionLocation,b.kind<8||previewEnabled?1:0);
+        pUniform1i(clothMotionLocation,b.kind<8||b.kind==19||b.kind>=20||previewEnabled?1:0);
         material(b.color*tint,b.kind,b.texture);sceneBindBuffer(SCENE_ARRAY_BUFFER,b.buffer);
         glVertexPointer(3,GL_FLOAT,sizeof(SceneVertex),reinterpret_cast<const void*>(offsetof(SceneVertex,position)));
         glNormalPointer(GL_FLOAT,sizeof(SceneVertex),reinterpret_cast<const void*>(offsetof(SceneVertex,normal)));
@@ -156,7 +168,11 @@ void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,
         std::sort(layers.begin(),layers.end(),[&](const GpuBatch* a,const GpuBatch* b){
             return (mv*glm::vec4(a->center,1)).z<(mv*glm::vec4(b->center,1)).z;
         });
-        for(const auto* layer:layers)drawBatch(*layer);
+        for(const auto* layer:layers){
+            if(layer->kind==19)glDisable(GL_CULL_FACE);
+            drawBatch(*layer);
+            if(layer->kind==19)glEnable(GL_CULL_FACE);
+        }
     }else{
         for(const auto& b:model.batches)drawBatch(b);
     }
@@ -406,7 +422,7 @@ int wmain(int argc,wchar_t** argv){
         auto prop=[](const char* name,bool pickable=false){return loadModel(std::string("imported-props/v6/")+name+".obj",pickable);};
         auto boat=prop("05_covered_wooden_boat",true);
         auto blossom=prop("01_foreground_blossom_tree",true);
-        auto ledge=prop("03_left_bank_platform_steps");
+        auto leftShore=loadModel("imported-props/riverbank-rocks/07_left_layered_shore.obj",false,glm::vec3(0));
         auto leftRidge=prop("07_left_ridge_facets");
         auto rightSummit=prop("07_right_summit");
         auto valleyRidge=prop("07_river_valley_ridge");
@@ -431,21 +447,13 @@ int wmain(int argc,wchar_t** argv){
         editable(boat,"boat",u8"小舟",{scene_layout::boatPosition,scene_layout::boatYaw,scene_layout::boatScale},glm::vec3(1),true);
         const auto blossomItem=layoutEditor.items.size();
         editable(blossom,"blossom",u8"桃花树",{scene_layout::blossomPosition,scene_layout::blossomYaw,scene_layout::blossomScale},scene_layout::blossomStretch);
-        for(int i=1;i<int(scene_layout::ledges.size());++i){
+        for(int i=2;i<int(scene_layout::ledges.size());++i){
             const auto& rock=scene_layout::ledges[i];
             auto number=std::to_string(i);
             editable(rocks[i-1],"foreground-"+number,u8"前景岩石 "+number,
                      {rock.position+glm::vec3(0,.20f,0),rock.yaw,rock.scale*1.4f});
         }
-        const auto& connectors=scene_layout::shoreConnectors;
-        std::array<SceneModel, scene_layout::shoreConnectors.size()> connectorModels;
-        for(size_t i=0;i<connectors.size();++i){
-            const auto& rock=connectors[i];
-            connectorModels[i]=loadModel(std::string("imported-props/riverbank-rocks/")+rock.asset+".obj",true);
-            editable(connectorModels[i],"shore-connector-"+std::to_string(i+1),
-                     u8"左岸接坡石 "+std::to_string(i+1),{rock.pose.position,rock.pose.yaw,rock.pose.scale});
-        }
-        for(int i=0;i<int(scene_layout::bankRocks.size());++i){
+        for(int i=scene_layout::firstStandaloneBankRock;i<int(scene_layout::bankRocks.size());++i){
             const auto& rock=scene_layout::bankRocks[i];
             auto number=std::to_string(i+1);
             auto position=rock.position;
@@ -575,7 +583,7 @@ int wmain(int argc,wchar_t** argv){
                 drawEditable(i,view);
             }
             drawModel(distantBank,view,scene_layout::distantBankPosition,0,1,glm::vec3(1),glm::vec3(1.55f,.42f,8.5f));
-            drawModel(ledge,view,scene_layout::ledges[0].position,-8,1);
+            drawModel(leftShore,view,glm::vec3(0),0,1);
             };
             auto drawMountains=[&](const glm::mat4& view){
                 auto drawLeftBankRidges=[&](int variant){
@@ -700,7 +708,7 @@ int wmain(int argc,wchar_t** argv){
         glDeleteTextures(1,&overlay);
         glDeleteTextures(1,&titleOverlay);
         auto release=[](SceneModel& m){for(auto b:m.batches)sceneDeleteBuffers(1,&b.buffer);};
-        release(boat);release(blossom);release(ledge);release(distantBank);
+        release(boat);release(blossom);release(leftShore);release(distantBank);
         release(leftRidge);release(rightSummit);release(valleyRidge);
         release(caozhi);release(luoshen);
         for(auto& patch:meadow)release(patch);

@@ -109,6 +109,9 @@ SceneModel loadModel(const std::string& relative,bool pickable=false,
         else if(mat.name=="Costume_pattern_near_wide_sleeve"||
                 mat.name=="Costume_pattern_far_wide_sleeve"||
                 mat.name=="Wind_CuffLining")gpu.kind=17;
+        // Artistic palettes identify props without changing shared texture assets.
+        if(relative.find("03_shore_rock_")!=std::string::npos || relative.find("03_left_bank_platform_steps.obj")!=std::string::npos)gpu.kind=19;
+        else if(relative.find("05_covered_wooden_boat.obj")!=std::string::npos)gpu.kind=20;
         sceneGenBuffers(1,&gpu.buffer);if(!gpu.buffer)throw std::runtime_error("Geometry buffer allocation failed");
         gpu.count=static_cast<GLsizei>(batch.vertices.size());
         if(isVeilKind(gpu.kind)){
@@ -357,7 +360,8 @@ int wmain(int argc,wchar_t** argv){
         if(clothView==L"ribbons")clothPreviewMax=9;
         if(clothView==L"sleeve")clothPreviewMin=clothPreviewMax=10;
         if(clothView==L"skirt"){clothPreviewMin=11;clothPreviewMax=12;}
-        capture=capture||noShadows||clothCapture;
+        const bool wakeCapture=argc>1&&std::wstring(argv[1])==L"--capture-wakes";
+        capture=capture||noShadows||clothCapture||wakeCapture;
         const int bankRounds=capture&&argc==4&&std::wstring(argv[2])==L"--bank-round"
             ?std::clamp(std::stoi(argv[3]),0,scene_layout::leftBankRounds):scene_layout::leftBankRounds;
         bool smoke=argc>1&&std::wstring(argv[1])==L"--smoke";
@@ -534,6 +538,8 @@ int wmain(int argc,wchar_t** argv){
             target=layoutEditor.items[luoshenItem].pose.position+glm::vec3(0,1.55f,0);
         }
         double previous=glfwGetTime(),start=previous;int frame=0;size_t frames=0;double fpsStart=previous;
+        const auto wakeGoddessStart=layoutEditor.items[luoshenItem].pose.position;
+        const auto wakeBoatStart=layoutEditor.items[boatItem].pose.position;
         while(!glfwWindowShouldClose(window)){
             glfwPollEvents();double now=glfwGetTime();float dt=glm::clamp(float(now-previous),0.0f,.05f);previous=now;
             if(animationPlaying&&!clothCapture)animationTime+=dt;
@@ -552,6 +558,11 @@ int wmain(int argc,wchar_t** argv){
             float a=glm::radians(yaw),b=glm::radians(pitch);
             glm::vec3 eye=target+distanceToTarget*glm::vec3(std::sin(a)*std::cos(b),std::sin(b),std::cos(a)*std::cos(b));
             auto view=glm::lookAt(eye,target,glm::vec3(0,1,0));
+            if(wakeCapture){
+                float shift=.018f*float(std::min(frame,60));
+                layoutEditor.items[luoshenItem].pose.position=wakeGoddessStart+glm::vec3(-shift,0,0);
+                layoutEditor.items[boatItem].pose.position=glm::vec3(2.6f,wakeBoatStart.y,-5.0f+shift*1.8f);
+            }
             auto goddess=layoutEditor.items[luoshenItem].pose.position;
             auto drawEditable=[&](size_t i,const glm::mat4& cameraView,bool veil=false){
                 const auto& item=layoutEditor.items[i];
@@ -566,10 +577,47 @@ int wmain(int argc,wchar_t** argv){
             drawModel(distantBank,view,scene_layout::distantBankPosition,0,1,glm::vec3(1),glm::vec3(1.55f,.42f,8.5f));
             drawModel(ledge,view,scene_layout::ledges[0].position,-8,1);
             };
+            auto drawMountains=[&](const glm::mat4& view){
+                auto drawLeftBankRidges=[&](int variant){
+                    for(const auto& ridge:scene_layout::leftBankRidges){
+                        if(ridge.round>bankRounds)break;
+                        if(ridge.variant!=variant)continue;
+                        auto position=ridge.position;
+                        auto size=ridge.size;
+                        float angle=ridge.yaw;
+                        if(bankRounds>=41&&ridge.round==15){
+                            position.x-=.55f;
+                            position.z-=1.8f;
+                            size.y*=.86f;
+                        }
+                        if(bankRounds>=42&&ridge.round==16){
+                            position.x-=.42f;
+                            angle-=16.f;
+                            size.y*=.85f;
+                        }
+                        drawModel(mountains[ridge.variant],view,position,angle,1,{.84f,.91f,1},size);
+                    }
+                };
+                // Far mountains.
+                drawModel(mountains[0],view,{-2,-.22f,-51},0,3.4f,{.84f,.91f,1});
+                drawModel(mountains[0],view,scene_layout::leftFarPosition,0,1,{.84f,.91f,1},scene_layout::leftFarStretch);
+                // Fog slot: between the far and middle mountains.
+                drawModel(rightSummit,view,{9,-.20f,-36},-6,2.9f,{.84f,.91f,1});
+                drawModel(leftRidge,view,scene_layout::leftMountainPosition,0,1,{.84f,.91f,1},scene_layout::leftMountainStretch);
+                drawLeftBankRidges(1);
+                // Fog slot: between the middle mountains and near foothills.
+                drawModel(valleyRidge,view,{5.8f,-.24f,-26.0f},-7,1,{.84f,.91f,1});
+                drawModel(mountains[2],view,scene_layout::leftFoothillPosition,0,1,{.84f,.91f,1},scene_layout::leftFoothillStretch);
+                drawLeftBankRidges(2);
+            };
             pUseProgram(program);
             uniform1f(clothTimeLocation,static_cast<float>(clothTime));
             uniform1f(clothStrengthLocation,clothStrength);
-            uniform1f(timeLocation,static_cast<float>(animationTime));shadows.begin();drawCasters(shadows.lightView);shadows.end(w,h,view,!noShadows);
+            uniform1f(timeLocation,static_cast<float>(animationTime));
+            shadows.begin();
+            drawCasters(shadows.lightView);
+            drawMountains(shadows.lightView);
+            shadows.end(w,h,view,!noShadows);
             glMatrixMode(GL_PROJECTION);glLoadMatrixf(glm::value_ptr(projection));
             pUseProgram(program);uniform1f(timeLocation,static_cast<float>(animationTime));
             auto worldUp=glm::vec3(view*glm::vec4(0,1,0,0));pUniform3f(worldUpLocation,worldUp.x,worldUp.y,worldUp.z);uniform1f(cameraHeightLocation,eye.y);
@@ -590,37 +638,7 @@ int wmain(int argc,wchar_t** argv){
             glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
             drawWater();
             glDisable(GL_BLEND);
-            auto drawLeftBankRidges=[&](int variant){
-                for(const auto& ridge:scene_layout::leftBankRidges){
-                    if(ridge.round>bankRounds)break;
-                    if(ridge.variant!=variant)continue;
-                    auto position=ridge.position;
-                    auto size=ridge.size;
-                    float angle=ridge.yaw;
-                    if(bankRounds>=41&&ridge.round==15){
-                        position.x-=.55f;
-                        position.z-=1.8f;
-                        size.y*=.86f;
-                    }
-                    if(bankRounds>=42&&ridge.round==16){
-                        position.x-=.42f;
-                        angle-=16.f;
-                        size.y*=.85f;
-                    }
-                    drawModel(mountains[ridge.variant],view,position,angle,1,{.84f,.91f,1},size);
-                }
-            };
-            // Far mountains.
-            drawModel(mountains[0],view,{-2,-.22f,-51},0,3.4f,{.84f,.91f,1});
-            drawModel(mountains[0],view,scene_layout::leftFarPosition,0,1,{.84f,.91f,1},scene_layout::leftFarStretch);
-            // Fog slot: between the far and middle mountains.
-            drawModel(rightSummit,view,{9,-.20f,-36},-6,2.9f,{.84f,.91f,1});
-            drawModel(leftRidge,view,scene_layout::leftMountainPosition,0,1,{.84f,.91f,1},scene_layout::leftMountainStretch);
-            drawLeftBankRidges(1);
-            // Fog slot: between the middle mountains and near foothills.
-            drawModel(valleyRidge,view,{5.8f,-.24f,-26.0f},-7,1,{.84f,.91f,1});
-            drawModel(mountains[2],view,scene_layout::leftFoothillPosition,0,1,{.84f,.91f,1},scene_layout::leftFoothillStretch);
-            drawLeftBankRidges(2);
+            drawMountains(view);
             glLoadMatrixf(glm::value_ptr(view));
             material(glm::vec3(.85f,.90f,.81f),2,groundColor);
             glCallList(groundList);
@@ -645,7 +663,12 @@ int wmain(int argc,wchar_t** argv){
             int windowWidth,windowHeight;
             glfwGetWindowSize(window,&windowWidth,&windowHeight);
             layoutEditor.draw(projection*view,windowWidth,windowHeight);
-            if(clothCapture){
+            if(wakeCapture){
+                auto folder=exe/"captures"/"wakes";std::filesystem::create_directories(folder);
+                if(frame%15==0)saveFrame(folder/("frame-"+std::to_string(frame)+".bmp"),w,h);
+                if(++frame>120){checkGL("Wake sequence rendered");break;}
+                Sleep(40);
+            }else if(clothCapture){
                 const auto folder=exe/"captures"/("cloth-"+std::filesystem::path(clothView).string());
                 std::filesystem::create_directories(folder);
                 const std::string index=std::to_string(1000+frame).substr(1);

@@ -172,7 +172,7 @@ void main()
         float t=clamp((.88-gl_MultiTexCoord0.y)/.75,0.0,1.0);
         float u=clamp((gl_MultiTexCoord0.x-.18)/.64,0.0,1.0);
         float phase=.73*clothTime-5.4*t+.32*float(materialKind-26);
-        float free=t*t*smoothstep(0.0,.9,clothTime)*clothStrength;
+        float free=t*t*smoothstep(0.0,.9,clothTime)*clothStrength*mix(1.0,2.1,smoothstep(.23,.95,t));
         // The fitted seam stays pinned; free tips lift and turn across the wind.
         local.xyz+=free*vec3(.014*sin(phase-.5),.030*sin(phase)+.012*(u-.5)*sin(phase-.8),
                             .034*sin(phase+1.1)+.018*(u-.5)*sin(phase));
@@ -180,7 +180,7 @@ void main()
         vec2 uv=gl_MultiTexCoord0.xy;
         float t=clamp((.88-uv.y)/.75,0.0,1.0);
         float u=clamp((uv.x-.18)/.64,0.0,1.0);
-        float free=t*t*smoothstep(0.0,.9,clothTime)*clothStrength;
+        float free=t*t*smoothstep(0.0,.9,clothTime)*clothStrength*mix(1.0,2.1,smoothstep(.23,.95,t));
         float phase=.73*clothTime-5.4*t+float(materialKind-20)*.41;
         // All free layers share a travelling wind, with small delays in depth.
         local.xyz+=free*vec3(-.016*sin(phase-.4),
@@ -209,6 +209,8 @@ void main()
                 vec3 handle=s*s*vec3(-.029*sin(wave-.65),
                     .049+.034*sin(wave+1.0)+.009*(2.0*w-1.0)*sin(echo),
                     .022+.084*sin(wave)+.024*sin(echo));
+                // Increase the travelling wave, keeping the steady lift and pinned control rows.
+                handle=handle*vec3(1.8,2.0,1.9)-s*s*vec3(0.0,.049,.0198);
                 offset+=handle*u[i]*v[j];
                 dAcross+=handle*du[i]*v[j];
                 dAlong+=handle*u[i]*dv[j];
@@ -282,10 +284,10 @@ void main()
         // Keep the cuffs and tucked seams steady. Amplify only the parts in the wind.
         float freeEnd=smoothstep(.23,.95,s);
         vec3 gain=vec3(1.0);
-        if(materialKind==10||materialKind==16)gain=vec3(1.32,1.72,1.56);
-        else if(materialKind==11)gain=vec3(1.28,1.58,1.46);
-        else if(materialKind==13)gain=vec3(1.29,1.54,1.46);
-        else if(materialKind==8||materialKind==9)gain=vec3(1.34,1.56,1.50);
+        if(materialKind==10||materialKind==16)gain=vec3(2.25,3.10,2.80);
+        else if(materialKind==11)gain=vec3(2.18,2.85,2.63);
+        else if(materialKind==13)gain=vec3(2.19,2.77,2.63);
+        else if(materialKind==8||materialKind==9)gain=vec3(2.28,2.81,2.70);
         local.xyz+=offset*mix(vec3(1.0),gain,freeEnd)*pin*pin*breeze
                     *clothStrength*smoothstep(0.0,.9,clothTime);
     }
@@ -829,6 +831,12 @@ R"(
         lit=mix(lit,vec3(.38,.40,.34),held*.78);
         float cream=smoothstep(.55,.78,color.r)*smoothstep(.02,.10,color.g-color.b)*smoothstep(.55,.75,color.g/max(color.r,.001));
         lit=mix(lit,vec3(.94,.86,.76),cream*.7);
+    }
+    if(materialKind==33){
+        float top=smoothstep(.50,.93,dot(N,normalize(worldUpEye)));
+        vec3 side=color.rgb*vec3(.84,1.02,1.10)+vec3(.025,.035,.045);
+        vec3 soil=color.rgb*vec3(1.08,1.02,.95);
+        lit=mix(side,soil,top)*(.90+.10*visibility)*(.94+.06*fold);
     }
     if(materialKind==31){
         float up=dot(N,normalize(worldUpEye));

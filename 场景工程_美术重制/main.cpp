@@ -124,6 +124,7 @@ SceneModel loadModel(const std::string& relative,bool pickable=false,
         // Artistic palettes identify props without changing shared texture assets.
         if(relative.find("03_shore_rock_")!=std::string::npos || relative.find("03_left_bank_platform_steps.obj")!=std::string::npos)gpu.kind=31;
         else if(relative.find("05_covered_wooden_boat.obj")!=std::string::npos)gpu.kind=32;
+        else if(relative.find("07_left_layered_shore.obj")!=std::string::npos)gpu.kind=33;
         sceneGenBuffers(1,&gpu.buffer);if(!gpu.buffer)throw std::runtime_error("Geometry buffer allocation failed");
         gpu.count=static_cast<GLsizei>(batch.vertices.size());
         if(isVeilKind(gpu.kind)){

@@ -139,6 +139,7 @@ varying vec2 textureCoord;
 varying vec4 shadowCoord;
 uniform int materialKind;
 uniform float sceneTime;
+uniform vec3 cloudParams;
 uniform float clothTime;
 uniform float clothStrength;
 uniform int clothMotionEnabled;
@@ -163,6 +164,10 @@ void main()
         local.z+=.035*sin(local.y*3.0-sceneTime*.8);
     }
     if(materialKind==5)local.x+=.04*sin(sceneTime*.8+local.z*.9+local.x)*clamp(gl_MultiTexCoord0.y,0.0,1.0);
+    if(materialKind==1){
+        float anim=sceneTime>0.0?sceneTime:cloudParams.x;
+        local.y+=.03*sin(local.x*.05+anim*.35)+.02*sin(local.z*.04-anim*.22);
+    }
     if(clothMotionEnabled==1 && materialKind>=20 && materialKind<=25){
         vec2 uv=gl_MultiTexCoord0.xy;
         float t=clamp((.88-uv.y)/.75,0.0,1.0);
@@ -303,7 +308,6 @@ uniform int veilPass;
 uniform int veilProbe;
 uniform int shadowsEnabled;
 uniform int reflectionPass;
-uniform vec3 goddessPosition;
 uniform vec3 worldUpEye;
 uniform float cameraHeight;
 uniform vec3 lightPositionEye;
@@ -311,6 +315,17 @@ uniform vec3 baseColor;
 uniform int useTexture;
 uniform int materialKind;
 uniform float sceneTime;
+uniform vec3 cloudParams;
+uniform vec3 goddessPosition;
+uniform vec3 footPosition;
+uniform vec3 wakeTrail[16];
+uniform vec3 boatPosition;
+uniform vec3 goddessVelocity;
+uniform vec3 boatVelocity;
+uniform vec3 camRight;
+uniform vec3 camUp;
+uniform vec3 camBack;
+uniform vec3 cloudCameraWorld;
 varying vec3 eyePosition;
 varying vec3 eyeNormal;
 varying vec3 clothRestPosition;
@@ -318,7 +333,81 @@ varying vec3 trainDu,trainDv;
 varying vec2 textureCoord;
 varying vec4 shadowCoord;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
-float shadowTap(vec3 sc,vec2 offset,float bias){return shadow2D(shadowMap,vec3(sc.xy+offset*2.0/2048.0,sc.z-bias)).r;}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}
+float shadowTap(vec3 sc,vec2 offset,float bias){
+    vec2 uv=sc.xy+offset*vec2(2.26,3.06)/4096.0;
+    if(uv.x<=0.0||uv.x>=1.0||uv.y<=0.0||uv.y>=1.0)return 1.0;
+    return shadow2D(shadowMap,vec3(uv,sc.z-bias)).r;
+}
+// Integrate only the air between the eye and the visible surface.
+// The same field is used for sky and geometry; clouds never write depth.
+bool cloudSlab(float origin,float direction,float low,float high,inout float enter,inout float leave){
+    if(abs(direction)<.00001)return origin>=low && origin<=high;
+    float a=(low-origin)/direction,b=(high-origin)/direction;
+    enter=max(enter,min(a,b));leave=min(leave,max(a,b));
+    return leave>enter;
+}
+float valleyCloud(vec3 ray,float surfaceDistance){
+    float opticalDepth=0.0;
+    for(int layer=0;layer<4;++layer){
+        float k=float(layer);
+        float centerZ=layer==0?-28.0:(layer==2?-43.5:-29.2);
+        float halfDepth=layer==2?.20:.28;
+        float lowX=layer==0?-18.0:(layer==1?0.0:(layer==2?-6.0:12.0));
+        float highX=layer==0?-2.0:(layer==1?14.0:(layer==2?12.0:29.0));
+        float begin=0.0,end=200.0;
+        bool hit=cloudSlab(cloudCameraWorld.x,ray.x,lowX,highX,begin,end);
+        hit=cloudSlab(cloudCameraWorld.y,ray.y,.65,9.5,begin,end)&&hit;
+        hit=cloudSlab(cloudCameraWorld.z,ray.z,centerZ-halfDepth,centerZ+halfDepth,begin,end)&&hit;
+        if(hit && surfaceDistance>begin){
+            // Grid depends on the full cloud box, never on the occluding mesh.
+            float stepLength=(end-begin)/64.0;
+            float stop=min(end,surfaceDistance);
+            for(int sampleIndex=0;sampleIndex<64;++sampleIndex){
+                float cell=begin+float(sampleIndex)*stepLength;
+                if(cell>=stop)break;
+                float covered=min(stepLength,stop-cell);
+                vec3 p=cloudCameraWorld+ray*(cell+.5*stepLength);
+                float broad=noise(vec2(p.x*.37+k*3.1,p.z*.17));
+                float detail=noise(vec2(p.x*1.05-k*2.3,p.z*.39));
+                float x=p.x;
+                float crest;
+                if(layer==0){
+                    crest=3.6+.4*smoothstep(-18.0,-16.0,x)-.6*smoothstep(-16.0,-14.0,x)
+                        +.7*smoothstep(-14.0,-12.0,x)+.7*smoothstep(-12.0,-10.0,x)
+                        -.4*smoothstep(-10.0,-8.0,x)-.6*smoothstep(-8.0,-6.0,x)
+                        -.3*smoothstep(-6.0,-4.0,x)-.1*smoothstep(-4.0,-2.0,x);
+                }else if(layer==1){
+                    crest=3.6+.8*smoothstep(0.0,2.0,x)+.8*smoothstep(2.0,4.0,x)
+                        +.9*smoothstep(4.0,6.0,x)+.1*smoothstep(6.0,8.0,x)
+                        -.4*smoothstep(8.0,10.0,x)-.3*smoothstep(10.0,12.0,x)-.2*smoothstep(12.0,14.0,x);
+                }else if(layer==2){
+                    crest=5.6+.7*smoothstep(-6.0,-3.0,x)+.9*smoothstep(-3.0,0.0,x)
+                        +.9*smoothstep(0.0,3.0,x)+.5*smoothstep(3.0,6.0,x)
+                        +.2*smoothstep(6.0,9.0,x)+.2*smoothstep(9.0,12.0,x);
+                }else{
+                    crest=5.7+.65*smoothstep(12.0,18.0,x)+1.05*smoothstep(18.0,25.0,x)
+                        +(noise(vec2(x*.42,8.7))-.5)*.65;
+                }
+                if(layer==0)crest-=.32;
+                crest+=(broad-.5)*.32+(detail-.5)*.16;
+                float taper=smoothstep(lowX,lowX+3.0,x)*(1.0-smoothstep(highX-3.0,highX,x));
+                float thickness=(.35+1.10*broad)*taper;
+                float top=1.0-smoothstep(crest-.08,crest+.13,p.y);
+                float foot=smoothstep(crest-thickness-.60,crest-thickness+.12,p.y);
+                float sides=taper;
+                float along=1.0-smoothstep(halfDepth*.4,halfDepth,abs(p.z-centerZ));
+                float folds=.40+.60*broad;
+                opticalDepth+=top*foot*sides*along*folds*covered*1.5;
+            }
+        }
+    }
+    return 1.0-exp(-opticalDepth);
+}
+vec3 throughValleyCloud(vec3 background,vec3 ray,float surfaceDistance){
+    float a=valleyCloud(ray,surfaceDistance);
+    return mix(background,vec3(.91,.935,.95),a);
+}
 // Elliptical reflection from aligned silk threads. Two widths give the
 // travelling highlight a soft shoulder without flattening the entire fold.
 float silkHighlight(vec3 N,vec3 warp,vec3 weft,vec3 V,vec3 light,vec2 profile){
@@ -347,6 +436,28 @@ vec2 gauzeTrim(vec2 uv){
     return vec2(border,motif);
 }
 void main(){
+    gl_FragDepth=gl_FragCoord.z;
+    // Environment identifiers 30-32 are separate from character materials 8-29.
+    if(materialKind==30 && renderDepth==0){
+        vec2 uv=gl_FragCoord.xy/max(cloudParams.yz,vec2(1.0));
+        vec2 ndc=uv*2.0-1.0;
+        float aspect=max(cloudParams.y/max(cloudParams.z,1.0),.5);
+        vec3 rd=normalize(camRight*(ndc.x*aspect*.4142)+camUp*(ndc.y*.4142)-camBack);
+        vec3 sunDir=normalize(vec3(-.12,.16,-1.0));
+        float ang=acos(clamp(dot(rd,sunDir),-1.0,1.0));
+        float lift=smoothstep(0.0,.5,rd.y);
+        vec3 sky=mix(vec3(.97,.66,.46),vec3(.99,.76,.58),lift);
+        float disc=1.0-smoothstep(.036,.040,ang);
+        float below=dot(sunDir,camUp)-dot(rd,camUp);
+        float cut=step(below,.012);
+        disc*=cut;
+        float halo=(1.0-smoothstep(.040,.055,ang))*step(below,.014);
+        sky=mix(sky,vec3(.99,.80,.64),halo*.12);
+        sky=mix(sky,vec3(.99,.90,.80),disc*.82);
+        sky=throughValleyCloud(sky,rd,160.0);
+        gl_FragColor=vec4(sky,1.0);
+        return;
+    }
     vec4 color=vec4(baseColor,1.0);
     if(useTexture==1)color*=texture2D(texture0,textureCoord);
     if(color.a<0.44)discard;
@@ -392,6 +503,7 @@ void main(){
     if(reflectionPass==0 && ((veilPass==0 && isVeil)||(veilPass==1 && !isVeil)))discard;
     if(materialKind==6){gl_FragColor=vec4(.035,.065,.06,.24);return;}
     vec3 N=normalize(eyeNormal);if(!gl_FrontFacing)N=-N;
+    float sunBand=0.0;
     bool silk=(materialKind>=8 && materialKind<=17)||airy;
     bool ivory=materialKind==11||materialKind==12||materialKind==15||(materialKind>=22&&materialKind<=24);
     bool sleeve=materialKind==10||materialKind==13||materialKind==17||materialKind==20||materialKind==21||materialKind==25;
@@ -465,36 +577,37 @@ void main(){
             }
         }
     }
+    if(sleeve)color.rgb*=vec3(.88,.96,1.10);
     if(materialKind==1){
-        float wave=sin(textureCoord.x*9.0+sceneTime*.65)+sin(textureCoord.y*17.0+textureCoord.x*3.0-sceneTime*.43);
-        N=normalize(N+vec3(.035*wave,0,.055*cos(textureCoord.y*12.0+sceneTime*.5)));
-        color.rgb=mix(vec3(.075,.235,.275),vec3(.16,.36,.39),.5+.045*wave);
-        float lines=pow(.5+.5*sin(textureCoord.y*39.0+sin(textureCoord.x*8.0+sceneTime*.2)*3.0),18.0);
-        color.rgb+=lines*.010;
-        vec2 waterWorld=textureCoord*10.0;
-        float band=exp(-pow((waterWorld.x-.15*waterWorld.y)/(.14+.035*abs(waterWorld.y)),2.0));
-        float glimmer=pow(.5+.5*sin(waterWorld.y*31.0+sin(waterWorld.x*17.0+sceneTime*.5)*2.0-sceneTime*.8),16.0)*pow(.5+.5*sin(waterWorld.x*83.0+waterWorld.y*47.0+sceneTime*.6),9.0);
-        color.rgb+=vec3(.24,.16,.07)*band*glimmer;
-        float grazing=pow(1.0-max(dot(N,normalize(-eyePosition)),0.0),3.0);
-        color.rgb=mix(color.rgb,vec3(.53,.64,.62),grazing*.60);
-        vec2 rippleOffset=textureCoord*10.0-goddessPosition.xz;
-        float angle=atan(rippleOffset.y,rippleOffset.x);
-        float radius=length(rippleOffset*vec2(.94,1.08))+.035*sin(angle*3.0+sceneTime*.2);
-        float arcs=smoothstep(.20,.65,.5+.5*sin(angle*3.0+radius*2.0-sceneTime*.25));
-        color.rgb+=vec3(.035,.046,.04)*pow(.5+.5*cos(radius*18.0-sceneTime*1.5),14.0)*exp(-radius*1.9)*arcs;
+        vec2 flow=textureCoord*10.0;
+        float away=smoothstep(2.0,-10.0,flow.y);
+        color.rgb=mix(vec3(.45,.584,.61),vec3(.53,.654,.66),away);
+        vec2 fromSun=flow-vec2(-1.1,-2.4);
+        float ripplePhase=flow.y*20.0+5.5*noise(vec2(flow.x*.72,flow.y*2.1))
+            +1.35*sin(flow.y*5.7)+1.05*sin(flow.x*2.3+flow.y*1.4);
+        float rippleWidth=max(fwidth(ripplePhase),.05);
+        float ripple=smoothstep(.42-rippleWidth,.82+rippleWidth,sin(ripplePhase));
+        float fragments=smoothstep(.32,.65,noise(vec2(flow.x*5.5,flow.y*8.2)));
+        float streak=.20+.80*ripple*fragments;
+        float spread=.95+.065*abs(fromSun.y);
+        sunBand=exp(-fromSun.x*fromSun.x/(spread*spread)-fromSun.y*fromSun.y/40.0)*streak;
+        color.rgb*=.99+.025*noise(vec2(flow.x*.8,flow.y*7.0));
+
     }
+)"
+R"(
     if(materialKind==2){
         float patch=.5+.5*sin(textureCoord.x*2.0+sin(textureCoord.y*1.8))*cos(textureCoord.y*2.4);
-        color.rgb*=mix(vec3(.80,.84,.72),vec3(1.04,.99,.88),patch);
-        color.rgb*=.97+.04*hash(floor(textureCoord*90.0));
+        color.rgb=mix(color.rgb,vec3(.64,.62,.58),.80);
+        color.rgb*=mix(vec3(.92,.90,.86),vec3(1.02,1.00,.96),patch);
+        color.rgb*=.97+.06*hash(floor(textureCoord*28.0));
         vec2 ground=textureCoord/0.4;
-        color.rgb=mix(color.rgb,vec3(.19,.28,.18),.60);
         float shore=-3.5+.65*sin(ground.y*.16)+.35*sin(ground.y*.53+.8)+.12*sin(ground.y*1.4)-ground.x;
-        color.rgb=mix(color.rgb,vec3(.25,.26,.20),.4*exp(-max(shore,0.0)*2.0));
-        float shade=exp(-dot((ground-vec2(-8.0,-3.5))/vec2(2.0,2.7),(ground-vec2(-8.0,-3.5))/vec2(2.0,2.7)));
-        color.rgb*=1.0-.22*shade;
-        vec2 contact=(ground-vec2(-4.3,1.0))/vec2(.55,.4);
-        color.rgb*=1.0-.38*exp(-dot(contact,contact));
+        color.rgb=mix(color.rgb,vec3(.58,.60,.62),.22*exp(-max(shore,0.0)*1.4));
+        float shade=exp(-dot((ground-vec2(-8.0,-3.5))/vec2(2.6,3.2),(ground-vec2(-8.0,-3.5))/vec2(2.6,3.2)));
+        color.rgb*=1.0-.08*shade;
+        vec2 contact=(ground-vec2(-4.3,1.0))/vec2(1.1,.85);
+        color.rgb*=1.0-.10*exp(-dot(contact,contact));
         // Tangent-space normal mapping: derive a cotangent frame from UV/position derivatives.
         vec3 dp1=dFdx(eyePosition),dp2=dFdy(eyePosition);
         vec2 duv1=dFdx(textureCoord),duv2=dFdy(textureCoord);
@@ -505,32 +618,77 @@ void main(){
         vec3 mapped=texture2D(normalMap,textureCoord).xyz*2.0-1.0;
         mapped.xy*=.55;N=normalize(mat3(T*inv,B*inv,N)*normalize(mapped));
     }
-    vec3 L=normalize(lightPositionEye-eyePosition),V=normalize(-eyePosition),R=reflect(-L,N);
+    if(materialKind==4){
+        float layer=smoothstep(.30,.52,color.b);
+        color.rgb=mix(vec3(.50,.58,.64),vec3(.68,.74,.77),layer);
+        color.rgb*=.93+.12*noise(textureCoord*4.5);
+    }
+    if(materialKind==0 || materialKind==3 || materialKind==7){
+        float warm=clamp((color.r-color.b-.06)/.20,0.0,1.0)*smoothstep(.55,.82,color.r);
+        color.rgb=mix(color.rgb,vec3(min(color.r*1.03,1.0),min(color.g*1.01,.96),mix(color.b,.86,.75)),warm*.65);
+        float leaf=smoothstep(.04,.14,color.g-color.b)*smoothstep(.04,.12,color.g-color.r);
+        float teal=smoothstep(.0,.08,color.g-color.r)*smoothstep(.22,.50,color.g)*(1.0-leaf);
+        color.rgb=mix(color.rgb,vec3(color.r*.74,min(color.g*1.06,.82),min(color.b+.08,color.g)),teal*.65);
+        color.rgb=mix(color.rgb,vec3(color.r*.96,color.g*.66,color.b*.76),leaf*.72);
+    }
+    if(materialKind==5)color.rgb=mix(color.rgb,vec3(color.r*.92,color.g*.64,color.b*.72),.6);
+    if(materialKind==0 && useTexture==0){
+        float peak=max(color.r,color.g);
+        float lift=smoothstep(.22,.30,peak)*(1.0-smoothstep(.42,.70,peak));
+        color.rgb=mix(color.rgb,color.rgb*.5+vec3(.46,.44,.39),lift);
+    }
+)"
+R"(
+    float ridge=0.0;
+    // All mountain draws currently use this explicit tint; other draws use white.
+    // This marker is independent of camera distance and texture mip selection.
+    if(materialKind==0 && distance(baseColor,vec3(.84,.91,1.0))<.015)ridge=1.0;
+    float ridgeShade=0.0;
+    // Art-directed front-left key; the sunset disc is a background accent.
+    // Keep the key fixed in world space as the viewer moves.
+    vec3 sunWorld=normalize(vec3(-.48,.48,.74));
+    vec3 sunEye=vec3(dot(camRight,sunWorld),dot(camUp,sunWorld),dot(camBack,sunWorld));
+    vec3 L=normalize(sunEye),V=normalize(-eyePosition),R=reflect(-L,N);
+    vec3 fillWorld=normalize(vec3(.25,.70,.55));
+    vec3 skyFill=vec3(dot(camRight,fillWorld),dot(camUp,fillWorld),dot(camBack,fillWorld));
     float diffuse=max(dot(N,L),0.0);
-    float specular=diffuse>0.0?pow(max(dot(R,V),0.0),materialKind==1?105.0:(materialKind==7?70.0:35.0)):0.0;
+    float shininess=materialKind==1?28.0:(materialKind==7?40.0:22.0);
+    float specular=diffuse>0.0?pow(max(dot(R,V),0.0),shininess):0.0;
     float visibility=1.0;
     vec3 sc=shadowCoord.xyz/shadowCoord.w;
     if(shadowsEnabled==1 && reflectionPass==0 && materialKind!=1 && materialKind!=4 && sc.x>0.0 && sc.x<1.0 && sc.y>0.0 && sc.y<1.0 && sc.z>0.0 && sc.z<1.0){
-        float bias=max(.0008,.0018*(1.0-max(dot(N,L),0.0)));
-        // The thin double-sided cloth shares almost the same shadow depth.
-        if(materialKind==10||materialKind==11||materialKind==12||materialKind==13)bias+=.00045;float sum=0.0;
-        // Four hardware-filtered depth comparisons soften the edge with fewer fetches.
-        sum+=shadowTap(sc,vec2(.35,.45),bias);
-        sum+=shadowTap(sc,vec2(-.45,.25),bias);
-        sum+=shadowTap(sc,vec2(.25,-.35),bias);
-        sum+=shadowTap(sc,vec2(-.35,-.45),bias);
-        visibility=.18+.82*sum/4.0;
+        float bias=silk?max(.0008,.0018*(1.0-diffuse)):max(.0022,.0052*(1.0-diffuse));
+        if(materialKind==10||materialKind==11||materialKind==12||materialKind==13)bias+=.00045;
+        bias*=89.8/159.8; // Preserve world-depth offset after extending the light frustum.
+        float sum=0.0;
+        if(silk){
+            // Preserve the tighter upstream cloth shadow filter (shadowTap uses eight texels).
+            sum+=shadowTap(sc,vec2(.35,.45)*.25,bias);
+            sum+=shadowTap(sc,vec2(-.45,.25)*.25,bias);
+            sum+=shadowTap(sc,vec2(.25,-.35)*.25,bias);
+            sum+=shadowTap(sc,vec2(-.35,-.45)*.25,bias);
+            visibility=.18+.82*sum/4.0;
+        }else{
+        // About eight texels wide, so folded-rock edges stay soft and faces are not speckled.
+        sum+=shadowTap(sc,vec2(1.05,.72),bias);
+        sum+=shadowTap(sc,vec2(-1.12,.48),bias);
+        sum+=shadowTap(sc,vec2(.58,-1.02),bias);
+        sum+=shadowTap(sc,vec2(-.72,-.95),bias);
+        visibility=.55+.45*sum/4.0;
+        }
     }
-    vec3 directTint=vec3(.88,.70,.49);
-    if(ivory)directTint=vec3(.66,.61,.53);
-    else if(sleeve)directTint=vec3(.68,.60,.49);
-    else if(materialKind==9)directTint=vec3(.67,.56,.40);
-    vec3 skyFill=normalize(vec3(.6,.4,1.0));
-    float clothAO=1.0-.18*valley-.15*overlap;
-    vec3 lit=color.rgb*(vec3(.31,.36,.39)*clothAO
-        +directTint*diffuse*visibility*(1.0-.075*valley));
-    lit+=color.rgb*vec3(.12,.19,.23)*max(dot(N,skyFill),0.0)*clothAO;
+    // Smoothstep keeps low-poly planes apart without driving a back face to black.
+    float fold=smoothstep(.08,.82,diffuse);
+    vec3 lit;
     if(silk){
+        vec3 directTint=vec3(.88,.70,.49);
+        if(ivory)directTint=vec3(.50,.47,.43);
+        else if(sleeve)directTint=vec3(.68,.60,.49);
+        else if(materialKind==9)directTint=vec3(.67,.56,.40);
+        float clothAO=1.0-.18*valley-.15*overlap;
+        lit=color.rgb*(vec3(.39,.41,.43)*clothAO
+            +directTint*diffuse*visibility*(1.0-.075*valley));
+        lit+=color.rgb*vec3(.25,.24,.22)*max(dot(N,skyFill),0.0)*clothAO;
         // Project the moving fiber axis back onto the finely perturbed surface.
         vec3 sheenWarp=normalize(warp-sheenNormal*dot(sheenNormal,warp));
         vec3 sheenWeft=cross(sheenNormal,sheenWarp);
@@ -546,9 +704,10 @@ void main(){
             strength=vec2(.145,.052);
             profile=vec2(3.2,9.0);
         }
-        vec3 tint=mix(color.rgb,vec3(.89,.96,.93),.63);
+        strength*=sleeve?vec2(.16,.10):vec2(.34,.22);
+        vec3 tint=mix(color.rgb,vec3(.94,.91,.85),.42);
         if(ivory)tint=mix(color.rgb,vec3(1.0,.96,.86),.68);
-        else if(sleeve)tint=mix(color.rgb,vec3(.68,.87,.80),.45);
+        else if(sleeve)tint=mix(color.rgb,vec3(.65,.79,.82),.45);
         else if(materialKind==9)tint=mix(color.rgb,vec3(1.0,.91,.74),.48);
         float keySilk=silkHighlight(sheenNormal,sheenWarp,sheenWeft,V,L,profile*grainRoughness);
         float skySilk=silkHighlight(sheenNormal,sheenWarp,sheenWeft,V,skyFill,profile*grainRoughness);
@@ -563,9 +722,52 @@ void main(){
             float transmission=materialKind==9?.047:.035;
             lit+=color.rgb*transmission*smoothstep(.04,.84,-dot(N,L))*visibility;
         }
+    }else if(materialKind==1){
+        lit=color.rgb;
+        lit=mix(lit,vec3(.98,.80,.58),sunBand*.72);
+        float trailLight=0.0;
+        for(int i=0;i<16;++i){
+            float age=wakeTrail[i].z;
+            float radius=length(textureCoord*10.0-wakeTrail[i].xy);
+            float crest=(i<8?.25:1.25)+age*.72;
+            float width=max(fwidth(radius)*1.2,.035);
+            float arc=1.0-smoothstep(width,width*2.0,abs(radius-crest));
+            float fade=smoothstep(.0,.12,age)*(1.0-smoothstep(.25,1.05,age));
+            float breakup=smoothstep(.3,.65,noise((textureCoord*10.0-wakeTrail[i].xy)*5.0));
+            trailLight=max(trailLight,arc*fade*breakup);
+        }
+        lit=mix(lit,vec3(.84,.76,.60),trailLight*.32);
+
+    }else if(ridge>.45){
+        vec3 mountainNormal=normalize(camRight*N.x+camUp*N.y+camBack*N.z);
+        float shaped=smoothstep(-.35,.80,dot(mountainNormal,normalize(vec3(.85,.32,.25))));
+        ridgeShade=1.0-shaped;
+        vec3 rockBase=vec3(.53,.61,.64);
+        lit=mix(vec3(.28,.40,.46),vec3(.61,.67,.65),shaped);
+    }else if(materialKind==4){
+        float shaped=clamp(diffuse*.85+.1,0.0,1.0);
+        shaped=shaped*.7+smoothstep(.05,.8,diffuse)*.3;
+        lit=color.rgb*(vec3(.34,.38,.42)+vec3(.74,.60,.46)*shaped);
+    }else if(materialKind==2){
+        float shaped=diffuse*.7+fold*.3;
+        lit=color.rgb*(vec3(.50,.48,.46)+vec3(.46,.44,.42)*shaped*visibility);
+    }else if(materialKind==0 && useTexture==0){
+        float peak=max(color.r,color.g);
+        float ink=1.0-smoothstep(.16,.26,peak);
+        float wrap=clamp(diffuse*.7+.22,0.0,1.0);
+        float shaped=wrap*.6+fold*.4;
+        vec3 amb=mix(vec3(.40,.38,.34),vec3(.16,.13,.11),ink);
+        vec3 key=mix(vec3(.62,.54,.42),vec3(.28,.22,.16),ink);
+        lit=color.rgb*(amb+key*shaped*visibility);
     }else{
-        lit+=vec3(1.0,.85,.65)*specular*visibility
-            *((materialKind==1||materialKind==7)?.18:.035);
+        float shaped=diffuse*.62+fold*.38;
+        lit=color.rgb*(vec3(.46,.42,.38)+vec3(.50,.42,.34)*shaped*visibility);
+        float fill=max(dot(N,skyFill),0.0);
+        lit+=color.rgb*vec3(.05,.06,.07)*fill;
+        float up=max(dot(N,normalize(worldUpEye)),0.0);
+        lit+=color.rgb*vec3(.04,.04,.035)*up*shaped;
+        float rim=pow(1.0-max(dot(N,V),0.0),2.4);
+        lit+=vec3(.11,.09,.07)*rim*(.22+.78*shaped);
     }
     if(materialKind==18){
         // Warm reflected light on the metal, with a broad sky band and a tight key glint.
@@ -587,19 +789,76 @@ void main(){
         float gilding=clamp(.94*trim.x+.31*trim.y,0.0,1.0);
         lit=mix(ivory,vec3(.91,.68,.38)*(1.0+.13*sheen),gilding);
     }
-    // Broad cool ridge tones keep distant scenery subordinate to the figures.
-    if(materialKind==4)lit=color.rgb*(.85+.15*max(dot(N,normalize(vec3(-.6,1.0,.3))),0.0));
-    float fog=1.0-exp(-max(length(eyePosition)-8.0,0.0)*(materialKind==4?.019:.022));
+    if(useTexture==1 && materialKind==0){
+        float sleeve=smoothstep(.02,.10,color.g-color.r)*smoothstep(.22,.48,color.g);
+        if(ridge>=.2)sleeve=0.0;
+        float worldY=dot(eyePosition,worldUpEye)+cameraHeight;
+        if(worldY<.85)sleeve=0.0;
+        float jadeB=mix(lit.b,lit.g-.03,.8);
+        lit=mix(lit,vec3(lit.r,lit.g,min(jadeB,lit.g-.012)),sleeve);
+        float green=smoothstep(.05,.14,lit.g-lit.r)*smoothstep(.0,.08,lit.g-lit.b);
+        float held=green*(1.0-sleeve)*(1.0-smoothstep(.15,.40,ridge));
+        lit=mix(lit,vec3(.38,.40,.34),held*.78);
+        float cream=smoothstep(.55,.78,color.r)*smoothstep(.02,.10,color.g-color.b)*smoothstep(.55,.75,color.g/max(color.r,.001));
+        lit=mix(lit,vec3(.94,.86,.76),cream*.7);
+    }
+    if(materialKind==31){
+        float up=dot(N,normalize(worldUpEye));
+        float top=smoothstep(.62,.96,up);
+        vec3 side=mix(vec3(.31,.40,.44),vec3(.48,.55,.56),fold);
+        float value=dot(color.rgb,vec3(.25,.50,.25));
+        lit=mix(side,vec3(.68,.63,.54),top)*mix(.76,1.0,smoothstep(.18,.72,value))*(.84+.16*visibility);
+    }
+    if(materialKind==32){
+        bool canopy=textureCoord.x>.375&&textureCoord.x<.75&&textureCoord.y>.25&&textureCoord.y<.375;
+        if(canopy){
+            float top=smoothstep(.05,.85,dot(N,normalize(worldUpEye)));
+            lit=mix(vec3(.53,.40,.27),vec3(.86,.73,.53),.28+.45*top+.27*fold)*(.88+.12*visibility);
+        }else{
+            lit=mix(vec3(.28,.20,.14),vec3(.61,.46,.30),.30+.70*fold)*(.85+.15*visibility);
+        }
+    }
+    // Preserve the authored rock face roles with an illustration palette.
+    if(materialKind==0 && useTexture==0){
+        vec3 facePalette=vec3(0.0);
+        if(distance(baseColor,vec3(.725,.678,.592))<.003)facePalette=vec3(.76,.70,.60);
+        else if(distance(baseColor,vec3(.592,.600,.549))<.003)facePalette=vec3(.58,.61,.60);
+        else if(distance(baseColor,vec3(.435,.494,.482))<.003)facePalette=vec3(.40,.49,.53);
+        else if(distance(baseColor,vec3(.318,.373,.376))<.003)facePalette=vec3(.28,.35,.39);
+        if(facePalette.r>0.0)lit=facePalette*(.82+.18*fold)*(.85+.15*visibility);
+    }
+    // Exact authored untextured petal palette; exclude stamens, skin and bark.
+    if(materialKind==0 && useTexture==0){
+        float pale=min(distance(baseColor,vec3(.99,.83,.69)),distance(baseColor,vec3(.99,.87,.72)));
+        float rose=distance(baseColor,vec3(.96,.71,.61));
+        if(min(pale,rose)<.005){
+            vec3 petal=rose<.005?vec3(.94,.76,.75):vec3(.98,.92,.86);
+            lit=petal*(vec3(.72,.73,.76)+vec3(.26,.22,.18)*fold*visibility);
+        }
+    }
+    float specStrength=materialKind==1?.006:(materialKind==7?.035:.010);
+    vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
+    if(!silk)lit+=specColor*specular*visibility*specStrength;
+    float fog=1.0-exp(-max(length(eyePosition)-22.0,0.0)*(materialKind==4?.004:(materialKind==1?.003:.004)));
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;
-    float mist=.20*(1.0-exp(-length(eyePosition)*.045))*exp(-max(worldHeight,0.0)*.8);
-    fog=1.0-(1.0-fog)*(1.0-mist);
-    vec3 fogColor=materialKind==1?vec3(.57,.67,.64):vec3(.74,.72,.65);
-    lit=mix(lit,fogColor,clamp(fog,0.0,.86));
-    float opacity=materialKind==1?.86:1.0;
+    vec3 fogColor=materialKind==1?vec3(.58,.66,.72):(materialKind==4?vec3(.62,.70,.76):vec3(.78,.70,.62));
+    lit=mix(lit,fogColor,clamp(fog,0.0,.02));
+    if(ridge>.5){
+        vec3 mesh=(gl_ModelViewMatrixInverse*vec4(eyePosition,1.0)).xyz;
+        float base=1.0-smoothstep(.0,.46,mesh.y);
+        lit=mix(lit,vec3(.22,.30,.34),base*.55);
+    }
+    float opacity=materialKind==1?.80:1.0;
     if(reflectionPass==1){
         float depth=max(-worldHeight,0.0);
-        lit=mix(lit,vec3(.38,.48,.46),.50);
-        opacity=.72*exp(-depth*.65);
+        lit=mix(lit,vec3(.84,.70,.58),.07);
+        opacity=.82*exp(-depth*.42);
+    }
+    // Water stays on its original plane; wake normals only tint small ripples.
+    if(reflectionPass==0 && materialKind!=1){
+        float surfaceDistance=length(eyePosition);
+        vec3 worldRay=normalize(camRight*eyePosition.x+camUp*eyePosition.y+camBack*eyePosition.z);
+        lit=throughValleyCloud(lit,worldRay,surfaceDistance);
     }
     gl_FragColor=vec4(lit,opacity*veilAlpha);
 }

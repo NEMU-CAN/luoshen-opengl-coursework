@@ -163,7 +163,17 @@ void main()
         local.z+=.035*sin(local.y*3.0-sceneTime*.8);
     }
     if(materialKind==5)local.x+=.04*sin(sceneTime*.8+local.z*.9+local.x)*clamp(gl_MultiTexCoord0.y,0.0,1.0);
-    if(clothMotionEnabled==1 && materialKind==19){
+    if(clothMotionEnabled==1 && materialKind>=20 && materialKind<=25){
+        vec2 uv=gl_MultiTexCoord0.xy;
+        float t=clamp((.88-uv.y)/.75,0.0,1.0);
+        float u=clamp((uv.x-.18)/.64,0.0,1.0);
+        float free=t*t*smoothstep(0.0,.9,clothTime)*clothStrength;
+        float phase=.73*clothTime-5.4*t+float(materialKind-20)*.41;
+        // All free layers share a travelling wind, with small delays in depth.
+        local.xyz+=free*vec3(-.016*sin(phase-.4),
+            .032*sin(phase)+.013*sin(phase*.71+u*3.14),
+            .045*sin(phase+1.2)+.018*(2.0*u-1.0)*sin(phase-.5));
+    }else if(clothMotionEnabled==1 && materialKind==19){
         vec2 uv=gl_MultiTexCoord0.xy;
         float pin=sin(3.14159265*uv.x)*uv.y*uv.y;
         float wave=1.07*clothTime-3.25*uv.y+1.4*uv.x;
@@ -341,11 +351,22 @@ void main(){
     if(useTexture==1)color*=texture2D(texture0,textureCoord);
     if(color.a<0.44)discard;
     float veilAlpha=1.0;
-    bool isVeil=materialKind==9||materialKind==16||materialKind==19;
+    bool airy=materialKind>=20 && materialKind<=25;
+    bool isVeil=materialKind==9||materialKind==16||materialKind==19||airy;
     if(isVeil){
         float u=clamp((textureCoord.x-.18)/.64,0.0,1.0);
         float edge=abs(u*2.0-1.0);
-        if(materialKind==9){
+        if(airy){
+            float t=clamp((.88-textureCoord.y)/.75,0.0,1.0);
+            float selvedge=1.0-smoothstep(.73,.998,edge);
+            float density=(materialKind==20||materialKind==21||materialKind==25)?.27:.34;
+            float hem=1.0-.50*smoothstep(.84,1.0,t);
+            veilAlpha=mix(.035,density,selvedge)*hem;
+            // Subtle warp threads fade with distance instead of aliasing.
+            vec2 yarn=textureCoord*vec2(96.0,132.0);
+            vec2 resolve=1.0-smoothstep(vec2(.12),vec2(.44),fwidth(yarn));
+            color.rgb*=1.0+.012*dot(sin(6.2831853*yarn)*resolve,vec2(.5));
+        }else if(materialKind==9){
             veilAlpha=mix(.68,.36,smoothstep(.13,1.0,edge));
             if(veilProbe==1)veilAlpha=.14;
         }else if(materialKind==19){
@@ -371,9 +392,9 @@ void main(){
     if(reflectionPass==0 && ((veilPass==0 && isVeil)||(veilPass==1 && !isVeil)))discard;
     if(materialKind==6){gl_FragColor=vec4(.035,.065,.06,.24);return;}
     vec3 N=normalize(eyeNormal);if(!gl_FrontFacing)N=-N;
-    bool silk=materialKind>=8 && materialKind<=17;
-    bool ivory=materialKind==11||materialKind==12||materialKind==15;
-    bool sleeve=materialKind==10||materialKind==13||materialKind==17;
+    bool silk=(materialKind>=8 && materialKind<=17)||airy;
+    bool ivory=materialKind==11||materialKind==12||materialKind==15||(materialKind>=22&&materialKind<=24);
+    bool sleeve=materialKind==10||materialKind==13||materialKind==17||materialKind==20||materialKind==21||materialKind==25;
     vec3 warp=vec3(0.0),weft=vec3(0.0);
     vec3 sheenNormal=N;
     float valley=0.0,overlap=0.0,grainRoughness=1.0;
@@ -520,6 +541,7 @@ void main(){
             profile=vec2(3.7,20.0);
         }else if(materialKind==15)strength*=.79;
         else if(materialKind==17)strength=vec2(.29,.15);
+        else if(materialKind==10){strength=vec2(.25,.14);profile=vec2(2.4,13.0);}
         else if(isVeil){
             strength=vec2(.145,.052);
             profile=vec2(3.2,9.0);
@@ -552,6 +574,11 @@ void main(){
         float key=pow(max(dot(R,V),0.0),38.0)*sqrt(diffuse)*visibility;
         lit=color.rgb*(.48+.45*diffuse*visibility+.29*rim)
             +vec3(1.0,.89,.63)*(.61*sky+.64*key);
+    }else if(airy){
+        float back=max(-dot(N,L),0.0);
+        float rim=pow(1.0-abs(dot(N,V)),2.0);
+        // A light scattering base keeps the thin outer cloth from looking metallic.
+        lit=color.rgb*(.71+.23*diffuse+.15*back)+vec3(.05,.055,.048)*rim;
     }else if(materialKind==19){
         float back=max(-dot(N,L),0.0);
         float sheen=pow(max(dot(R,V),0.0),12.0)*diffuse;

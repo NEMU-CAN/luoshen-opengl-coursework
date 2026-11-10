@@ -37,7 +37,7 @@ float clothStrength=1.f;
 GLint clothTimeLocation=-1,clothStrengthLocation=-1;
 int clothPreviewMin=8,clothPreviewMax=16;
 GLint veilPassLocation=-1,clothMotionLocation=-1;
-bool isVeilKind(int kind){return kind==9||kind==16||kind==19;}
+bool isVeilKind(int kind){return kind==9||kind==16||kind==19||(kind>=20&&kind<=25);}
 glm::mat4 worldPrefix(1);
 GLuint groundColor=0,groundNormal=0;
 std::map<std::string,GLuint> textures;
@@ -111,6 +111,12 @@ SceneModel loadModel(const std::string& relative,bool pickable=false,
                 mat.name=="Wind_CuffLining")gpu.kind=17;
         else if(mat.name=="Luoshen_PaleGold"||mat.name=="Costume_gold_metal")gpu.kind=18;
         else if(mat.name=="Luoshen_FaceGauze")gpu.kind=19;
+        else if(mat.name=="Airy_JadeSleeveA")gpu.kind=20;
+        else if(mat.name=="Airy_JadeSleeveB")gpu.kind=21;
+        else if(mat.name=="Airy_IvoryUpper")gpu.kind=22;
+        else if(mat.name=="Airy_IvoryWindward")gpu.kind=23;
+        else if(mat.name=="Airy_IvoryFront")gpu.kind=24;
+        else if(mat.name=="Airy_JadeTrain")gpu.kind=25;
         sceneGenBuffers(1,&gpu.buffer);if(!gpu.buffer)throw std::runtime_error("Geometry buffer allocation failed");
         gpu.count=static_cast<GLsizei>(batch.vertices.size());
         if(isVeilKind(gpu.kind)){
@@ -142,7 +148,7 @@ void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,
         const bool previewEnabled=(b.kind>=clothPreviewMin&&b.kind<=clothPreviewMax)
             ||(clothPreviewMin==10&&(b.kind==13||b.kind==16))||(clothPreviewMax==9&&b.kind==14)
             ||(clothPreviewMin==11&&b.kind==15);
-        pUniform1i(clothMotionLocation,b.kind<8||b.kind==19||previewEnabled?1:0);
+        pUniform1i(clothMotionLocation,b.kind<8||b.kind==19||b.kind>=20||previewEnabled?1:0);
         material(b.color*tint,b.kind,b.texture);sceneBindBuffer(SCENE_ARRAY_BUFFER,b.buffer);
         glVertexPointer(3,GL_FLOAT,sizeof(SceneVertex),reinterpret_cast<const void*>(offsetof(SceneVertex,position)));
         glNormalPointer(GL_FLOAT,sizeof(SceneVertex),reinterpret_cast<const void*>(offsetof(SceneVertex,normal)));

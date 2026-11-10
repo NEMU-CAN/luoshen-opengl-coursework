@@ -133,19 +133,32 @@ const char* vertexShaderSource = R"(
 
 varying vec3 eyePosition;
 varying vec3 eyeNormal;
+varying vec3 clothRestPosition;
+varying vec3 trainDu,trainDv;
 varying vec2 textureCoord;
 varying vec4 shadowCoord;
 uniform int materialKind;
 uniform float sceneTime;
 uniform vec3 cloudParams;
+uniform float clothTime;
+uniform float clothStrength;
+uniform int clothMotionEnabled;
 uniform int reflectionPass;
 uniform vec3 worldUpEye;
 uniform float cameraHeight;
 uniform mat4 shadowFromEye;
 
+// Analytic basis and slope for the biquartic displacement patch.
+void trainBasis(float t,out float b[5],out float d[5]){
+    float r=1.0-t;
+    float a=r*r*r,c=3.0*t*r*r,e=3.0*t*t*r,f=t*t*t;
+    b[0]=r*a;b[1]=t*a+r*c;b[2]=t*c+r*e;b[3]=t*e+r*f;b[4]=t*f;
+    d[0]=-4.0*a;d[1]=4.0*(a-c);d[2]=4.0*(c-e);d[3]=4.0*(e-f);d[4]=4.0*f;
+}
 void main()
 {
     vec4 local=gl_Vertex;
+    trainDu=vec3(0.0);trainDv=vec3(0.0);
     if(materialKind==3){
         local.x+=.025*sin(local.y*4.0+sceneTime*1.1)*sin(local.z*3.0);
         local.z+=.035*sin(local.y*3.0-sceneTime*.8);
@@ -155,6 +168,102 @@ void main()
         float anim=sceneTime>0.0?sceneTime:cloudParams.x;
         local.y+=.03*sin(local.x*.05+anim*.35)+.02*sin(local.z*.04-anim*.22);
     }
+    if(clothMotionEnabled==1 && materialKind==12){
+        vec2 uv=gl_MultiTexCoord0.xy;
+        float across=clamp((uv.x-.18)/.64,0.0,1.0);
+        float along=clamp((.88-uv.y)/.75,0.0,1.0);
+        float u[5],du[5],v[5],dv[5];
+        trainBasis(across,u,du);trainBasis(along,v,dv);
+        vec3 offset=vec3(0.0),dAcross=vec3(0.0),dAlong=vec3(0.0);
+        for(int j=2;j<5;++j){
+            float s=float(j)*.25;
+            for(int i=0;i<5;++i){
+                float w=float(i)*.25;
+                float wave=.77*clothTime-7.2*s-1.85*w;
+                float echo=.53*clothTime-3.5*s+1.7*w;
+                vec3 handle=s*s*vec3(-.029*sin(wave-.65),
+                    .049+.034*sin(wave+1.0)+.009*(2.0*w-1.0)*sin(echo),
+                    .022+.084*sin(wave)+.024*sin(echo));
+                offset+=handle*u[i]*v[j];
+                dAcross+=handle*du[i]*v[j];
+                dAlong+=handle*u[i]*dv[j];
+            }
+        }
+        float wind=clothStrength*smoothstep(0.0,.9,clothTime);
+        local.xyz+=offset*wind;
+        trainDu=mat3(gl_ModelViewMatrix)*dAcross*(wind/.64);
+        trainDv=mat3(gl_ModelViewMatrix)*dAlong*(-wind/.75);
+    }else if(clothMotionEnabled==1 && materialKind>=8 && materialKind<=16){
+        // Ribbon and gold edging share the same displacement field.
+        float s;
+        vec3 offset;
+        if(materialKind==8){
+            s=clamp((-local.x-.08)/1.06,0.0,1.0);
+            float phase=.86*clothTime-6.15*s;
+            float echo=.57*clothTime-3.8*s+.6;
+            offset=vec3(.010*sin(phase+.55),.036*sin(phase)+.010*sin(echo),
+                        .031*sin(phase+1.24)+.011*sin(echo+1.6));
+        }else if(materialKind==9){
+            // The loop attaches near the shoulder and returns toward the waist.
+            float along=clamp((.88-gl_MultiTexCoord0.y)/.75,0.0,1.0);
+            s=sin(3.14159265*along);
+            float phase=.63*clothTime-6.0*along;
+            offset=vec3(.025*sin(phase-.55),.032*sin(phase),.048*sin(phase+1.38));
+        }else if(materialKind==15){
+            // Only the lower inner skirt breathes; upper layers stay anchored.
+            s=clamp((.60-local.y)/.59,0.0,1.0);
+            float phase=.64*clothTime-2.1*s+7.5*local.x+5.4*local.z;
+            offset=vec3(.013*sin(phase+.65),.009+.008*sin(phase),.013*sin(phase+1.25));
+        }else if(materialKind==14){
+            s=clamp((1.055-local.y)/.19,0.0,1.0);
+            float phase=.91*clothTime-3.0*s+1.7;
+            offset=vec3(.012*sin(phase),.005*sin(phase+.7),.016*sin(phase+1.1));
+        }else{
+            // The folded shells use V as a shared root-to-tip coordinate on both sides.
+            s=clamp((.88-gl_MultiTexCoord0.y)/.75,0.0,1.0);
+            if(materialKind==11){
+                float u=clamp((gl_MultiTexCoord0.x-.18)/.64,0.0,1.0);
+                float edge=2.0*u-1.0;
+                float freeEdge=smoothstep(.54,1.0,s)*edge*abs(edge);
+                // The broad upper panel trails back. Its hem turns across the flow.
+                float phase=.66*clothTime-6.2*s+2.3*u+.45;
+                float roll=freeEdge*sin(.49*clothTime-4.1*s+.8);
+                offset=vec3(.008*sin(phase-.4),
+                            .017+.014*sin(phase+.9)+.013*roll,
+                            .030*sin(phase)+.012*roll);
+            }else if(materialKind==13){
+                float u=clamp((gl_MultiTexCoord0.x-.18)/.64,0.0,1.0);
+                float phase=.69*clothTime-4.2*s+1.45*u+2.1;
+                float curl=smoothstep(.56,1.0,s)*(2.0*u-1.0)*sin(phase+.9);
+                offset=vec3(.014*sin(phase)+.007*curl,.014*sin(phase+.4)+.006*curl,
+                            .021*sin(phase+1.5));
+            }else{
+                float u=clamp((gl_MultiTexCoord0.x-.18)/.64,0.0,1.0);
+                float phase=.73*clothTime-5.4*s+1.8*u+2.4;
+                float returnWave=.51*clothTime-3.2*s-2.6*u;
+                if(materialKind==16){
+                    float fringe=clamp((gl_MultiTexCoord0.x-.82)/.13,0.0,1.0);
+                    phase-=.24*fringe;
+                    returnWave-=.20*fringe;
+                }
+                // The sleeve sways mainly in depth. At u=1 its fringe shares the seam.
+                float roll=smoothstep(.52,1.0,s)*(2.0*u-1.0)*sin(returnWave+.65);
+                offset=vec3(.012*sin(phase),.021*sin(phase)+.006*sin(returnWave)+.010*roll,
+                            .041*sin(phase+1.25)+.010*sin(returnWave+.9));
+            }
+        }
+        float pin=smoothstep(.04,1.0,s);
+        float breeze=materialKind==15?1.0:1.38;
+        // Keep the cuffs and tucked seams steady. Amplify only the parts in the wind.
+        float freeEnd=smoothstep(.23,.95,s);
+        vec3 gain=vec3(1.0);
+        if(materialKind==10||materialKind==16)gain=vec3(1.32,1.72,1.56);
+        else if(materialKind==11)gain=vec3(1.28,1.58,1.46);
+        else if(materialKind==13)gain=vec3(1.29,1.54,1.46);
+        else if(materialKind==8||materialKind==9)gain=vec3(1.34,1.56,1.50);
+        local.xyz+=offset*mix(vec3(1.0),gain,freeEnd)*pin*pin*breeze
+                    *clothStrength*smoothstep(0.0,.9,clothTime);
+    }
     vec4 position = gl_ModelViewMatrix * local;
     if(reflectionPass==1){
         float depth=max(-(dot(position.xyz,worldUpEye)+cameraHeight),0.0);
@@ -163,6 +272,8 @@ void main()
 
     shadowCoord=shadowFromEye*position;
     eyePosition = position.xyz;
+    clothRestPosition = materialKind>=8 && materialKind<=17
+        ?(gl_ModelViewMatrix * gl_Vertex).xyz:position.xyz;
     eyeNormal = normalize(gl_NormalMatrix * gl_Normal);
     textureCoord = gl_MultiTexCoord0.xy;
 
@@ -176,6 +287,8 @@ uniform sampler2D texture0;
 uniform sampler2D normalMap;
 uniform sampler2DShadow shadowMap;
 uniform int renderDepth;
+uniform int veilPass;
+uniform int veilProbe;
 uniform int shadowsEnabled;
 uniform int reflectionPass;
 uniform vec3 worldUpEye;
@@ -188,38 +301,113 @@ uniform float sceneTime;
 uniform vec3 cloudParams;
 uniform vec3 goddessPosition;
 uniform vec3 footPosition;
+uniform vec3 wakeTrail[16];
 uniform vec3 boatPosition;
 uniform vec3 goddessVelocity;
 uniform vec3 boatVelocity;
 uniform vec3 camRight;
 uniform vec3 camUp;
 uniform vec3 camBack;
+uniform vec3 cloudCameraWorld;
 varying vec3 eyePosition;
 varying vec3 eyeNormal;
+varying vec3 clothRestPosition;
+varying vec3 trainDu,trainDv;
 varying vec2 textureCoord;
 varying vec4 shadowCoord;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1.0,0.0)),f.x),mix(hash(i+vec2(0.0,1.0)),hash(i+vec2(1.0,1.0)),f.x),f.y);}
-float shadowTap(vec3 sc,vec2 offset,float bias){return shadow2D(shadowMap,vec3(sc.xy+offset*8.0/2048.0,sc.z-bias)).r;}
-float wakeHeight(vec2 p,vec2 center,vec2 vel){
-    float speed=length(vel);
-    float moving=smoothstep(.045,.16,speed);
-    vec2 dir=vel/max(speed,.001);
-    vec2 rel=p-center;
-    float along=dot(rel,dir);
-    float side=rel.x*dir.y-rel.y*dir.x;
-    float press=exp(-dot(rel,rel)/.85);
-    vec2 tail=rel+dir*.65;
-    float rim=exp(-pow(length(tail)-1.15,2.0)/.07);
-    float rear=smoothstep(.35,-.15,along);
-    return (-.28*press+.20*rim*rear)*moving;
+float shadowTap(vec3 sc,vec2 offset,float bias){
+    vec2 uv=sc.xy+offset*vec2(2.26,3.06)/4096.0;
+    if(uv.x<=0.0||uv.x>=1.0||uv.y<=0.0||uv.y>=1.0)return 1.0;
+    return shadow2D(shadowMap,vec3(uv,sc.z-bias)).r;
 }
-float wakeAt(vec2 p){
-    return wakeHeight(p,footPosition.xz,goddessVelocity.xz)+wakeHeight(p,boatPosition.xz,boatVelocity.xz);
+// Integrate only the air between the eye and the visible surface.
+// The same field is used for sky and geometry; clouds never write depth.
+bool cloudSlab(float origin,float direction,float low,float high,inout float enter,inout float leave){
+    if(abs(direction)<.00001)return origin>=low && origin<=high;
+    float a=(low-origin)/direction,b=(high-origin)/direction;
+    enter=max(enter,min(a,b));leave=min(leave,max(a,b));
+    return leave>enter;
+}
+float valleyCloud(vec3 ray,float surfaceDistance){
+    float opticalDepth=0.0;
+    for(int layer=0;layer<4;++layer){
+        float k=float(layer);
+        float centerZ=layer==0?-28.0:(layer==2?-43.5:-29.2);
+        float halfDepth=layer==2?.20:.28;
+        float lowX=layer==0?-18.0:(layer==1?0.0:(layer==2?-6.0:12.0));
+        float highX=layer==0?-2.0:(layer==1?14.0:(layer==2?12.0:29.0));
+        float begin=0.0,end=200.0;
+        bool hit=cloudSlab(cloudCameraWorld.x,ray.x,lowX,highX,begin,end);
+        hit=cloudSlab(cloudCameraWorld.y,ray.y,.65,9.5,begin,end)&&hit;
+        hit=cloudSlab(cloudCameraWorld.z,ray.z,centerZ-halfDepth,centerZ+halfDepth,begin,end)&&hit;
+        if(hit && surfaceDistance>begin){
+            // Grid depends on the full cloud box, never on the occluding mesh.
+            float stepLength=(end-begin)/64.0;
+            float stop=min(end,surfaceDistance);
+            for(int sampleIndex=0;sampleIndex<64;++sampleIndex){
+                float cell=begin+float(sampleIndex)*stepLength;
+                if(cell>=stop)break;
+                float covered=min(stepLength,stop-cell);
+                vec3 p=cloudCameraWorld+ray*(cell+.5*stepLength);
+                float broad=noise(vec2(p.x*.37+k*3.1,p.z*.17));
+                float detail=noise(vec2(p.x*1.05-k*2.3,p.z*.39));
+                float x=p.x;
+                float crest;
+                if(layer==0){
+                    crest=3.6+.4*smoothstep(-18.0,-16.0,x)-.6*smoothstep(-16.0,-14.0,x)
+                        +.7*smoothstep(-14.0,-12.0,x)+.7*smoothstep(-12.0,-10.0,x)
+                        -.4*smoothstep(-10.0,-8.0,x)-.6*smoothstep(-8.0,-6.0,x)
+                        -.3*smoothstep(-6.0,-4.0,x)-.1*smoothstep(-4.0,-2.0,x);
+                }else if(layer==1){
+                    crest=3.6+.8*smoothstep(0.0,2.0,x)+.8*smoothstep(2.0,4.0,x)
+                        +.9*smoothstep(4.0,6.0,x)+.1*smoothstep(6.0,8.0,x)
+                        -.4*smoothstep(8.0,10.0,x)-.3*smoothstep(10.0,12.0,x)-.2*smoothstep(12.0,14.0,x);
+                }else if(layer==2){
+                    crest=5.6+.7*smoothstep(-6.0,-3.0,x)+.9*smoothstep(-3.0,0.0,x)
+                        +.9*smoothstep(0.0,3.0,x)+.5*smoothstep(3.0,6.0,x)
+                        +.2*smoothstep(6.0,9.0,x)+.2*smoothstep(9.0,12.0,x);
+                }else{
+                    crest=5.7+.65*smoothstep(12.0,18.0,x)+1.05*smoothstep(18.0,25.0,x)
+                        +(noise(vec2(x*.42,8.7))-.5)*.65;
+                }
+                if(layer==0)crest-=.32;
+                crest+=(broad-.5)*.32+(detail-.5)*.16;
+                float taper=smoothstep(lowX,lowX+3.0,x)*(1.0-smoothstep(highX-3.0,highX,x));
+                float thickness=(.35+1.10*broad)*taper;
+                float top=1.0-smoothstep(crest-.08,crest+.13,p.y);
+                float foot=smoothstep(crest-thickness-.60,crest-thickness+.12,p.y);
+                float sides=taper;
+                float along=1.0-smoothstep(halfDepth*.4,halfDepth,abs(p.z-centerZ));
+                float folds=.40+.60*broad;
+                opticalDepth+=top*foot*sides*along*folds*covered*1.5;
+            }
+        }
+    }
+    return 1.0-exp(-opticalDepth);
+}
+vec3 throughValleyCloud(vec3 background,vec3 ray,float surfaceDistance){
+    float a=valleyCloud(ray,surfaceDistance);
+    return mix(background,vec3(.91,.935,.95),a);
+}
+// Elliptical reflection from aligned silk threads. Two widths give the
+// travelling highlight a soft shoulder without flattening the entire fold.
+float silkHighlight(vec3 N,vec3 warp,vec3 weft,vec3 V,vec3 light,vec2 profile){
+    vec3 halfSum=light+V;
+    vec3 H=halfSum*inversesqrt(max(dot(halfSum,halfSum),1e-8));
+    float facing=dot(N,H);
+    vec2 tilt=vec2(dot(warp,H),dot(weft,H))/max(facing,.25);
+    vec2 slope=tilt*tilt;
+    float peak=exp(-dot(slope,profile));
+    float shoulder=exp(-dot(slope,profile*vec2(.48,.35)));
+    return (.63*peak+.37*shoulder)*sqrt(max(dot(N,light),0.0))
+           *smoothstep(.08,.38,facing);
 }
 void main(){
     gl_FragDepth=gl_FragCoord.z;
-    if(materialKind==8 && renderDepth==0){
+    // Sky uses 18; upstream cloth materials occupy 8 through 17.
+    if(materialKind==18 && renderDepth==0){
         vec2 uv=gl_FragCoord.xy/max(cloudParams.yz,vec2(1.0));
         vec2 ndc=uv*2.0-1.0;
         float aspect=max(cloudParams.y/max(cloudParams.z,1.0),.5);
@@ -235,38 +423,127 @@ void main(){
         float halo=(1.0-smoothstep(.040,.055,ang))*step(below,.014);
         sky=mix(sky,vec3(.99,.80,.64),halo*.12);
         sky=mix(sky,vec3(.99,.90,.80),disc*.82);
+        sky=throughValleyCloud(sky,rd,160.0);
         gl_FragColor=vec4(sky,1.0);
         return;
     }
     vec4 color=vec4(baseColor,1.0);
     if(useTexture==1)color*=texture2D(texture0,textureCoord);
     if(color.a<0.44)discard;
-    if(renderDepth==1){gl_FragColor=vec4(1.0);return;}
+    float veilAlpha=1.0;
+    bool isVeil=materialKind==9||materialKind==16;
+    if(isVeil){
+        float u=clamp((textureCoord.x-.18)/.64,0.0,1.0);
+        float edge=abs(u*2.0-1.0);
+        if(materialKind==9){
+            veilAlpha=mix(.68,.36,smoothstep(.13,1.0,edge));
+            if(veilProbe==1)veilAlpha=.14;
+        }else{
+            float fringe=clamp((textureCoord.x-.82)/.13,0.0,1.0);
+            veilAlpha=mix(.64,.28,smoothstep(.08,1.0,fringe));
+        }
+    }
+    if(renderDepth==1){
+        // The opaque layers still cast shadows; thin veils do not stamp dark silhouettes.
+        if(isVeil)discard;
+        gl_FragColor=vec4(1.0);return;
+    }
+    if(reflectionPass==0 && ((veilPass==0 && isVeil)||(veilPass==1 && !isVeil)))discard;
     if(materialKind==6){gl_FragColor=vec4(.035,.065,.06,.24);return;}
     vec3 N=normalize(eyeNormal);if(!gl_FrontFacing)N=-N;
     float sunBand=0.0;
-    vec3 wakePoint=vec3(0.0);
-    float wakeMoved=0.0;
-    float wakeRaised=0.0;
-    vec3 wakeNormal=vec3(0.0,1.0,0.0);
+    bool silk=materialKind>=8 && materialKind<=17;
+    bool ivory=materialKind==11||materialKind==12||materialKind==15;
+    bool sleeve=materialKind==10||materialKind==13||materialKind==17;
+    vec3 warp=vec3(0.0),weft=vec3(0.0);
+    vec3 sheenNormal=N;
+    float valley=0.0,overlap=0.0,grainRoughness=1.0;
+    if(silk){
+        vec3 restN=N;
+        vec3 normalDx=dFdx(restN),normalDy=dFdy(restN);
+        vec3 dxRest=dFdx(clothRestPosition),dyRest=dFdy(clothRestPosition);
+        vec3 dx=dFdx(eyePosition),dy=dFdy(eyePosition);
+        vec2 uvDx=dFdx(textureCoord),uvDy=dFdy(textureCoord);
+        if(materialKind==12 && reflectionPass==0){
+            dx=dxRest+trainDu*uvDx.x+trainDv*uvDx.y;
+            dy=dyRest+trainDu*uvDy.x+trainDv*uvDy.y;
+        }
+        vec3 restCross=cross(dxRest,dyRest),movedCross=cross(dx,dy);
+        float restArea=length(restCross),movedArea=length(movedCross);
+        if(min(restArea,movedArea)>1e-8){
+            vec3 restFace=restCross/restArea,movedFace=movedCross/movedArea;
+            // Carry the original smooth normal through the local deformation
+            // with the inverse transpose of the rest-to-current surface frame.
+            vec3 movedN=dot(restN,dxRest)*cross(dy,movedFace)
+                      +dot(restN,dyRest)*cross(movedFace,dx)
+                      +dot(restN,restFace)*movedCross;
+            vec3 normalShift=normalize(movedN)-restN;
+            // Bound face-to-face changes at the fast-moving hem. The silk
+            // reflection tracks more of the rotation than the diffuse base.
+            normalShift*=min(1.0,.33/max(length(normalShift),1e-5));
+            N=normalize(restN+.46*normalShift);
+            sheenNormal=normalize(restN+(materialKind==12?1.0:.81)*normalShift);
+
+            vec3 across=dxRest*uvDy.y-dyRest*uvDx.y;
+            across-=restN*dot(restN,across);
+            if((ivory||sleeve)&&dot(across,across)>1e-16){
+                across=normalize(across);
+                vec2 alongScreen=vec2(dot(across,cross(dyRest,restFace)),
+                                      dot(across,cross(restFace,dxRest)))/restArea;
+                vec3 slope=normalDx*alongScreen.x+normalDy*alongScreen.y;
+                // Negative curvature marks a hollow, as opposed to a lit ridge.
+                valley=smoothstep(.30,3.70,-dot(slope,across));
+            }
+        }
+        warp=dy*uvDx.x-dx*uvDy.x;
+        warp-=N*dot(N,warp);
+        if(dot(warp,warp)<1e-16)warp=worldUpEye-N*dot(N,worldUpEye);
+        if(dot(warp,warp)<1e-16){
+            vec3 axis=abs(N.z)<.90?vec3(0.0,0.0,1.0):vec3(1.0,0.0,0.0);
+            warp=cross(N,axis);
+        }
+        warp=normalize(warp);
+        weft=cross(N,warp);
+
+        if(ivory||sleeve){
+            // The grid stays attached to UVs and fades below pixel resolution.
+            vec2 threads=textureCoord*vec2(78.0,106.0);
+            vec2 coverage=1.0-smoothstep(vec2(.11),vec2(.36),fwidth(threads));
+            vec2 bend=.085*sin(textureCoord.yx*vec2(27.0,31.0));
+            vec2 yarn=sin(6.2831853*(threads+bend))*coverage;
+            float slub=sin(6.2831853*(textureCoord.y*9.0+.18*sin(textureCoord.x*21.0)));
+            float fiber=sleeve?.010:.008;
+            sheenNormal=normalize(sheenNormal+fiber*(yarn.x*weft+.65*yarn.y*warp));
+            grainRoughness=1.0+.042*slub+.020*yarn.x*yarn.y;
+            color.rgb*=1.0+.004*yarn.x+.003*yarn.y;
+            if(materialKind>=10 && materialKind<=13){
+                float u=clamp((textureCoord.x-.18)/.64,0.0,1.0);
+                float lengthUV=clamp((.88-textureCoord.y)/.75,0.0,1.0);
+                // The existing loft seams lie beneath the neighboring layers.
+                overlap=(1.0-smoothstep(.03,.37,lengthUV))*mix(.47,1.0,smoothstep(.33,.93,u));
+                valley*=1.0-.30*smoothstep(.73,.99,lengthUV);
+            }
+        }
+    }
+    if(sleeve)color.rgb*=vec3(.88,.96,1.10);
     if(materialKind==1){
         vec2 flow=textureCoord*10.0;
         float away=smoothstep(2.0,-10.0,flow.y);
         color.rgb=mix(vec3(.45,.584,.61),vec3(.53,.654,.66),away);
         vec2 fromSun=flow-vec2(-1.1,-2.4);
-        sunBand=exp(-fromSun.x*fromSun.x/(.72*.72)-fromSun.y*fromSun.y/(.50*.50));
-        if(reflectionPass==0){
-            float h=wakeAt(flow);
-            if(abs(h)>.003){
-                wakeMoved=1.0;
-                wakeRaised=step(0.0,h);
-                float hx=(wakeAt(flow+vec2(.12,0.0))-wakeAt(flow-vec2(.12,0.0)))/.24;
-                float hz=(wakeAt(flow+vec2(0.0,.12))-wakeAt(flow-vec2(0.0,.12)))/.24;
-                wakeNormal=normalize(vec3(-hx,1.0,-hz));
-                wakePoint=eyePosition+worldUpEye*h;
-            }
-        }
+        float ripplePhase=flow.y*20.0+5.5*noise(vec2(flow.x*.72,flow.y*2.1))
+            +1.35*sin(flow.y*5.7)+1.05*sin(flow.x*2.3+flow.y*1.4);
+        float rippleWidth=max(fwidth(ripplePhase),.05);
+        float ripple=smoothstep(.42-rippleWidth,.82+rippleWidth,sin(ripplePhase));
+        float fragments=smoothstep(.32,.65,noise(vec2(flow.x*5.5,flow.y*8.2)));
+        float streak=.20+.80*ripple*fragments;
+        float spread=.95+.065*abs(fromSun.y);
+        sunBand=exp(-fromSun.x*fromSun.x/(spread*spread)-fromSun.y*fromSun.y/40.0)*streak;
+        color.rgb*=.99+.025*noise(vec2(flow.x*.8,flow.y*7.0));
+
     }
+)"
+R"(
     if(materialKind==2){
         float patch=.5+.5*sin(textureCoord.x*2.0+sin(textureCoord.y*1.8))*cos(textureCoord.y*2.4);
         color.rgb=mix(color.rgb,vec3(.64,.62,.58),.80);
@@ -308,58 +585,112 @@ void main(){
         float lift=smoothstep(.22,.30,peak)*(1.0-smoothstep(.42,.70,peak));
         color.rgb=mix(color.rgb,color.rgb*.5+vec3(.46,.44,.39),lift);
     }
+)"
+R"(
     float ridge=0.0;
+    // All mountain draws currently use this explicit tint; other draws use white.
+    // This marker is independent of camera distance and texture mip selection.
+    if(materialKind==0 && distance(baseColor,vec3(.84,.91,1.0))<.015)ridge=1.0;
     float ridgeShade=0.0;
-    if(useTexture==1 && materialKind==0){
-        float cool=smoothstep(.0,.07,min(color.g,color.b)-color.r);
-        float gray=1.0-smoothstep(.05,.16,abs(color.g-color.b));
-        ridge=cool*gray*step(20.0,length(eyePosition));
-        color.rgb=mix(color.rgb,color.rgb*vec3(.96,.99,.96),ridge*.35);
-    }
-    // main.cpp still places the sun at world (-12, 16, 9). Slide it down to y=5.5
-    // along world up so the direction stays fixed when the camera moves.
-    vec3 sunEye=lightPositionEye-10.5*worldUpEye;
-    vec3 L=normalize(sunEye-eyePosition),V=normalize(-eyePosition),R=reflect(-L,N);
+    // Art-directed front-left key; the sunset disc is a background accent.
+    // Keep the key fixed in world space as the viewer moves.
+    vec3 sunWorld=normalize(vec3(-.48,.48,.74));
+    vec3 sunEye=vec3(dot(camRight,sunWorld),dot(camUp,sunWorld),dot(camBack,sunWorld));
+    vec3 L=normalize(sunEye),V=normalize(-eyePosition),R=reflect(-L,N);
+    vec3 fillWorld=normalize(vec3(.25,.70,.55));
+    vec3 skyFill=vec3(dot(camRight,fillWorld),dot(camUp,fillWorld),dot(camBack,fillWorld));
     float diffuse=max(dot(N,L),0.0);
     float shininess=materialKind==1?28.0:(materialKind==7?40.0:22.0);
     float specular=diffuse>0.0?pow(max(dot(R,V),0.0),shininess):0.0;
     float visibility=1.0;
     vec3 sc=shadowCoord.xyz/shadowCoord.w;
     if(shadowsEnabled==1 && reflectionPass==0 && materialKind!=1 && materialKind!=4 && sc.x>0.0 && sc.x<1.0 && sc.y>0.0 && sc.y<1.0 && sc.z>0.0 && sc.z<1.0){
-        float bias=max(.0022,.0052*(1.0-diffuse));float sum=0.0;
+        float bias=silk?max(.0008,.0018*(1.0-diffuse)):max(.0022,.0052*(1.0-diffuse));
+        if(materialKind==10||materialKind==11||materialKind==12||materialKind==13)bias+=.00045;
+        bias*=89.8/159.8; // Preserve world-depth offset after extending the light frustum.
+        float sum=0.0;
+        if(silk){
+            // Preserve the tighter upstream cloth shadow filter (shadowTap uses eight texels).
+            sum+=shadowTap(sc,vec2(.35,.45)*.25,bias);
+            sum+=shadowTap(sc,vec2(-.45,.25)*.25,bias);
+            sum+=shadowTap(sc,vec2(.25,-.35)*.25,bias);
+            sum+=shadowTap(sc,vec2(-.35,-.45)*.25,bias);
+            visibility=.18+.82*sum/4.0;
+        }else{
         // About eight texels wide, so folded-rock edges stay soft and faces are not speckled.
         sum+=shadowTap(sc,vec2(1.05,.72),bias);
         sum+=shadowTap(sc,vec2(-1.12,.48),bias);
         sum+=shadowTap(sc,vec2(.58,-1.02),bias);
         sum+=shadowTap(sc,vec2(-.72,-.95),bias);
         visibility=.55+.45*sum/4.0;
+        }
     }
     // Smoothstep keeps low-poly planes apart without driving a back face to black.
     float fold=smoothstep(.08,.82,diffuse);
     vec3 lit;
-    if(materialKind==1){
-        lit=color.rgb;
-        lit=mix(lit,vec3(.93,.742,.64),sunBand*.62);
-        if(wakeMoved>.5){
-            vec3 nEye=normalize((gl_ModelViewMatrix*vec4(wakeNormal,0.0)).xyz);
-            float flatD=max(dot(normalize(worldUpEye),L),0.0);
-            float wakeD=max(dot(nEye,L),0.0);
-            lit*=1.0+clamp((wakeD-flatD)*1.5,-.16,.12);
+    if(silk){
+        vec3 directTint=vec3(.88,.70,.49);
+        if(ivory)directTint=vec3(.50,.47,.43);
+        else if(sleeve)directTint=vec3(.68,.60,.49);
+        else if(materialKind==9)directTint=vec3(.67,.56,.40);
+        float clothAO=1.0-.18*valley-.15*overlap;
+        lit=color.rgb*(vec3(.39,.41,.43)*clothAO
+            +directTint*diffuse*visibility*(1.0-.075*valley));
+        lit+=color.rgb*vec3(.25,.24,.22)*max(dot(N,skyFill),0.0)*clothAO;
+        // Project the moving fiber axis back onto the finely perturbed surface.
+        vec3 sheenWarp=normalize(warp-sheenNormal*dot(sheenNormal,warp));
+        vec3 sheenWeft=cross(sheenNormal,sheenWarp);
+        vec2 strength=ivory?vec2(.48,.29):(sleeve?vec2(.54,.29):vec2(.22,.09));
+        vec2 profile=ivory?vec2(4.0,17.0):(sleeve?vec2(3.1,29.0):vec2(5.0,24.0));
+        if(materialKind==12){
+            strength=vec2(.57,.34);
+            profile=vec2(3.7,20.0);
+        }else if(materialKind==15)strength*=.79;
+        else if(materialKind==17)strength=vec2(.29,.15);
+        else if(isVeil){
+            strength=vec2(.145,.052);
+            profile=vec2(3.2,9.0);
         }
+        strength*=sleeve?vec2(.16,.10):vec2(.34,.22);
+        vec3 tint=mix(color.rgb,vec3(.94,.91,.85),.42);
+        if(ivory)tint=mix(color.rgb,vec3(1.0,.96,.86),.68);
+        else if(sleeve)tint=mix(color.rgb,vec3(.65,.79,.82),.45);
+        else if(materialKind==9)tint=mix(color.rgb,vec3(1.0,.91,.74),.48);
+        float keySilk=silkHighlight(sheenNormal,sheenWarp,sheenWeft,V,L,profile*grainRoughness);
+        float skySilk=silkHighlight(sheenNormal,sheenWarp,sheenWeft,V,skyFill,profile*grainRoughness);
+        vec3 glint=tint*(strength.x*keySilk*visibility+strength.y*skySilk*clothAO)
+                  *(1.0-.29*valley-.16*overlap);
+        // Roll off the crest as it approaches display white, preserving
+        // the color and separation of adjacent folds in side views.
+        float headroom=max(1.0-max(lit.r,max(lit.g,lit.b)),0.0);
+        float glintPeak=max(glint.r,max(glint.g,glint.b));
+        lit+=glint*headroom/(headroom+glintPeak+1e-5);
+        if(isVeil){
+            float transmission=materialKind==9?.047:.035;
+            lit+=color.rgb*transmission*smoothstep(.04,.84,-dot(N,L))*visibility;
+        }
+    }else if(materialKind==1){
+        lit=color.rgb;
+        lit=mix(lit,vec3(.98,.80,.58),sunBand*.72);
+        float trailLight=0.0;
+        for(int i=0;i<16;++i){
+            float age=wakeTrail[i].z;
+            float radius=length(textureCoord*10.0-wakeTrail[i].xy);
+            float crest=(i<8?.25:1.25)+age*.72;
+            float width=max(fwidth(radius)*1.2,.035);
+            float arc=1.0-smoothstep(width,width*2.0,abs(radius-crest));
+            float fade=smoothstep(.0,.12,age)*(1.0-smoothstep(.25,1.05,age));
+            float breakup=smoothstep(.3,.65,noise((textureCoord*10.0-wakeTrail[i].xy)*5.0));
+            trailLight=max(trailLight,arc*fade*breakup);
+        }
+        lit=mix(lit,vec3(.84,.76,.60),trailLight*.32);
+
     }else if(ridge>.45){
-        float shaped=diffuse*.5+fold*.5;
-        ridgeShade=1.0-smoothstep(.42,.78,shaped);
-        lit=color.rgb*(vec3(.76,.78,.75)+vec3(.20,.18,.16)*shaped);
-        float shade=1.0-smoothstep(.12,.65,shaped);
-        lit=mix(lit,vec3(.52,.54,.52),shade*.12);
-        float top=max(lit.r,max(lit.g,lit.b));
-        float dark=1.0-smoothstep(.42,.70,top);
-        lit=mix(lit,vec3(.58,.63,.62),mix(.50,.93,dark));
-        float hot=smoothstep(.55,.66,lit.g)*smoothstep(.04,.12,lit.g-lit.r);
-        lit.r=mix(lit.r,.58,hot*.65);
-        lit.g=mix(lit.g,.635,hot*.45);
-        lit.r=mix(lit.r,.58,hot*.65);
-        lit.g=mix(lit.g,.635,hot*.45);
+        vec3 mountainNormal=normalize(camRight*N.x+camUp*N.y+camBack*N.z);
+        float shaped=smoothstep(-.35,.80,dot(mountainNormal,normalize(vec3(.85,.32,.25))));
+        ridgeShade=1.0-shaped;
+        vec3 rockBase=vec3(.53,.61,.64);
+        lit=mix(vec3(.28,.40,.46),vec3(.61,.67,.65),shaped);
     }else if(materialKind==4){
         float shaped=clamp(diffuse*.85+.1,0.0,1.0);
         shaped=shaped*.7+smoothstep(.05,.8,diffuse)*.3;
@@ -378,7 +709,7 @@ void main(){
     }else{
         float shaped=diffuse*.62+fold*.38;
         lit=color.rgb*(vec3(.46,.42,.38)+vec3(.50,.42,.34)*shaped*visibility);
-        float fill=max(dot(N,normalize(vec3(-.25,.7,.42))),0.0);
+        float fill=max(dot(N,skyFill),0.0);
         lit+=color.rgb*vec3(.05,.06,.07)*fill;
         float up=max(dot(N,normalize(worldUpEye)),0.0);
         lit+=color.rgb*vec3(.04,.04,.035)*up*shaped;
@@ -398,50 +729,65 @@ void main(){
         float cream=smoothstep(.55,.78,color.r)*smoothstep(.02,.10,color.g-color.b)*smoothstep(.55,.75,color.g/max(color.r,.001));
         lit=mix(lit,vec3(.94,.86,.76),cream*.7);
     }
+    if(materialKind==19){
+        float up=dot(N,normalize(worldUpEye));
+        float top=smoothstep(.62,.96,up);
+        vec3 side=mix(vec3(.31,.40,.44),vec3(.48,.55,.56),fold);
+        float value=dot(color.rgb,vec3(.25,.50,.25));
+        lit=mix(side,vec3(.68,.63,.54),top)*mix(.76,1.0,smoothstep(.18,.72,value))*(.84+.16*visibility);
+    }
+    if(materialKind==20){
+        bool canopy=textureCoord.x>.375&&textureCoord.x<.75&&textureCoord.y>.25&&textureCoord.y<.375;
+        if(canopy){
+            float top=smoothstep(.05,.85,dot(N,normalize(worldUpEye)));
+            lit=mix(vec3(.53,.40,.27),vec3(.86,.73,.53),.28+.45*top+.27*fold)*(.88+.12*visibility);
+        }else{
+            lit=mix(vec3(.28,.20,.14),vec3(.61,.46,.30),.30+.70*fold)*(.85+.15*visibility);
+        }
+    }
+    // Preserve the authored rock face roles with an illustration palette.
+    if(materialKind==0 && useTexture==0){
+        vec3 facePalette=vec3(0.0);
+        if(distance(baseColor,vec3(.725,.678,.592))<.003)facePalette=vec3(.76,.70,.60);
+        else if(distance(baseColor,vec3(.592,.600,.549))<.003)facePalette=vec3(.58,.61,.60);
+        else if(distance(baseColor,vec3(.435,.494,.482))<.003)facePalette=vec3(.40,.49,.53);
+        else if(distance(baseColor,vec3(.318,.373,.376))<.003)facePalette=vec3(.28,.35,.39);
+        if(facePalette.r>0.0)lit=facePalette*(.82+.18*fold)*(.85+.15*visibility);
+    }
+    // Exact authored untextured petal palette; exclude stamens, skin and bark.
+    if(materialKind==0 && useTexture==0){
+        float pale=min(distance(baseColor,vec3(.99,.83,.69)),distance(baseColor,vec3(.99,.87,.72)));
+        float rose=distance(baseColor,vec3(.96,.71,.61));
+        if(min(pale,rose)<.005){
+            vec3 petal=rose<.005?vec3(.94,.76,.75):vec3(.98,.92,.86);
+            lit=petal*(vec3(.72,.73,.76)+vec3(.26,.22,.18)*fold*visibility);
+        }
+    }
     float specStrength=materialKind==1?.006:(materialKind==7?.035:.010);
     vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
-    lit+=specColor*specular*visibility*specStrength;
+    if(!silk)lit+=specColor*specular*visibility*specStrength;
     float fog=1.0-exp(-max(length(eyePosition)-22.0,0.0)*(materialKind==4?.004:(materialKind==1?.003:.004)));
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;
     vec3 fogColor=materialKind==1?vec3(.58,.66,.72):(materialKind==4?vec3(.62,.70,.76):vec3(.78,.70,.62));
     lit=mix(lit,fogColor,clamp(fog,0.0,.02));
-    if(ridge>.45){
-        float ruddy=smoothstep(.585,.70,lit.r);
-        lit.r=mix(lit.r,.52,ruddy);
-        float leftish=smoothstep(.545,.555,lit.r)*(1.0-smoothstep(.568,.578,lit.r));
-        leftish*=smoothstep(.59,.605,lit.g)*(1.0-smoothstep(.618,.632,lit.g));
-        lit.g+=.020*leftish;
-        lit.b+=.020*leftish;
-        float keepFace=smoothstep(.638,.646,lit.g)*(1.0-smoothstep(.652,.662,lit.g));
-        lit.r=mix(lit.r,.545,keepFace*.55);
-        lit=mix(lit,vec3(.42,.52,.56),ridgeShade*.58);
+    if(ridge>.5){
+        vec3 mesh=(gl_ModelViewMatrixInverse*vec4(eyePosition,1.0)).xyz;
+        float base=1.0-smoothstep(.0,.46,mesh.y);
+        lit=mix(lit,vec3(.22,.30,.34),base*.55);
     }
-    if(useTexture==1 && materialKind==0){
-        float cool=smoothstep(.0,.07,min(color.g,color.b)-color.r);
-        float gray=1.0-smoothstep(.05,.16,abs(color.g-color.b));
-        float xScale=length(gl_ModelViewMatrix[0].xyz);
-        float yScale=length(gl_ModelViewMatrix[1].xyz);
-        float zScale=length(gl_ModelViewMatrix[2].xyz);
-        float onRange=step(2.2,xScale)*step(1.95,yScale)*step(yScale,3.3);
-        float onNear=step(1.4,xScale)*step(5.2,zScale)*step(zScale,7.4);
-        if(cool*gray>.45 && onRange+onNear>0.0){
-            vec3 mesh=(gl_ModelViewMatrixInverse*vec4(eyePosition,1.0)).xyz;
-            float base=1.0-smoothstep(.0,.46,mesh.y);
-            lit=mix(lit,vec3(.22,.30,.34),base*.82);
-        }
-    }
-    float opacity=materialKind==1?.82:1.0;
+    float opacity=materialKind==1?.80:1.0;
     if(reflectionPass==1){
         float depth=max(-worldHeight,0.0);
         lit=mix(lit,vec3(.84,.70,.58),.07);
-        opacity=.68*exp(-depth*.65);
+        opacity=.82*exp(-depth*.42);
     }
-    if(materialKind==1 && wakeMoved>.5){
-        vec4 clip=gl_ProjectionMatrix*vec4(wakePoint,1.0);
-        float displaced=clamp(clip.z/clip.w*.5+.5,0.0,1.0);
-        gl_FragDepth=wakeRaised>.5?min(displaced,gl_FragCoord.z):max(displaced,gl_FragCoord.z);
+    // Water stays on its original plane; wake normals only tint small ripples.
+    if(reflectionPass==0 && materialKind!=1){
+        float surfaceDistance=length(eyePosition);
+        vec3 worldRay=normalize(camRight*eyePosition.x+camUp*eyePosition.y+camBack*eyePosition.z);
+        lit=throughValleyCloud(lit,worldRay,surfaceDistance);
     }
-    gl_FragColor=vec4(lit,opacity);
+    gl_FragColor=vec4(lit,opacity*veilAlpha);
 }
 )";
 

@@ -3,6 +3,7 @@
 #include "mesh_data.h"
 #include "scene_layout.h"
 #include <map>
+#include <optional>
 #include <chrono>
 #include <cstddef>
 #include <cstring>
@@ -12,7 +13,7 @@
 #pragma comment(lib,"gdi32.lib")
 #pragma comment(lib,"user32.lib")
 
-struct GpuBatch {GLuint buffer=0,texture=0;GLsizei count=0;glm::vec3 color{1};int kind=0;};
+struct GpuBatch {GLuint buffer=0,texture=0;GLsizei count=0;glm::vec3 color{1},center{0};int kind=0;};
 using GenBuffersFn=void(APIENTRY*)(GLsizei,GLuint*);
 using BindBufferFn=void(APIENTRY*)(GLenum,GLuint);
 using BufferDataFn=void(APIENTRY*)(GLenum,std::ptrdiff_t,const void*,GLenum);
@@ -30,7 +31,13 @@ using ActiveTextureFn=void(APIENTRY*)(GLenum);
 ActiveTextureFn sceneActiveTexture=nullptr;
 bool reflectionPass=false,shadowPass=false,showHelp=false;
 bool animationPlaying=true;
-double animationTime=0.0;
+double animationTime=0.0,clothTime=0.0;
+bool clothPlaying=true;
+float clothStrength=1.f;
+GLint clothTimeLocation=-1,clothStrengthLocation=-1;
+int clothPreviewMin=8,clothPreviewMax=16;
+GLint veilPassLocation=-1,clothMotionLocation=-1;
+bool isVeilKind(int kind){return kind==9||kind==16;}
 glm::mat4 worldPrefix(1);
 GLuint groundColor=0,groundNormal=0;
 std::map<std::string,GLuint> textures;
@@ -72,9 +79,15 @@ GLuint loadMaterialTexture(const SceneMaterial& mat) {
     return texture;
 }
 
-SceneModel loadModel(const std::string& relative,bool pickable=false){
+SceneModel loadModel(const std::string& relative,bool pickable=false,
+                     std::optional<glm::vec3> localOrigin=std::nullopt){
     auto mesh=readSceneObj(assetRoot/std::filesystem::u8path(relative));
     SceneModel model;model.center=(mesh.minimum+mesh.maximum)*.5f;model.size=mesh.maximum-mesh.minimum;model.bottom=mesh.minimum.y;model.triangles=mesh.triangles;
+    if(localOrigin){
+        model.center.x=localOrigin->x;
+        model.bottom=localOrigin->y;
+        model.center.z=localOrigin->z;
+    }
     for(const auto& batch:mesh.batches){
         if(pickable){
             auto pivot=glm::vec3(model.center.x,model.bottom,model.center.z);
@@ -84,8 +97,27 @@ SceneModel loadModel(const std::string& relative,bool pickable=false){
         GpuBatch gpu;gpu.texture=loadMaterialTexture(mat);gpu.color=gpu.texture?glm::vec3(1):mat.diffuse;
         gpu.kind=mat.name.find("Under_robe")!=std::string::npos||mat.name.find("Under robe")!=std::string::npos?3:0;
         if(mat.name.find("Hair_knot")!=std::string::npos)gpu.kind=7;
+        if(mat.name=="Wind_RedRibbon"||mat.name=="Wind_RedEdge")gpu.kind=8;
+        else if(mat.name=="Wind_GoldPibo")gpu.kind=9;
+        else if(mat.name=="Wind_Sleeve")gpu.kind=10;
+        else if(mat.name=="Wind_UpperSkirt")gpu.kind=11;
+        else if(mat.name=="Wind_LowerSkirt")gpu.kind=12;
+        else if(mat.name=="Wind_FarSleeve")gpu.kind=13;
+        else if(mat.name=="Wind_WaistTie"||mat.name=="Wind_WaistTieEdge")gpu.kind=14;
+        else if(mat.name=="Wind_InnerSkirt")gpu.kind=15;
+        else if(mat.name=="Wind_SleeveVeil")gpu.kind=16;
+        else if(mat.name=="Costume_pattern_near_wide_sleeve"||
+                mat.name=="Costume_pattern_far_wide_sleeve"||
+                mat.name=="Wind_CuffLining")gpu.kind=17;
+        // Artistic palettes identify props without changing shared texture assets.
+        if(relative.find("03_shore_rock_")!=std::string::npos || relative.find("03_left_bank_platform_steps.obj")!=std::string::npos)gpu.kind=19;
+        else if(relative.find("05_covered_wooden_boat.obj")!=std::string::npos)gpu.kind=20;
         sceneGenBuffers(1,&gpu.buffer);if(!gpu.buffer)throw std::runtime_error("Geometry buffer allocation failed");
         gpu.count=static_cast<GLsizei>(batch.vertices.size());
+        if(isVeilKind(gpu.kind)){
+            for(const auto& vertex:batch.vertices)gpu.center+=vertex.position;
+            gpu.center/=static_cast<float>(gpu.count);
+        }
         sceneBindBuffer(SCENE_ARRAY_BUFFER,gpu.buffer);
         sceneBufferData(SCENE_ARRAY_BUFFER,std::ptrdiff_t(batch.vertices.size()*sizeof(SceneVertex)),batch.vertices.data(),SCENE_STATIC_DRAW);
         sceneBindBuffer(SCENE_ARRAY_BUFFER,0);model.batches.push_back(gpu);
@@ -99,7 +131,7 @@ void material(glm::vec3 color,int kind=0,GLuint texture=0){
     pUniform1i(reflectionLocation,reflectionPass?1:0);
     pUniform1i(textureLocation,texture?1:0);glBindTexture(GL_TEXTURE_2D,texture);
 }
-void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,float angle,float scale,glm::vec3 tint=glm::vec3(1),glm::vec3 stretch=glm::vec3(1),glm::vec2 tilt=glm::vec2(0)){
+void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,float angle,float scale,glm::vec3 tint=glm::vec3(1),glm::vec3 stretch=glm::vec3(1),glm::vec2 tilt=glm::vec2(0),bool veilPass=false){
     auto m=glm::translate(worldPrefix*(reflectionPass?glm::scale(glm::mat4(1),glm::vec3(1,-1,1)):glm::mat4(1)),position);
     m=glm::rotate(m,glm::radians(angle),glm::vec3(0,1,0));
     m=glm::rotate(m,glm::radians(tilt.x),glm::vec3(1,0,0));
@@ -107,39 +139,88 @@ void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,
     m=glm::translate(m,glm::vec3(-model.center.x,-model.bottom,-model.center.z));
     auto mv=view*m;glMatrixMode(GL_MODELVIEW);glLoadMatrixf(glm::value_ptr(mv));
     glEnableClientState(GL_VERTEX_ARRAY);glEnableClientState(GL_NORMAL_ARRAY);glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-    for(const auto& b:model.batches){
+    auto drawBatch=[&](const GpuBatch& b){
+        const bool previewEnabled=(b.kind>=clothPreviewMin&&b.kind<=clothPreviewMax)
+            ||(clothPreviewMin==10&&(b.kind==13||b.kind==16))||(clothPreviewMax==9&&b.kind==14)
+            ||(clothPreviewMin==11&&b.kind==15);
+        pUniform1i(clothMotionLocation,b.kind<8||previewEnabled?1:0);
         material(b.color*tint,b.kind,b.texture);sceneBindBuffer(SCENE_ARRAY_BUFFER,b.buffer);
         glVertexPointer(3,GL_FLOAT,sizeof(SceneVertex),reinterpret_cast<const void*>(offsetof(SceneVertex,position)));
         glNormalPointer(GL_FLOAT,sizeof(SceneVertex),reinterpret_cast<const void*>(offsetof(SceneVertex,normal)));
         glTexCoordPointer(2,GL_FLOAT,sizeof(SceneVertex),reinterpret_cast<const void*>(offsetof(SceneVertex,uv)));
         glDrawArrays(GL_TRIANGLES,0,b.count);
+    };
+    if(veilPass){
+        std::vector<const GpuBatch*> layers;
+        for(const auto& b:model.batches)if(isVeilKind(b.kind))layers.push_back(&b);
+        std::sort(layers.begin(),layers.end(),[&](const GpuBatch* a,const GpuBatch* b){
+            return (mv*glm::vec4(a->center,1)).z<(mv*glm::vec4(b->center,1)).z;
+        });
+        for(const auto* layer:layers)drawBatch(*layer);
+    }else{
+        for(const auto& b:model.batches)drawBatch(b);
     }
     sceneBindBuffer(SCENE_ARRAY_BUFFER,0);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);glDisableClientState(GL_NORMAL_ARRAY);glDisableClientState(GL_VERTEX_ARRAY);
 }
-float bank(float z){return -3.5f+.65f*std::sin(z*.16f)+.35f*std::sin(z*.53f+.8f)+.12f*std::sin(z*1.4f);}
+float rockReach(float z){return glm::smoothstep(-45.f,-36.f,z)*(1.f-glm::smoothstep(-9.f,-6.f,z));}
+float bank(float z){
+    return -3.5f+.65f*std::sin(z*.16f)+.35f*std::sin(z*.53f+.8f)+.12f*std::sin(z*1.4f)
+           +rockReach(z)*(.38f+.28f*std::sin(z*.41f))
+           -.90f*std::exp(-std::pow((z+9.8f)/2.1f,2.f));
+}
 float terrainHeight(float x,float z){
     float f=glm::clamp((x+18)/(bank(z)+18),0.f,1.f);
-    return .12f+.48f*(1-f)+.10f*std::sin(z*.3f)*(1-f)-.18f*std::pow(f,10.f);
+    float base=.12f+.48f*(1-f)+.10f*std::sin(z*.3f)*(1-f)-.18f*std::pow(f,10.f);
+    float inland=bank(z)-x;
+    float shoulder=glm::smoothstep(0.f,1.9f,inland)*(.30f+.13f*std::sin(z*.62f));
+    float bluff=glm::smoothstep(1.8f,7.2f,inland)*(.75f+.35f*std::sin(z*.31f+.8f));
+    return base+rockReach(z)*(shoulder+bluff);
 }
 void vertex(float x,float y,float z,float u,float v){glTexCoord2f(u,v);glVertex3f(x,y,z);}
 GLuint groundList=0;
+GLuint bankLists=0;
+void groundTriangle(glm::vec3 a,glm::vec3 b,glm::vec3 c){
+    auto n=glm::normalize(glm::cross(b-a,c-a));
+    glNormal3fv(glm::value_ptr(n));
+    for(auto p:{a,b,c})vertex(p.x,p.y,p.z,p.x*.4f,p.z*.4f);
+}
 void buildGround(){
     groundList=glGenLists(1);glNewList(groundList,GL_COMPILE);
     glBegin(GL_TRIANGLES);
     for(int iz=0;iz<440;++iz){
         float za=-70+iz*.25f,zb=za+.25f;
+        if(za>=-45.f&&zb<=-6.f)continue;
         for(int j=0;j<14;++j){
-            auto p=[&](int k,float z){float f=k/14.0f;return glm::vec3(-18+(bank(z)+18)*f,.12f+.48f*(1-f)+.10f*std::sin(z*.3f)*(1-f)-.18f*std::pow(f,10.f),z);};
+            auto p=[&](int k,float z){float x=glm::mix(-18.f,bank(z),k/14.f);return glm::vec3(x,terrainHeight(x,z),z);};
             auto a=p(j,za),b=p(j,zb),c=p(j+1,zb),d=p(j+1,za);
-            auto tri=[&](glm::vec3 v0,glm::vec3 v1,glm::vec3 v2){
-                auto n=glm::normalize(glm::cross(v1-v0,v2-v0));glNormal3fv(glm::value_ptr(n));
-                for(auto v:{v0,v1,v2})vertex(v.x,v.y,v.z,v.x*.4f,v.z*.4f);
-            };
-            tri(a,b,c);tri(a,c,d);
+            groundTriangle(a,b,c);groundTriangle(a,c,d);
         }
     }
     glEnd();glEndList();
+    // Irregular cross sections give the shelf a broken rock edge and a broader inland shoulder.
+    constexpr float sections[]={-45,-42.4f,-39.8f,-37.5f,-34.7f,-32.8f,-30.1f,-27.9f,-25.2f,
+                                -23.7f,-21.5f,-19.1f,-17.4f,-15.2f,-13.9f,-12.1f,-10.6f,-9.5f,-8.1f,-7,-6};
+    constexpr float bands[]={0,.17f,.35f,.54f,.68f,.80f,.88f,.94f,.975f,1};
+    auto point=[&](int row,int col){
+        float z=sections[row],f=bands[col];
+        if(col>0&&col<9)f+=.018f*std::sin(row*1.91f+col*2.75f);
+        float x=glm::mix(-18.f,bank(z),f);
+        return glm::vec3(x,terrainHeight(x,z),z);
+    };
+    bankLists=glGenLists(3);
+    for(int tone=0;tone<3;++tone){
+        glNewList(bankLists+tone,GL_COMPILE);glBegin(GL_TRIANGLES);
+        for(int row=0;row+1<int(std::size(sections));++row){
+            for(int col=0;col+1<int(std::size(bands));++col){
+                auto a=point(row,col),b=point(row+1,col),c=point(row+1,col+1),d=point(row,col+1);
+                int faceTone=(row*7+col*11+row*col)%3;
+                if(faceTone==tone)groundTriangle(a,b,c);
+                if((faceTone+1+(row+col)%2)%3==tone)groundTriangle(a,c,d);
+            }
+        }
+        glEnd();glEndList();
+    }
 }
 void drawWater(){
     material(glm::vec3(1),1);glNormal3f(0,1,0);
@@ -158,6 +239,7 @@ SceneModel buildMeadow(int patch){
             float x=-13+random(float(i)+1)*10,z=-12+random(float(i)+4)*22;
             if(int((z+12)*meadowPatchCount/22)!=patch)continue;
             if(x>bank(z)-.75f)continue;
+            if(rockReach(z)>.15f&&random(float(i)+23)<rockReach(z)*.96f)continue;
             if(std::sin(x*1.7f+std::sin(z*.8f))+std::cos(z*1.3f)<-.45f)continue;
             if(glm::length(glm::vec2(x-scene_layout::caozhiPosition.x,z-scene_layout::caozhiPosition.z))<1.0f)continue;
             float y=terrainHeight(x,z);
@@ -240,12 +322,16 @@ void keyboard(GLFWwindow* w,int key,int,int action,int mods){
     if(key==GLFW_KEY_ESCAPE)glfwSetWindowShouldClose(w,1);
     if(key==GLFW_KEY_H)showHelp=!showHelp;
     if(key==GLFW_KEY_SPACE)animationPlaying=!animationPlaying;
-    if(key==GLFW_KEY_R){animationTime=0.0;animationPlaying=true;resetView();}
+    if(key==GLFW_KEY_P)clothPlaying=!clothPlaying;
+    if(key==GLFW_KEY_0){clothTime=0.0;clothPlaying=false;}
+    if(key==GLFW_KEY_LEFT_BRACKET)clothStrength=std::max(0.f,clothStrength-.2f);
+    if(key==GLFW_KEY_RIGHT_BRACKET)clothStrength=std::min(1.6f,clothStrength+.2f);
+    if(key==GLFW_KEY_R){animationTime=clothTime=0.0;animationPlaying=clothPlaying=true;resetView();}
     if(key==GLFW_KEY_F9)captureRequested=true;
     if(key==GLFW_KEY_1)resetView();
     if(key==GLFW_KEY_2){yaw=48;pitch=29;distanceToTarget=23;target=glm::vec3(-1,1,-3);}
     if(key==GLFW_KEY_3){yaw=4;pitch=10;distanceToTarget=6;target=layoutEditor.items[luoshenItem].pose.position+glm::vec3(0,1.4f,0);}
-    if(key==GLFW_KEY_4){yaw=25;pitch=9;distanceToTarget=6;target=layoutEditor.items[caozhiItem].pose.position+glm::vec3(0,1.2f,0);}
+    if(key==GLFW_KEY_4){yaw=48;pitch=11;distanceToTarget=4.2f;target=layoutEditor.items[caozhiItem].pose.position+glm::vec3(0,1.2f,0);}
 }
 void saveFrame(const std::filesystem::path& path,int w,int h){
     int stride=(w*3+3)&~3;std::vector<unsigned char> data(size_t(stride)*h);
@@ -267,7 +353,17 @@ int wmain(int argc,wchar_t** argv){
         if(assetRoot.empty())throw std::runtime_error("Asset folder not found beside executable or project.");
         bool capture=argc>1&&std::wstring(argv[1])==L"--capture";
         bool noShadows=argc>1&&std::wstring(argv[1])==L"--capture-no-shadows";
-        capture=capture||noShadows;
+        const bool clothCapture=argc>1&&std::wstring(argv[1])==L"--capture-cloth";
+        const std::wstring clothView=clothCapture&&argc>2?argv[2]:L"main";
+        if(clothView!=L"main"&&clothView!=L"side"&&clothView!=L"ribbons"&&clothView!=L"sleeve"&&clothView!=L"skirt"&&clothView!=L"veil-probe")
+            throw std::runtime_error("Use --capture-cloth with main, side, ribbons, sleeve, skirt or veil-probe");
+        if(clothView==L"ribbons")clothPreviewMax=9;
+        if(clothView==L"sleeve")clothPreviewMin=clothPreviewMax=10;
+        if(clothView==L"skirt"){clothPreviewMin=11;clothPreviewMax=12;}
+        const bool wakeCapture=argc>1&&std::wstring(argv[1])==L"--capture-wakes";
+        capture=capture||noShadows||clothCapture||wakeCapture;
+        const int bankRounds=capture&&argc==4&&std::wstring(argv[2])==L"--bank-round"
+            ?std::clamp(std::stoi(argv[3]),0,scene_layout::leftBankRounds):scene_layout::leftBankRounds;
         bool smoke=argc>1&&std::wstring(argv[1])==L"--smoke";
         bool environmentDemo=argc>1&&std::wstring(argv[1])==L"--environment-demo";
         CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);
@@ -276,7 +372,7 @@ int wmain(int argc,wchar_t** argv){
         glfwWindowHint(GLFW_SAMPLES,4);
         glfwWindowHint(GLFW_STENCIL_BITS,8);
         if(capture||smoke)glfwWindowHint(GLFW_VISIBLE,GLFW_FALSE);
-        auto window=glfwCreateWindow(1600,900,"Luoshen | 1/2/3/4 views | R reset view | H text | F9 screenshot",nullptr,nullptr);
+        auto window=glfwCreateWindow(1600,900,"Luoshen | 1/2/3/4 views | P cloth pause | 0 rest | [ ] wind | H text | F9",nullptr,nullptr);
         if(!window)throw std::runtime_error("Window creation failed");
         glfwMakeContextCurrent(window);glfwSwapInterval(capture?0:1);
         glfwSetMouseButtonCallback(window,mouseButton);glfwSetCursorPosCallback(window,mouseMove);
@@ -300,13 +396,20 @@ int wmain(int argc,wchar_t** argv){
         if(!uniform1f)throw std::runtime_error("glUniform1f unavailable");
         pUseProgram(program);pUniform1i(uniform("texture0"),0);
         pUniform1i(uniform("normalMap"),1);
+        clothTimeLocation=uniform("clothTime");clothStrengthLocation=uniform("clothStrength");
+        veilPassLocation=uniform("veilPass");clothMotionLocation=uniform("clothMotionEnabled");
+        pUniform1i(veilPassLocation,0);
+        pUniform1i(uniform("veilProbe"),clothView==L"veil-probe"?1:0);
         glEnable(GL_DEPTH_TEST);glDisable(GL_CULL_FACE);
         std::cout<<"GL version: "<<glGetString(GL_VERSION)<<"\nPhong shader linked successfully\n";
         ShadowMap shadows;shadows.init(program);
         auto prop=[](const char* name,bool pickable=false){return loadModel(std::string("imported-props/v6/")+name+".obj",pickable);};
         auto boat=prop("05_covered_wooden_boat",true);
         auto blossom=prop("01_foreground_blossom_tree",true);
-        auto ledge=prop("03_left_bank_main_platform");
+        auto ledge=prop("03_left_bank_platform_steps");
+        auto leftRidge=prop("07_left_ridge_facets");
+        auto rightSummit=prop("07_right_summit");
+        auto valleyRidge=prop("07_river_valley_ridge");
         auto distantBank=prop("04_right_bank_slope");
         SceneModel pines[]={prop("02_pine_tree_A",true),prop("02_pine_tree_B",true),prop("02_pine_tree_C",true)};
         SceneModel rocks[]={prop("03_shore_rock_A",true),prop("03_shore_rock_B",true),prop("03_shore_rock_C",true)};
@@ -314,7 +417,9 @@ int wmain(int argc,wchar_t** argv){
         SceneModel mountains[]={prop("07_mountain_far"),prop("07_mountain_mid"),prop("07_mountain_near")};
         SceneModel petals[]={prop("08_floating_petal_A"),prop("08_floating_petal_B"),prop("08_floating_petal_C")};
         auto caozhi=loadModel("../luoshen-characters/caozhi/caozhi.obj",true);
-        auto luoshen=loadModel("../luoshen-characters/luoshen/luoshen.obj",true);
+        // Lock the rest-pose origin so edits to the garment hem cannot move the figure.
+        const glm::vec3 luoshenOrigin(-.4001205f,.004337f,.0024f);
+        auto luoshen=loadModel("../luoshen-characters/luoshen/luoshen.obj",true,luoshenOrigin);
         struct EditableModel {const SceneModel* model;glm::vec3 stretch;};
         std::vector<EditableModel> editableModels;
         auto editable=[&](const SceneModel& model,std::string id,std::string name,
@@ -331,6 +436,14 @@ int wmain(int argc,wchar_t** argv){
             auto number=std::to_string(i);
             editable(rocks[i-1],"foreground-"+number,u8"前景岩石 "+number,
                      {rock.position+glm::vec3(0,.20f,0),rock.yaw,rock.scale*1.4f});
+        }
+        const auto& connectors=scene_layout::shoreConnectors;
+        std::array<SceneModel, scene_layout::shoreConnectors.size()> connectorModels;
+        for(size_t i=0;i<connectors.size();++i){
+            const auto& rock=connectors[i];
+            connectorModels[i]=loadModel(std::string("imported-props/riverbank-rocks/")+rock.asset+".obj",true);
+            editable(connectorModels[i],"shore-connector-"+std::to_string(i+1),
+                     u8"左岸接坡石 "+std::to_string(i+1),{rock.pose.position,rock.pose.yaw,rock.pose.scale});
         }
         for(int i=0;i<int(scene_layout::bankRocks.size());++i){
             const auto& rock=scene_layout::bankRocks[i];
@@ -354,6 +467,15 @@ int wmain(int argc,wchar_t** argv){
             auto number=std::to_string(i+1);
             editable(pines[(i+2)%3],"left-grove-"+number,u8"左岸远松 "+number,{position,pine.yaw,pine.scale});
         }
+        for(size_t i=0;i<std::size(scene_layout::leftBankDetails);++i){
+            const auto& detail=scene_layout::leftBankDetails[i];
+            if(detail.round>bankRounds)break;
+            const float y=terrainHeight(detail.x,detail.z)-(detail.pine?.045f:.09f);
+            const auto& model=detail.pine?pines[detail.variant]:rocks[detail.variant];
+            const auto number=std::to_string(i+1);
+            editable(model,"left-detail-"+number,(detail.pine?u8"左岸补植松树 ":u8"左岸补置岩石 ")+number,
+                     {{detail.x,y,detail.z},detail.yaw,1.f},detail.size);
+        }
         for(int i=0;i<10;++i){
             float z=-13.f+1.55f*i;
             float x=bank(z)-.22f-.19f*(i%3);
@@ -373,8 +495,9 @@ int wmain(int argc,wchar_t** argv){
             editable(m,"meadow-"+number,u8"草地草片 "+number,{{m.center.x,m.bottom,m.center.z},0,1});
         }
         layoutEditor.path=assetRoot.parent_path().parent_path()/"scene-layout.txt";
+        if(capture&&argc==4&&std::wstring(argv[2])==L"--layout")
+            layoutEditor.path=std::filesystem::path(argv[3]);
         layoutEditor.load();
-        if(environmentDemo){yaw=-4.f;pitch=14.f;distanceToTarget=10.f;target=glm::vec3(-1.1f,1.2f,-3.4f);}
         SceneMaterial groundMat;groundMat.colorMap=assetRoot/"ground/color.png";groundColor=loadMaterialTexture(groundMat);
         groundMat.colorMap=assetRoot/"ground/normal.png";groundNormal=loadMaterialTexture(groundMat);
         sceneActiveTexture(0x84C1);glBindTexture(GL_TEXTURE_2D,groundNormal);sceneActiveTexture(0x84C0);
@@ -384,6 +507,9 @@ int wmain(int argc,wchar_t** argv){
         // Exercise the same callback handlers used by real mouse/keyboard input.
         auto originalYaw=yaw;leftDown=true;lastX=0;lastY=0;mouseMove(window,30,12);leftDown=false;
         if(yaw==originalYaw)throw std::runtime_error("Orbit control failed");
+        const auto originalTarget=target;
+        rightDown=true;mouseMove(window,48,26);rightDown=false;
+        if(glm::length(target-originalTarget)<.001f)throw std::runtime_error("Pan control failed");
         auto beforeZoom=distanceToTarget;scroll(window,0,2);
         if(distanceToTarget>=beforeZoom)throw std::runtime_error("Zoom control failed");
         animationTime=2.0;keyboard(window,GLFW_KEY_SPACE,0,GLFW_PRESS,0);
@@ -391,12 +517,34 @@ int wmain(int argc,wchar_t** argv){
         keyboard(window,GLFW_KEY_R,0,GLFW_PRESS,0);
         if(yaw!=scene_layout::mainYaw||distanceToTarget!=scene_layout::mainDistance||animationTime!=0.0||!animationPlaying)
             throw std::runtime_error("Reset control failed");
-        if(environmentDemo){yaw=-4.f;pitch=14.f;distanceToTarget=10.f;target=glm::vec3(-1.1f,1.2f,-3.4f);}
+        if(capture||smoke){
+            clothTime=2.0;keyboard(window,GLFW_KEY_P,0,GLFW_PRESS,0);
+            if(clothPlaying||clothTime!=2.0)throw std::runtime_error("Cloth pause failed");
+            keyboard(window,GLFW_KEY_P,0,GLFW_PRESS,0);
+            keyboard(window,GLFW_KEY_LEFT_BRACKET,0,GLFW_PRESS,0);
+            if(!clothPlaying||std::abs(clothStrength-.8f)>1e-5f)throw std::runtime_error("Cloth resume or wind control failed");
+            keyboard(window,GLFW_KEY_RIGHT_BRACKET,0,GLFW_PRESS,0);
+            keyboard(window,GLFW_KEY_0,0,GLFW_PRESS,0);
+            if(clothPlaying||clothTime!=0.0||std::abs(clothStrength-1.f)>1e-5f)
+                throw std::runtime_error("Cloth rest pose failed");
+            keyboard(window,GLFW_KEY_R,0,GLFW_PRESS,0);
+            if(!clothPlaying||clothTime!=0.0)throw std::runtime_error("Cloth restart failed");
+            std::cout<<"Cloth callbacks: pause, resume, wind, rest, restart PASS\n";
+        }
         std::cout<<"Control callbacks: orbit, zoom, pause, reset PASS\n";
+        if(environmentDemo){yaw=-4.f;pitch=14.f;distanceToTarget=10.f;target=glm::vec3(-1.1f,1.2f,-3.4f);}
+        if(clothView==L"side"){
+            yaw=-50.f;pitch=11.f;distanceToTarget=5.2f;
+            target=layoutEditor.items[luoshenItem].pose.position+glm::vec3(0,1.55f,0);
+        }
         double previous=glfwGetTime(),start=previous;int frame=0;size_t frames=0;double fpsStart=previous;
+        const auto wakeGoddessStart=layoutEditor.items[luoshenItem].pose.position;
+        const auto wakeBoatStart=layoutEditor.items[boatItem].pose.position;
         while(!glfwWindowShouldClose(window)){
             glfwPollEvents();double now=glfwGetTime();float dt=glm::clamp(float(now-previous),0.0f,.05f);previous=now;
-            if(animationPlaying)animationTime+=dt;
+            if(animationPlaying&&!clothCapture)animationTime+=dt;
+            if(clothCapture)clothTime=frame*.20;
+            else if(animationPlaying&&clothPlaying)clothTime+=dt;
             float speed=dt*distanceToTarget*.15f;
             if(!layoutEditor.active){
             if(glfwGetKey(window,GLFW_KEY_A)==GLFW_PRESS)target.x-=speed;
@@ -410,11 +558,16 @@ int wmain(int argc,wchar_t** argv){
             float a=glm::radians(yaw),b=glm::radians(pitch);
             glm::vec3 eye=target+distanceToTarget*glm::vec3(std::sin(a)*std::cos(b),std::sin(b),std::cos(a)*std::cos(b));
             auto view=glm::lookAt(eye,target,glm::vec3(0,1,0));
+            if(wakeCapture){
+                float shift=.018f*float(std::min(frame,60));
+                layoutEditor.items[luoshenItem].pose.position=wakeGoddessStart+glm::vec3(-shift,0,0);
+                layoutEditor.items[boatItem].pose.position=glm::vec3(2.6f,wakeBoatStart.y,-5.0f+shift*1.8f);
+            }
             auto goddess=layoutEditor.items[luoshenItem].pose.position;
-            auto drawEditable=[&](size_t i,const glm::mat4& cameraView){
+            auto drawEditable=[&](size_t i,const glm::mat4& cameraView,bool veil=false){
                 const auto& item=layoutEditor.items[i];
                 const auto& entry=editableModels[i];
-                drawModel(*entry.model,cameraView,item.pose.position,item.pose.yaw,item.pose.scale,glm::vec3(1),entry.stretch);
+                drawModel(*entry.model,cameraView,item.pose.position,item.pose.yaw,item.pose.scale,glm::vec3(1),entry.stretch,glm::vec2(0),veil);
             };
             auto drawCasters=[&](const glm::mat4& view){
             for(size_t i=0;i<firstMeadowItem;++i){
@@ -424,7 +577,47 @@ int wmain(int argc,wchar_t** argv){
             drawModel(distantBank,view,scene_layout::distantBankPosition,0,1,glm::vec3(1),glm::vec3(1.55f,.42f,8.5f));
             drawModel(ledge,view,scene_layout::ledges[0].position,-8,1);
             };
-            pUseProgram(program);uniform1f(timeLocation,static_cast<float>(animationTime));shadows.begin();drawCasters(shadows.lightView);shadows.end(w,h,view,!noShadows);
+            auto drawMountains=[&](const glm::mat4& view){
+                auto drawLeftBankRidges=[&](int variant){
+                    for(const auto& ridge:scene_layout::leftBankRidges){
+                        if(ridge.round>bankRounds)break;
+                        if(ridge.variant!=variant)continue;
+                        auto position=ridge.position;
+                        auto size=ridge.size;
+                        float angle=ridge.yaw;
+                        if(bankRounds>=41&&ridge.round==15){
+                            position.x-=.55f;
+                            position.z-=1.8f;
+                            size.y*=.86f;
+                        }
+                        if(bankRounds>=42&&ridge.round==16){
+                            position.x-=.42f;
+                            angle-=16.f;
+                            size.y*=.85f;
+                        }
+                        drawModel(mountains[ridge.variant],view,position,angle,1,{.84f,.91f,1},size);
+                    }
+                };
+                // Far mountains.
+                drawModel(mountains[0],view,{-2,-.22f,-51},0,3.4f,{.84f,.91f,1});
+                drawModel(mountains[0],view,scene_layout::leftFarPosition,0,1,{.84f,.91f,1},scene_layout::leftFarStretch);
+                // Fog slot: between the far and middle mountains.
+                drawModel(rightSummit,view,{9,-.20f,-36},-6,2.9f,{.84f,.91f,1});
+                drawModel(leftRidge,view,scene_layout::leftMountainPosition,0,1,{.84f,.91f,1},scene_layout::leftMountainStretch);
+                drawLeftBankRidges(1);
+                // Fog slot: between the middle mountains and near foothills.
+                drawModel(valleyRidge,view,{5.8f,-.24f,-26.0f},-7,1,{.84f,.91f,1});
+                drawModel(mountains[2],view,scene_layout::leftFoothillPosition,0,1,{.84f,.91f,1},scene_layout::leftFoothillStretch);
+                drawLeftBankRidges(2);
+            };
+            pUseProgram(program);
+            uniform1f(clothTimeLocation,static_cast<float>(clothTime));
+            uniform1f(clothStrengthLocation,clothStrength);
+            uniform1f(timeLocation,static_cast<float>(animationTime));
+            shadows.begin();
+            drawCasters(shadows.lightView);
+            drawMountains(shadows.lightView);
+            shadows.end(w,h,view,!noShadows);
             glMatrixMode(GL_PROJECTION);glLoadMatrixf(glm::value_ptr(projection));
             pUseProgram(program);uniform1f(timeLocation,static_cast<float>(animationTime));
             auto worldUp=glm::vec3(view*glm::vec4(0,1,0,0));pUniform3f(worldUpLocation,worldUp.x,worldUp.y,worldUp.z);uniform1f(cameraHeightLocation,eye.y);
@@ -443,30 +636,45 @@ int wmain(int argc,wchar_t** argv){
             glLoadMatrixf(glm::value_ptr(view));
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-            // Keep comparison screenshots fixed and animate only the visible water pass.
-            const float waterTime = capture ? 0.f : static_cast<float>(glfwGetTime());
-            uniform1f(timeLocation,waterTime);
             drawWater();
-            uniform1f(timeLocation,0.f);
             glDisable(GL_BLEND);
-            drawModel(mountains[0],view,{-2,-.22f,-51},0,3.4f,{.84f,.91f,1});
-            drawModel(mountains[1],view,{9,-.20f,-36},-6,2.9f,{.84f,.91f,1});
-            drawModel(mountains[0],view,scene_layout::leftFarPosition,0,1,{.84f,.91f,1},scene_layout::leftFarStretch);
-            drawModel(mountains[2],view,scene_layout::leftMountainPosition,0,1,{.84f,.91f,1},scene_layout::leftMountainStretch);
-            drawModel(mountains[2],view,scene_layout::leftFoothillPosition,0,1,{.84f,.91f,1},scene_layout::leftFoothillStretch);
+            drawMountains(view);
             glLoadMatrixf(glm::value_ptr(view));
             material(glm::vec3(.85f,.90f,.81f),2,groundColor);
             glCallList(groundList);
+            const glm::vec3 bankColors[]={{.38f,.44f,.43f},{.45f,.49f,.46f},{.50f,.52f,.48f}};
+            for(int tone=0;tone<3;++tone){material(bankColors[tone]);glCallList(bankLists+tone);}
             for(size_t i=firstMeadowItem;i<editableModels.size();++i)drawEditable(i,view);
             drawCasters(view);
             glLoadMatrixf(glm::value_ptr(view));
             environment_effects::drawWaterPetals(animationTime,goddess,layoutEditor.items[boatItem].pose.position,view,petals);
             environment_effects::drawFallingPetals(animationTime,layoutEditor.items[blossomItem].pose.position,view,petals);
+            if(!environmentDemo){
+                // Render translucent cloth after opaque geometry, with depth testing but no depth writes.
+                glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+                glDepthMask(GL_FALSE);glEnable(GL_CULL_FACE);glCullFace(GL_BACK);
+                pUniform1i(veilPassLocation,1);
+                drawEditable(luoshenItem,view,true);
+                pUniform1i(veilPassLocation,0);
+                glDisable(GL_CULL_FACE);glDepthMask(GL_TRUE);glDisable(GL_BLEND);
+            }
+
             drawSceneOverlay(showHelp?overlay:titleOverlay,showHelp);
             int windowWidth,windowHeight;
             glfwGetWindowSize(window,&windowWidth,&windowHeight);
             layoutEditor.draw(projection*view,windowWidth,windowHeight);
-            if(capture){
+            if(wakeCapture){
+                auto folder=exe/"captures"/"wakes";std::filesystem::create_directories(folder);
+                if(frame%15==0)saveFrame(folder/("frame-"+std::to_string(frame)+".bmp"),w,h);
+                if(++frame>120){checkGL("Wake sequence rendered");break;}
+                Sleep(40);
+            }else if(clothCapture){
+                const auto folder=exe/"captures"/("cloth-"+std::filesystem::path(clothView).string());
+                std::filesystem::create_directories(folder);
+                const std::string index=std::to_string(1000+frame).substr(1);
+                saveFrame(folder/("frame-"+index+".bmp"),w,h);
+                if(++frame==(clothView==L"veil-probe"?18:50)){checkGL("Cloth sequence rendered");break;}
+            }else if(capture){
                 auto folder=exe/"captures";std::filesystem::create_directories(folder);
                 const char* names[]={"scene-main.bmp","scene-overview.bmp","scene-luoshen.bmp","scene-caozhi.bmp"};
                 saveFrame(folder/names[frame],w,h);
@@ -493,6 +701,7 @@ int wmain(int argc,wchar_t** argv){
         glDeleteTextures(1,&titleOverlay);
         auto release=[](SceneModel& m){for(auto b:m.batches)sceneDeleteBuffers(1,&b.buffer);};
         release(boat);release(blossom);release(ledge);release(distantBank);
+        release(leftRidge);release(rightSummit);release(valleyRidge);
         release(caozhi);release(luoshen);
         for(auto& patch:meadow)release(patch);
         for(auto& m:pines)release(m);
@@ -501,6 +710,7 @@ int wmain(int argc,wchar_t** argv){
         for(auto& m:mountains)release(m);
         for(auto& m:petals)release(m);
         glDeleteLists(groundList,1);
+        glDeleteLists(bankLists,3);
         shadows.destroy();pDeleteProgram(program);glfwDestroyWindow(window);glfwTerminate();CoUninitialize();
         return 0;
     }catch(const std::exception& e){std::cerr<<"ERROR: "<<e.what()<<'\n';return 1;}

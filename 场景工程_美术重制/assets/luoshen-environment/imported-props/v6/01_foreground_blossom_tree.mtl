@@ -7,3 +7,18 @@ Ns 20.000000
 d 1.000000
 illum 1
 map_Kd luoshen_scene_palette.png
+
+newmtl Peach_Petal_Cream
+Kd 0.99 0.83 0.69
+
+newmtl Peach_Petal_Ivory
+Kd 0.99 0.87 0.72
+
+newmtl Peach_Petal_Rose
+Kd 0.96 0.71 0.61
+
+newmtl Peach_Stamens
+Kd 0.91 0.54 0.24
+
+newmtl Peach_Pedicel
+Kd 0.39 0.27 0.16

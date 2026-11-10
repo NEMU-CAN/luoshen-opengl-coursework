@@ -4,7 +4,7 @@
 // Depth-map shadows; colour and normal textures keep units 0 and 1.
 extern LayoutEditor layoutEditor;
 struct ShadowMap {
-    static constexpr int size=2048;
+    static constexpr int size=4096;
     using Gen=void(APIENTRY*)(GLsizei,GLuint*);
     using Bind=void(APIENTRY*)(GLenum,GLuint);
     using Attach=void(APIENTRY*)(GLenum,GLenum,GLenum,GLuint,GLint);
@@ -14,6 +14,8 @@ struct ShadowMap {
     GLuint framebuffer=0,depth=0;Gen gen=nullptr,remove=nullptr;Bind bind=nullptr;Attach attach=nullptr;Status status=nullptr;Matrix matrix=nullptr;Active active=nullptr;
     glm::mat4 lightView,lightProjection;
     GLint depthLocation=-1,matrixLocation=-1,enabledLocation=-1,kindLocation=-1,textureLocation=-1,cloudLocation=-1,rightLocation=-1,upLocation=-1,backLocation=-1,boatLocation=-1,footLocation=-1,goddessVelocityLocation=-1,boatVelocityLocation=-1;
+    GLint cloudCameraLocation=-1;
+    GLint trailLocation[16];
     void init(GLuint program){
         gen=reinterpret_cast<Gen>(glfwGetProcAddress("glGenFramebuffers"));bind=reinterpret_cast<Bind>(glfwGetProcAddress("glBindFramebuffer"));
         remove=reinterpret_cast<Gen>(glfwGetProcAddress("glDeleteFramebuffers"));attach=reinterpret_cast<Attach>(glfwGetProcAddress("glFramebufferTexture2D"));
@@ -28,8 +30,12 @@ struct ShadowMap {
         if(status(0x8D40)!=0x8CD5)throw std::runtime_error("Shadow framebuffer incomplete");
         bind(0x8D40,0);glDrawBuffer(GL_BACK);glReadBuffer(GL_BACK);
         depthLocation=pGetUniformLocation(program,"renderDepth");matrixLocation=pGetUniformLocation(program,"shadowFromEye");enabledLocation=pGetUniformLocation(program,"shadowsEnabled");kindLocation=pGetUniformLocation(program,"materialKind");textureLocation=pGetUniformLocation(program,"useTexture");cloudLocation=pGetUniformLocation(program,"cloudParams");rightLocation=pGetUniformLocation(program,"camRight");upLocation=pGetUniformLocation(program,"camUp");backLocation=pGetUniformLocation(program,"camBack");boatLocation=pGetUniformLocation(program,"boatPosition");footLocation=pGetUniformLocation(program,"footPosition");goddessVelocityLocation=pGetUniformLocation(program,"goddessVelocity");boatVelocityLocation=pGetUniformLocation(program,"boatVelocity");pUniform1i(pGetUniformLocation(program,"shadowMap"),2);
-        // Same sun as the shader: world (-12, 5.5, 9), aimed at the folded bank and the two figures.
-        lightView=glm::lookAt(glm::vec3(-12.f,5.5f,9.f),glm::vec3(-4.2f,.5f,-2.8f),glm::vec3(0,1,0));lightProjection=glm::ortho(-13.f,13.f,-13.f,13.f,.2f,64.f);
+        cloudCameraLocation=pGetUniformLocation(program,"cloudCameraWorld");
+        for(int i=0;i<16;++i)trailLocation[i]=pGetUniformLocation(program,("wakeTrail["+std::to_string(i)+"]").c_str());
+        // Shadows follow the art-directed front-left key, not the background disc.
+        glm::vec3 focus(-2.f,4.f,-26.f);
+        glm::vec3 sunDirection=glm::normalize(glm::vec3(-.48f,.48f,.74f));
+        lightView=glm::lookAt(focus+sunDirection*80.f,focus,glm::vec3(0,1,0));lightProjection=glm::ortho(-46.f,46.f,-34.f,34.f,.2f,160.f);
         std::cout<<"Shadow framebuffer COMPLETE "<<size<<"x"<<size<<"\n";
     }
     void begin(){
@@ -48,6 +54,8 @@ struct ShadowMap {
         pUniform3f(rightLocation,right.x,right.y,right.z);
         pUniform3f(upLocation,upAxis.x,upAxis.y,upAxis.z);
         pUniform3f(backLocation,back.x,back.y,back.z);
+        glm::vec3 cloudEye=glm::vec3(glm::inverse(camera)[3]);
+        pUniform3f(cloudCameraLocation,cloudEye.x,cloudEye.y,cloudEye.z);
         // main.cpp writes sceneTime as 0 after this pass. Keep the frame clock in the unused x so water can move.
         pUniform3f(cloudLocation,float(glfwGetTime()),float(w),float(h));
         glm::vec3 goddess=scene_layout::luoshenPosition;
@@ -58,7 +66,7 @@ struct ShadowMap {
             if(item.id=="luoshen"){goddess=item.pose.position;goddessYaw=item.pose.yaw;goddessScale=item.pose.scale;}
             if(item.id=="boat"){boat=item.pose.position;boatYaw=item.pose.yaw;boatScale=item.pose.scale;}
         }
-        auto spun=[&](glm::vec2 local,float yaw){float r=glm::radians(yaw),c=std::cos(r),s=std::sin(r);return glm::vec2(local.x*c-local.y*s,local.x*s+local.y*c);};
+        auto spun=[&](glm::vec2 local,float yaw){float r=glm::radians(yaw),c=std::cos(r),s=std::sin(r);return glm::vec2(local.x*c+local.y*s,-local.x*s+local.y*c);};
         // Lowest vertices of each mesh, relative to the pivot drawModel subtracts.
         glm::vec2 footShift=spun(glm::vec2(.348f,-.064f)*goddessScale,goddessYaw);
         glm::vec2 keelShift=spun(glm::vec2(.031f,-.050f)*boatScale,boatYaw);
@@ -78,14 +86,42 @@ struct ShadowMap {
             goddessVelocity=limit(goddessVelocity);boatVelocity=limit(boatVelocity);
         }
         prevGoddess=goddess;prevBoat=boat;prevClock=now;havePrev=true;
-        auto ashore=[&](glm::vec3 p){float shore=-3.5f+.65f*std::sin(p.z*.16f)+.35f*std::sin(p.z*.53f+.8f)+.12f*std::sin(p.z*1.4f);return p.y>.12f||p.x<shore+.15f;};
+        auto ashore=[&](glm::vec3 p){
+            float reach=glm::smoothstep(-45.f,-36.f,p.z)*(1.f-glm::smoothstep(-9.f,-6.f,p.z));
+            float shore=-3.5f+.65f*std::sin(p.z*.16f)+.35f*std::sin(p.z*.53f+.8f)+.12f*std::sin(p.z*1.4f)
+                +reach*(.38f+.28f*std::sin(p.z*.41f))-.90f*std::exp(-std::pow((p.z+9.8f)/2.1f,2.f));
+            return p.y>.12f||p.x<shore+.15f;
+        };
         if(ashore(foot))goddessVelocity=glm::vec3(0.f);
         if(ashore(keel))boatVelocity=glm::vec3(0.f);
+        // Independent world-fixed histories for the character and boat.
+        static glm::vec3 trail[16];
+        static double trailTime[16]={};
+        static int nextTrail[2]={0,0};
+        static double lastTrail[2]={-10.0,-10.0};
+        static glm::vec3 lastContact[2]={foot,keel};
+        glm::vec3 contact[2]={foot,keel};
+        for(int emitter=0;emitter<2;++emitter){
+            float moved=glm::length(contact[emitter]-lastContact[emitter]);
+            bool teleport=moved>2.0f;
+            if(teleport)for(int i=0;i<8;++i)trailTime[emitter*8+i]=0.0;
+            bool validTime=dt>1e-4f&&dt<1.0f;
+            if(!teleport&&validTime&&!ashore(contact[emitter])&&moved/dt>.06f&&now-lastTrail[emitter]>.14){
+                int slot=emitter*8+nextTrail[emitter];
+                trail[slot]=contact[emitter];trailTime[slot]=now;
+                nextTrail[emitter]=(nextTrail[emitter]+1)%8;lastTrail[emitter]=now;
+            }
+            lastContact[emitter]=contact[emitter];
+        }
+        for(int i=0;i<16;++i){
+            float age=trailTime[i]>0.0?float(now-trailTime[i]):10.f;
+            pUniform3f(trailLocation[i],trail[i].x,trail[i].z,age);
+        }
         pUniform3f(footLocation,foot.x,foot.y,foot.z);
         pUniform3f(boatLocation,keel.x,keel.y,keel.z);
         pUniform3f(goddessVelocityLocation,goddessVelocity.x,goddessVelocity.y,goddessVelocity.z);
         pUniform3f(boatVelocityLocation,boatVelocity.x,boatVelocity.y,boatVelocity.z);
-        pUniform1i(textureLocation,0);pUniform1i(kindLocation,8);
+        pUniform1i(textureLocation,0);pUniform1i(kindLocation,18);
         glPushAttrib(GL_ENABLE_BIT|GL_DEPTH_BUFFER_BIT|GL_COLOR_BUFFER_BIT);
         glDisableClientState(GL_VERTEX_ARRAY);glDisableClientState(GL_NORMAL_ARRAY);glDisableClientState(GL_TEXTURE_COORD_ARRAY);
         glMatrixMode(GL_PROJECTION);glPushMatrix();glLoadIdentity();

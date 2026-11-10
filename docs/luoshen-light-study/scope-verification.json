@@ -1,0 +1,19 @@
+{
+  "changed_existing_objects": [
+    "MODEL_skirt",
+    "RIBBON_Vermilion_cloud",
+    "RIBBON_Vermilion_gold_trim",
+    "SKIRT_Cloud_train",
+    "SKIRT_Cloud_upper",
+    "SLEEVE_Cloud_loft",
+    "SLEEVE_Voile_fringe"
+  ],
+  "protected_objects_unchanged": 313,
+  "new_objects": [
+    "AIRY_Sleeve_upper",
+    "AIRY_Sleeve_lower",
+    "AIRY_Ivory_windward",
+    "AIRY_Ivory_front",
+    "AIRY_Jade_split_train"
+  ]
+}

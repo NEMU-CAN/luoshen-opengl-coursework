@@ -162,7 +162,7 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd dress-near-sleeve.png
+map_Kd airy-jade.png
 
 newmtl Wind_UpperSkirt
 Ns 12.000000
@@ -262,3 +262,51 @@ newmtl Luoshen_FaceGauze
 Kd 0.88 0.85 0.75
 d 0.74
 illum 2
+
+newmtl Airy_IvoryUpper
+Kd 1 1 1
+Ks .04 .04 .04
+Ns 18
+d 1
+illum 2
+map_Kd airy-ivory.png
+
+newmtl Airy_JadeSleeveA
+Kd 1 1 1
+Ks .04 .04 .04
+Ns 18
+d 1
+illum 2
+map_Kd airy-jade.png
+
+newmtl Airy_JadeSleeveB
+Kd 1 1 1
+Ks .04 .04 .04
+Ns 18
+d 1
+illum 2
+map_Kd airy-jade.png
+
+newmtl Airy_IvoryWindward
+Kd 1 1 1
+Ks .04 .04 .04
+Ns 18
+d 1
+illum 2
+map_Kd airy-ivory.png
+
+newmtl Airy_IvoryFront
+Kd 1 1 1
+Ks .04 .04 .04
+Ns 18
+d 1
+illum 2
+map_Kd airy-ivory.png
+
+newmtl Airy_JadeTrain
+Kd 1 1 1
+Ks .04 .04 .04
+Ns 18
+d 1
+illum 2
+map_Kd airy-jade.png

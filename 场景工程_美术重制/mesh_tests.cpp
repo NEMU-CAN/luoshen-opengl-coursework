@@ -3,18 +3,106 @@
 #include <iostream>
 #include <stdexcept>
 #include "scene_motion.h"
+#include "pibo_motion.h"
+#include "scene_layout.h"
 #define ENVIRONMENT_EFFECTS_MATH_ONLY
 #include "environment_effects.h"
+
+using scene_motion::farewell;
+using scene_motion::farewellPosition;
 
 void require(bool ok,const char* message) { if(!ok) throw std::runtime_error(message); }
 int wmain(int argc,wchar_t** argv) {
     try {
         require(glm::length(farewellPosition(0)-glm::vec3(1,.045f,-1.2f))<1e-5f,"Bezier start");
-        require(glm::length(farewellPosition(45)-glm::vec3(4.5f,.045f,-4))<1e-5f,"Bezier end");
+        require(glm::length(farewellPosition(45)-glm::vec3(4.05f,.045f,-6.1f))<1e-5f,"Bezier end");
         require(glm::length(farewellPosition(90)-farewellPosition(45))<1e-5f,"farewell must hold endpoint");
         require(glm::length(farewellPosition(-1)-farewellPosition(0))<1e-5f,"negative time clamps");
         require(farewellPosition(22.5).x>1.5f && farewellPosition(22.5).x<4,"Bezier midpoint advances");
+        require(glm::length(farewell(0).position-scene_layout::luoshenPosition)<1e-5f,"start aligns static stance");
+        require(farewell(0).phase==0&&farewell(20).phase==1&&farewell(40).phase==2,"narrative phases");
         std::cout<<"PASS: farewell path endpoints, midpoint and clamping\n";
+        // 时间连续性与转向连续性：0.01 秒步长内位置与角度都不得跳变。
+        {
+            glm::vec3 previous=scene_motion::farewell(0).position;
+            float previousYaw=scene_motion::farewell(0).yaw,maximumStep=0,maximumYawStep=0;
+            for(int i=1;i<=4500;++i){
+                const auto pose=scene_motion::farewell(i*.01);
+                maximumStep=std::max(maximumStep,glm::length(pose.position-previous));
+                maximumYawStep=std::max(maximumYawStep,std::abs(pose.yaw-previousYaw));
+                require(std::isfinite(pose.position.x)&&std::isfinite(pose.yaw),"finite farewell pose");
+                previous=pose.position;previousYaw=pose.yaw;
+            }
+            require(maximumStep<.01f,"farewell position must stay continuous");
+            require(maximumYawStep<.20f,"farewell yaw must stay continuous");
+            std::cout<<"PASS: farewell position/yaw continuity ("<<maximumStep<<", "<<maximumYawStep<<")\n";
+        }
+        // 路线不穿岸：全程位于左岸线以外、右侧开阔水域以内，并与小舟保持距离。
+        for(int i=0;i<=900;++i){
+            const auto point=scene_motion::farewell(i*.05).position;
+            require(point.x>=environment_effects::shoreline(point.z)+.55f,"farewell crossed the left bank");
+            require(point.x<8.0f,"farewell left the open water");
+            require(glm::length(glm::vec2(point.x-scene_layout::boatPosition.x,point.z-scene_layout::boatPosition.z))>1.2f,
+                    "farewell passed through the boat");
+            require(point.y>=.03f&&point.y<=.06f,"farewell must skim the water plane");
+        }
+        std::cout<<"PASS: farewell route keeps off the bank, boat and water plane\n";
+        // 小舟微动：0 秒静止、幅度克制、随时间变化且可复现。
+        {
+            const auto rest=scene_motion::boatMotion(0);
+            require(std::abs(rest.heave)<1e-6f&&std::abs(rest.roll)<1e-6f&&
+                    std::abs(rest.pitch)<1e-6f&&std::abs(rest.yaw)<1e-6f,"boat starts at rest");
+            float maximumHeave=0,maximumRoll=0,maximumPitch=0,maximumYaw=0;
+            for(int i=0;i<=4500;++i){
+                const auto motion=scene_motion::boatMotion(i*.01);
+                maximumHeave=std::max(maximumHeave,std::abs(motion.heave));
+                maximumRoll=std::max(maximumRoll,std::abs(motion.roll));
+                maximumPitch=std::max(maximumPitch,std::abs(motion.pitch));
+                maximumYaw=std::max(maximumYaw,std::abs(motion.yaw));
+            }
+            require(maximumHeave<=.025f&&maximumRoll<=1.1f&&maximumPitch<=.6f&&maximumYaw<=.5f,
+                    "boat motion must stay subtle");
+            require(std::abs(scene_motion::boatMotion(5).heave)>1e-4f,"boat must actually move");
+            const auto repeatA=scene_motion::boatMotion(7),repeatB=scene_motion::boatMotion(7);
+            require(repeatA.heave==repeatB.heave&&repeatA.roll==repeatB.roll&&
+                    repeatA.pitch==repeatB.pitch&&repeatA.yaw==repeatB.yaw,"boat motion deterministic");
+            std::cout<<"PASS: boat heave/roll/pitch/yaw stays subtle and reversible\n";
+        }
+        // 披帛：肩边固定、中段轻摆、末端摆幅更大且相位更晚。
+        {
+            require(scene_motion::windEnvelope(0)<1e-5f,"wind starts calm");
+            require(scene_motion::windEnvelope(12)>.4f,"wind rises during departure");
+            require(pibo_motion::ownsKind(8)&&pibo_motion::ownsKind(9)&&pibo_motion::ownsKind(26),
+                    "pibo kinds must be owned");
+            auto sample=[](int kind,float s,double seconds,float wind)->glm::vec3{
+                if(kind>=26){
+                    // kind 26-29 使用 V 坐标参数化。
+                    return pibo_motion::displacement(kind,glm::vec3(0),glm::vec2(.5f,.88f-.75f*s),seconds,wind);
+                }
+                return pibo_motion::displacement(kind,glm::vec3(-.033f-1.10f*s,1.403f-.418f*s,0),glm::vec2(0),seconds,wind);
+            };
+            for(int kind:{8,9,26,27,28,29}){
+                require(glm::length(sample(kind,0.f,9.0,1.f))<1e-6f,"pibo root must stay pinned");
+            }
+            auto travel=[&](int kind,float s)->float{
+                float maximum=0;
+                for(int i=0;i<600;++i)maximum=std::max(maximum,glm::length(sample(kind,s,i*.01,1.f)));
+                return maximum;
+            };
+            for(int kind:{8,9,26}){
+                const float middle=travel(kind,.55f),tip=travel(kind,1.f);
+                require(tip>middle&&middle>0.001f,"pibo tip must swing wider than the middle");
+            }
+            // 末端峰值出现得比中段晚：相位滞后形成根到梢的传播。
+            auto peakTime=[&](int kind,float s)->double{
+                double best=0;float value=0;
+                for(int i=0;i<2400;++i){float v=std::abs(sample(kind,s,i*.005,1.f).z);if(v>value){value=v;best=i*.005;}}
+                return best;
+            };
+            require(peakTime(8,1.f)>peakTime(8,.5f)+.01,"ribbon tip phase must lag the middle");
+            require(glm::length(sample(8,1.f,9.0,0.f))<1e-6f,"zero wind must rest the pibo");
+            std::cout<<"PASS: pibo root pin, travelling wave and zero-wind rest\n";
+        }
         const glm::vec3 goddess(1,.045f,-1.2f),boat(-2,.025f,-6.9f),blossom(-3.34f,.46f,-2.65f);
         int visible=0;
         for(double time:{0.0,9.0,23.0})for(int i=0;i<environment_effects::waterPetalCount;++i){

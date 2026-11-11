@@ -181,7 +181,7 @@ void main()
         float phase=.73*clothTime-5.4*t+.32*float(materialKind-26);
         float free=t*t*smoothstep(0.0,.9,clothTime)*clothStrength*mix(1.0,2.1,smoothstep(.23,.95,t));
         // The fitted seam stays pinned; free tips lift and turn across the wind.
-        local.xyz+=free*vec3(.014*sin(phase-.5),.030*sin(phase)+.012*(u-.5)*sin(phase-.8),
+        local.xyz+=free*1.35*vec3(.014*sin(phase-.5),.030*sin(phase)+.012*(u-.5)*sin(phase-.8),
                             .034*sin(phase+1.1)+.018*(u-.5)*sin(phase));
     }else if(clothMotionEnabled==1 && materialKind>=20 && materialKind<=25){
         vec2 uv=gl_MultiTexCoord0.xy;
@@ -190,7 +190,7 @@ void main()
         float free=t*t*smoothstep(0.0,.9,clothTime)*clothStrength*mix(1.0,2.1,smoothstep(.23,.95,t));
         float phase=.73*clothTime-5.4*t+float(materialKind-20)*.41;
         // All free layers share a travelling wind, with small delays in depth.
-        local.xyz+=free*vec3(-.016*sin(phase-.4),
+        local.xyz+=free*1.35*vec3(-.016*sin(phase-.4),
             .032*sin(phase)+.013*sin(phase*.71+u*3.14),
             .045*sin(phase+1.2)+.018*(2.0*u-1.0)*sin(phase-.5));
     }else if(clothMotionEnabled==1 && materialKind==19){
@@ -233,9 +233,9 @@ void main()
             }
         }
         float wind=clothStrength*smoothstep(0.0,.9,clothTime);
-        local.xyz+=offset*wind;
-        trainDu=mat3(gl_ModelViewMatrix)*dAcross*(wind/.64);
-        trainDv=mat3(gl_ModelViewMatrix)*dAlong*(-wind/.75);
+        local.xyz+=offset*wind*1.3;
+        trainDu=mat3(gl_ModelViewMatrix)*dAcross*(wind*1.3/.64);
+        trainDv=mat3(gl_ModelViewMatrix)*dAlong*(-wind*1.3/.75);
     }else if(clothMotionEnabled==1 && materialKind>=8 && materialKind<=16){
         // Ribbon and gold edging share the same displacement field.
         float s;
@@ -305,7 +305,7 @@ void main()
         else if(materialKind==13)gain=vec3(2.19,2.77,2.63);
         else if(materialKind==8||materialKind==9)gain=vec3(2.28,2.81,2.70);
         local.xyz+=offset*mix(vec3(1.0),gain,freeEnd)*pin*pin*breeze
-                    *clothStrength*smoothstep(0.0,.9,clothTime);
+                    *1.25*clothStrength*smoothstep(0.0,.9,clothTime);
     }
     vec4 position = gl_ModelViewMatrix * local;
     if(reflectionPass==1){
@@ -635,6 +635,8 @@ void main(){
         float spread=.95+.065*abs(fromSun.y);
         sunBand=exp(-fromSun.x*fromSun.x/(spread*spread)-fromSun.y*fromSun.y/40.0)*streak;
         color.rgb*=.99+.025*noise(vec2(flow.x*.8,flow.y*7.0));
+)"
+R"(
         // Quiet travelling ripples at the actual foot contact, with a soft local envelope.
         vec2 rippleOffset=flow-footPosition.xz;
         float radius=length(rippleOffset);
@@ -644,7 +646,10 @@ void main(){
         vec3 axisX=vec3(camRight.x,camUp.x,camBack.x);
         vec3 axisZ=vec3(camRight.z,camUp.z,camBack.z);
         N=normalize(N-axisX*slope.x-axisZ*slope.y);
-        color.rgb+=spiritEnabled*envelope*vec3(.010,.013,.014)*sin(phase);
+        float ringWidth=max(fwidth(phase)*1.4,.12);
+        float ring=smoothstep(.72-ringWidth,.96+ringWidth,sin(phase));
+        float broken=.68+.32*sin(atan(rippleOffset.y,rippleOffset.x)*3.0+radius*2.0);
+        color.rgb+=spiritEnabled*envelope*vec3(.034,.041,.039)*(ring-.22)*broken;
         color.rgb+=vec3(.35,.42,.44)*dot(slope,slope)*10.0;
 
     }
@@ -781,18 +786,24 @@ R"(
     }else if(materialKind==1){
         lit=color.rgb;
         lit=mix(lit,vec3(.98,.80,.58),sunBand*.72);
-        float trailLight=0.0;
+        // Character rings keep their original look. Hull rings are fewer, start
+        // tight to the boat and live longer so each one reads as a clean ripple.
+        float trailLight=0.0,boatLight=0.0;
         for(int i=0;i<16;++i){
             float age=wakeTrail[i].z;
             float radius=length(textureCoord*10.0-wakeTrail[i].xy);
-            float crest=(i<8?.25:1.25)+age*.72;
-            float width=max(fwidth(radius)*1.2,.035);
+            bool hull=i>=8;
+            float width=max(fwidth(radius)*1.2,hull?.050:.035);
+            float crest=(hull?.30:.25)+age*(hull?.62:.72);
             float arc=1.0-smoothstep(width,width*2.0,abs(radius-crest));
-            float fade=smoothstep(.0,.12,age)*(1.0-smoothstep(.25,1.05,age));
-            float breakup=smoothstep(.3,.65,noise((textureCoord*10.0-wakeTrail[i].xy)*5.0));
-            trailLight=max(trailLight,arc*fade*breakup);
+            float fade=hull?smoothstep(.0,.20,age)*(1.0-smoothstep(.55,1.90,age))
+                           :smoothstep(.0,.12,age)*(1.0-smoothstep(.25,1.05,age));
+            float breakup=smoothstep(hull?.20:.30,hull?.60:.65,noise((textureCoord*10.0-wakeTrail[i].xy)*5.0));
+            if(hull)boatLight=max(boatLight,arc*fade*breakup);
+            else trailLight=max(trailLight,arc*fade*breakup);
         }
         lit=mix(lit,vec3(.84,.76,.60),trailLight*.32);
+        lit+=boatLight*vec3(.235,.240,.225);
 
     }else if(ridge>.45){
         vec3 mountainNormal=normalize(camRight*N.x+camUp*N.y+camBack*N.z);
@@ -872,11 +883,6 @@ R"(
     if(materialKind==35){
         lit=color.rgb*(.86+.14*clamp(dot(N,L)*.5+.5,0.0,1.0))*(.96+.04*visibility);
     }
-    if(materialKind==34){
-        float faceLight=smoothstep(-.25,.85,dot(N,L));
-        vec3 faceTint=mix(vec3(.84,.80,.81),vec3(1.0,.95,.88),faceLight);
-        lit=color.rgb*faceTint*(.73+.27*faceLight)*(.93+.07*visibility);
-    }
     if(materialKind==33){
         float top=smoothstep(.50,.93,dot(N,normalize(worldUpEye)));
         vec3 side=color.rgb*vec3(.84,1.02,1.10)+vec3(.025,.035,.045);
@@ -920,28 +926,15 @@ R"(
     float specStrength=materialKind==1?.006:(materialKind==7?.035:.010);
     vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
     if(!silk)lit+=specColor*specular*visibility*specStrength;
-    // 神光离合: warm and cool fills run in antiphase, so the lit side and the
-    // shadow side trade emphasis while the figure keeps a steady overall value.
-    // Both lights swing +/-15% of their own base; nothing blooms or outlines.
-    if(reflectionPass==0){
-        float phase=sin(1.2566370614*spiritTime);
+    // One local cyan-white fill: five-second period, +/-15% intensity.
+    if(goddessDraw==1 && reflectionPass==0){
         vec3 toFill=goddessLightEye-eyePosition;
         float distance2=dot(toFill,toFill);
         float reach=1.0-smoothstep(1.0,6.25,distance2);
-        if(reach>0.002){
-            vec3 fillDir=toFill*inversesqrt(max(distance2,.0001));
-            float wrap=.45+.55*max(dot(N,fillDir),0.0);
-            // Sunset warmth rides the key-facing side; jade coolness lifts the rest.
-            float keySide=clamp(dot(N,L),0.0,1.0);
-            float warm=.05*(1.0+.15*phase);
-            float cool=.05*(1.0-.15*phase);
-            float share=(goddessDraw==1?1.0:.34)*reach;
-            vec3 albedo=mix(color.rgb,vec3(dot(color.rgb,vec3(.30,.55,.15))),.30);
-            lit+=spiritEnabled*share*albedo*wrap*(vec3(1.0,.95,.86)*warm+vec3(.76,.94,1.0)*cool);
-            // The handover itself redistributes light already on the figure, so the
-            // total value stays put while lit and shadow sides trade emphasis.
-            lit*=1.0+spiritEnabled*share*.055*phase*(2.0*keySide-1.0);
-        }
+        vec3 fillDir=toFill*inversesqrt(max(distance2,.0001));
+        float wrap=.45+.55*max(dot(N,fillDir),0.0);
+        float pulse=1.0+.15*sin(1.2566370614*spiritTime);
+        lit+=spiritEnabled*color.rgb*vec3(.76,.94,1.0)*(.14*pulse*reach*wrap);
     }
     float fog=1.0-exp(-max(length(eyePosition)-22.0,0.0)*(materialKind==4?.004:(materialKind==1?.003:.004)));
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;

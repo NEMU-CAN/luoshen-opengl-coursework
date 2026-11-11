@@ -16,6 +16,7 @@ struct ShadowMap {
     GLint depthLocation=-1,matrixLocation=-1,enabledLocation=-1,kindLocation=-1,textureLocation=-1,cloudLocation=-1,rightLocation=-1,upLocation=-1,backLocation=-1,boatLocation=-1,footLocation=-1,goddessVelocityLocation=-1,boatVelocityLocation=-1;
     GLint cloudCameraLocation=-1;
     GLint trailLocation[16];
+    int boatWakeEmits=0; // Diagnostics only: wakes raised by the drifting hull.
     void init(GLuint program){
         gen=reinterpret_cast<Gen>(glfwGetProcAddress("glGenFramebuffers"));bind=reinterpret_cast<Bind>(glfwGetProcAddress("glBindFramebuffer"));
         remove=reinterpret_cast<Gen>(glfwGetProcAddress("glDeleteFramebuffers"));attach=reinterpret_cast<Attach>(glfwGetProcAddress("glFramebufferTexture2D"));
@@ -106,10 +107,15 @@ struct ShadowMap {
             bool teleport=moved>2.0f;
             if(teleport)for(int i=0;i<8;++i)trailTime[emitter*8+i]=0.0;
             bool validTime=dt>1e-4f&&dt<1.0f;
-            if(!teleport&&validTime&&!ashore(contact[emitter])&&moved/dt>.06f&&now-lastTrail[emitter]>.14){
+            // The hull drifts slowly, so it raises fewer rings but starts them at a
+            // lower speed than the character does.
+            const float gate=emitter==1?.020f:.06f;
+            const double spacing=emitter==1?.80:.14;
+            if(!teleport&&validTime&&!ashore(contact[emitter])&&moved/dt>gate&&now-lastTrail[emitter]>spacing){
                 int slot=emitter*8+nextTrail[emitter];
                 trail[slot]=contact[emitter];trailTime[slot]=now;
                 nextTrail[emitter]=(nextTrail[emitter]+1)%8;lastTrail[emitter]=now;
+                if(emitter==1)++boatWakeEmits;
             }
             lastContact[emitter]=contact[emitter];
         }

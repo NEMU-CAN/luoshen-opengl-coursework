@@ -389,6 +389,7 @@ int wmain(int argc,wchar_t** argv){
         const bool armCapture=argc>1&&std::wstring(argv[1])==L"--capture-arms";
         const bool spiritCapture=argc>1&&std::wstring(argv[1])==L"--capture-spirit";
         const bool spiritSmoke=argc>1&&std::wstring(argv[1])==L"--smoke-spirit";
+        const bool boatDemo=argc>1&&std::wstring(argv[1])==L"--capture-boat";
         const float spiritEnabled=spiritCapture&&argc>2&&std::wstring(argv[2])==L"off"?0.f:1.f;
         capture=capture||noShadows||clothCapture||wakeCapture||portraitCapture||armCapture||spiritCapture;
         const int bankRounds=capture&&argc==4&&std::wstring(argv[2])==L"--bank-round"
@@ -400,7 +401,7 @@ int wmain(int argc,wchar_t** argv){
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,2);glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,1);
         glfwWindowHint(GLFW_SAMPLES,4);
         glfwWindowHint(GLFW_STENCIL_BITS,8);
-        if(capture||smoke||spiritSmoke)glfwWindowHint(GLFW_VISIBLE,GLFW_FALSE);
+        if(capture||smoke||spiritSmoke||boatDemo)glfwWindowHint(GLFW_VISIBLE,GLFW_FALSE);
         auto window=glfwCreateWindow(1600,900,"Luoshen | 1/2/3/4 views | P cloth pause | 0 rest | [ ] wind | H text | F9",nullptr,nullptr);
         if(!window)throw std::runtime_error("Window creation failed");
         glfwMakeContextCurrent(window);glfwSwapInterval(capture?0:1);
@@ -461,6 +462,9 @@ int wmain(int argc,wchar_t** argv){
         };
         const auto boatItem=layoutEditor.items.size();
         editable(boat,"boat",u8"小舟",{scene_layout::boatPosition,scene_layout::boatYaw,scene_layout::boatScale},glm::vec3(1),true);
+        // Rest pose for the slow drift; the boat keeps its authored yaw and scale.
+        const glm::vec3 boatRest=layoutEditor.items[boatItem].pose.position;
+        const float boatRestYaw=layoutEditor.items[boatItem].pose.yaw;
         const auto blossomItem=layoutEditor.items.size();
         editable(blossom,"blossom",u8"桃花树",{scene_layout::blossomPosition,scene_layout::blossomYaw,scene_layout::blossomScale},scene_layout::blossomStretch);
         for(int i=2;i<int(scene_layout::ledges.size());++i){
@@ -563,7 +567,7 @@ int wmain(int argc,wchar_t** argv){
         }
         double previous=glfwGetTime(),start=previous;int frame=0;size_t frames=0;double fpsStart=previous;
         double spiritClock=0.0,spiritPrevious=previous,spiritRunStart=previous;
-        int spiritSample=0;double spiritMin=2.0,spiritMax=0.0,coolMin=2.0,coolMax=0.0;
+        int spiritSample=0;double spiritMin=2.0,spiritMax=0.0;int boatDemoSaved=0;
         const auto wakeGoddessStart=layoutEditor.items[luoshenItem].pose.position;
         const auto wakeBoatStart=layoutEditor.items[boatItem].pose.position;
         while(!glfwWindowShouldClose(window)){
@@ -597,6 +601,43 @@ int wmain(int argc,wchar_t** argv){
             float a=glm::radians(yaw),b=glm::radians(pitch);
             glm::vec3 eye=target+distanceToTarget*glm::vec3(std::sin(a)*std::cos(b),std::sin(b),std::cos(a)*std::cos(b));
             auto view=glm::lookAt(eye,target,glm::vec3(0,1,0));
+            // One slow lap (45 s) around the open water: out to the right and away,
+            // a wide turn, then a shallow slide back to the start. The curve is
+            // closed, so the next lap continues without a jump.
+            if(!layoutEditor.active){
+                constexpr int routeCount=10;
+                constexpr float lapSeconds=110.f;
+                // A long lap that runs away from the opening view, up the river
+                // toward the far ridge, and returns down the left-hand channel.
+                static const glm::vec2 route[routeCount]={
+                    {-2.97f,-8.12f},{-2.30f,-10.20f},{-1.60f,-12.60f},{-1.00f,-15.40f},
+                    {-0.60f,-18.20f},{-1.90f,-19.60f},{-3.05f,-17.40f},{-3.30f,-14.20f},
+                    {-3.20f,-11.20f},{-3.10f,-9.20f}};
+                auto routeAt=[&](float u){
+                    u-=std::floor(u);
+                    const float scaled=u*routeCount;
+                    const int index=int(scaled)%routeCount;
+                    const float s=scaled-std::floor(scaled),s2=s*s,s3=s2*s;
+                    const glm::vec2& p0=route[(index+routeCount-1)%routeCount];
+                    const glm::vec2& p1=route[index];
+                    const glm::vec2& p2=route[(index+1)%routeCount];
+                    const glm::vec2& p3=route[(index+2)%routeCount];
+                    return 0.5f*((2.f*p1)+(-p0+p2)*s+(2.f*p0-5.f*p1+4.f*p2-p3)*s2
+                                +(-p0+3.f*p1-3.f*p2+p3)*s3);
+                };
+                const float lap=static_cast<float>(spiritClock)/lapSeconds;
+                const glm::vec2 hull=routeAt(lap),ahead=routeAt(lap+.002f);
+                const glm::vec2 heading=ahead-hull;
+                layoutEditor.items[boatItem].pose.position=glm::vec3(
+                    hull.x,boatRest.y+0.006f*std::sin(static_cast<float>(spiritClock)*0.860799f),hull.y);
+                if(glm::dot(heading,heading)>1e-10f){
+                    // The bow follows the route but never swings round to point at the
+                    // opening camera; headings just outside that band are kept.
+                    float desired=glm::degrees(std::atan2(-heading.y,heading.x));
+                    if(desired>-125.f&&desired<-55.f)desired=desired<-90.f?-125.f:-55.f;
+                    layoutEditor.items[boatItem].pose.yaw=desired;
+                }
+            }
             if(wakeCapture){
                 float shift=.018f*float(std::min(frame,60));
                 layoutEditor.items[luoshenItem].pose.position=wakeGoddessStart+glm::vec3(-shift,0,0);
@@ -709,20 +750,32 @@ int wmain(int argc,wchar_t** argv){
                 auto folder=exe/"captures"/(spiritSmoke?"spirit-live":(spiritEnabled>0?"spirit":"spirit-off"));
                 std::filesystem::create_directories(folder);
                 double phase=std::sin(1.2566370614*spiritClock);
-                double warm=.30*(1.0+.15*phase),cool=.30*(1.0-.15*phase);
-                spiritMin=std::min(spiritMin,warm);spiritMax=std::max(spiritMax,warm);
-                coolMin=std::min(coolMin,cool);coolMax=std::max(coolMax,cool);
+                double pulse=1.0+.15*phase;
+                spiritMin=std::min(spiritMin,pulse);spiritMax=std::max(spiritMax,pulse);
                 if(spiritCapture||spiritClock>=spiritSample*.25){
                     saveFrame(folder/("frame-"+std::to_string(spiritSample)+".bmp"),w,h);
                     std::cout<<"Spirit sample "<<spiritSample<<" time="<<spiritClock
-                             <<" warm="<<warm<<" cool="<<cool<<" sum="<<warm+cool<<'\n';
+                             <<" pulse="<<pulse<<" fill="<<.14*pulse<<'\n';
                     ++spiritSample;
                 }
                 if((spiritCapture&&++frame>=41)||(spiritSmoke&&now-spiritRunStart>=10.0)){
                     checkGL("Spirit 10-second run");
                     std::cout<<"Spirit elapsed="<<now-spiritRunStart<<" clock="<<spiritClock
-                             <<" warmRange="<<spiritMin<<","<<spiritMax
-                             <<" coolRange="<<coolMin<<","<<coolMax<<'\n';break;
+                             <<" pulseRange="<<spiritMin<<","<<spiritMax
+                             <<" boatWakeEmits="<<shadows.boatWakeEmits<<'\n';break;
+                }
+            }else if(boatDemo){
+                // Real-time 45 s take: one full lap of the slow route, sampled twice a second.
+                auto folder=exe/"captures"/"boat-demo";std::filesystem::create_directories(folder);
+                const int wanted=int((now-spiritRunStart)*1.5+1e-6);
+                if(wanted>=boatDemoSaved){
+                    saveFrame(folder/("frame-"+std::to_string(boatDemoSaved)+".bmp"),w,h);
+                    ++boatDemoSaved;
+                }
+                if(now-spiritRunStart>=111.5){
+                    checkGL("Boat route rendered");
+                    std::cout<<"Boat demo seconds="<<now-spiritRunStart<<" frames="<<boatDemoSaved
+                             <<" boatWakeEmits="<<shadows.boatWakeEmits<<'\n';break;
                 }
             }else if(wakeCapture){
                 auto folder=exe/"captures"/"wakes";std::filesystem::create_directories(folder);

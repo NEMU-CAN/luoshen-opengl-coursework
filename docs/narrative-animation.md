@@ -83,7 +83,7 @@ offset = A * w(s) * [ D·sin(φ) + L·sin(0.61φ + 1.2) + U·sin(φ + 0.55) ]
 
 ## 4. 小舟微动
 
-小舟以当前泊位 `(-3.24, 0.025, -8.29)` 为基准，只做四个自由度的小幅运动：
+小舟以布局泊位 `(-2.97, 0.025, -8.12)` 为基准，只做四个自由度的小幅运动：
 
 ```text
 heave = 0.018 sin(0.72t) + 0.006 sin(0.33t)
@@ -92,7 +92,7 @@ pitch = 0.55° sin(0.81t)
 yaw   = 0.45° sin(0.47t)
 ```
 
-四个周期互不相同（8.7 s / 11.4 s / 7.8 s / 13.4 s），避免机械同步；`t=0` 时全部为 0，所以重置后与布局中的泊位完全一致。
+四个周期互不相同（8.7 s / 11.4 s / 7.8 s / 13.4 s），避免机械同步；`t=0` 时全部为 0，所以重置后与布局中的泊位完全一致。主程序另有约 110 秒的小舟慢航路线（`main.cpp`），本模块只在这条路线之上叠加上面四个自由度的小幅运动。
 
 按船体 1.89 万顶点逐帧计算：船底最低点在水面下最多约 `4.2 cm`、在水面上最多约 `3.6 cm`，相对 2.05 m 的船体高度不到 2%，视觉上保持“船底贴水”。横摇、纵摇的转动中心在船底中心，船身不会横向穿入左岸。
 
@@ -118,7 +118,7 @@ yaw   = 0.45° sin(0.47t)
 | `LuoshenScene.exe --capture-farewell` | 45 秒中 11 个时间点的分段截图，`captures/farewell/` |
 | `LuoshenScene.exe --capture-farewell-still` | 同一时间点、披帛静止的对照图，`captures/farewell-still/` |
 | `LuoshenScene.exe --capture-pibo` | 披帛近景 7 帧，`captures/pibo/` |
-| `LuoshenScene.exe --capture-boat` | 小舟近景 8 帧，`captures/boat/` |
+| `LuoshenScene.exe --capture-boat-closeup` | 小舟近景 8 帧，`captures/boat/` |
 | `LuoshenScene.exe --capture-farewell-video [帧数]` | 30 fps 连续帧，默认 1350 帧（45 秒），`captures/farewell-video/` |
 
 连续帧可用 ffmpeg 合成：

@@ -35,7 +35,8 @@
 | 主镜头和人物/舟/岩岸的集中布局参数 | scene_layout.h |
 | 光照、雾、水纹、贴图 | graphics_support.h |
 | 阴影 | shadow_map.h |
-| 洛神路径与角色动画 | scene_motion.h |
+| 洛神路径、朝向、小舟微动与叙事时间轴 | scene_motion.h |
+| 披帛逐顶点变形（肩边固定、根到梢行波） | pibo_motion.h |
 | 花瓣与环境动态 | environment_effects.h |
 | OBJ/MTL读取 | mesh_data.h |
 | 题款与提示 | scene_overlay.h |
@@ -44,9 +45,14 @@
 
 ## 操作
 
-左键旋转，右键平移，滚轮缩放；WASD移动观察中心；1/2/3/4切换主视/全景/洛神/曹植；Tab进入摆放模式，Ctrl+S保存布局，R回到主镜头，H帮助，F9截图，Esc退出。
+左键旋转，右键平移，滚轮缩放；WASD移动观察中心；1/2/3/4切换主视/全景/洛神/曹植；空格暂停/继续叙事动画，R重置到起点与主镜头；Tab进入摆放模式，Ctrl+S保存布局，H帮助，F9截图，Esc退出。
 
-`./scripts/check.ps1 -Capture`在真实图形环境中生成主镜头、全景、洛神和曹植四张静态截图。作业演示视频由小组自行录制。
+`./scripts/check.ps1 -Capture`在真实图形环境中生成主镜头、全景、洛神和曹植四张静态截图。作业演示视频由小组自行录制。角色动画的分段截图与 45 秒连续帧入口见 [docs/narrative-animation.md](docs/narrative-animation.md) 与[验收报告](docs/角色与叙事动画实现与验收报告.md)。
+
+```powershell
+场景工程_美术重制\bin\LuoshenScene.exe --capture-farewell        # 11 个时间点
+场景工程_美术重制\bin\LuoshenScene.exe --capture-farewell-video  # 45 秒 @30fps
+```
 
 ## 四人分工
 

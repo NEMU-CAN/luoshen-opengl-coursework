@@ -10,17 +10,22 @@
 #include "scene_overlay.h"
 #include "shadow_map.h"
 #include "layout_editor.h"
+#include "scene_motion.h"
+#include "pibo_motion.h"
 #pragma comment(lib,"gdi32.lib")
 #pragma comment(lib,"user32.lib")
 
-struct GpuBatch {GLuint buffer=0,texture=0;GLsizei count=0;glm::vec3 color{1},center{0};int kind=0;};
+struct GpuBatch {GLuint buffer=0,texture=0;GLsizei count=0;glm::vec3 color{1},center{0};int kind=0;
+                 std::vector<SceneVertex> rest;};
 using GenBuffersFn=void(APIENTRY*)(GLsizei,GLuint*);
 using BindBufferFn=void(APIENTRY*)(GLenum,GLuint);
 using BufferDataFn=void(APIENTRY*)(GLenum,std::ptrdiff_t,const void*,GLenum);
+using BufferSubDataFn=void(APIENTRY*)(GLenum,std::ptrdiff_t,std::ptrdiff_t,const void*);
 using DeleteBuffersFn=void(APIENTRY*)(GLsizei,const GLuint*);
 GenBuffersFn sceneGenBuffers=nullptr;
 BindBufferFn sceneBindBuffer=nullptr;
 BufferDataFn sceneBufferData=nullptr;
+BufferSubDataFn sceneBufferSubData=nullptr;
 DeleteBuffersFn sceneDeleteBuffers=nullptr;
 const GLenum SCENE_ARRAY_BUFFER=0x8892,SCENE_STATIC_DRAW=0x88E4;
 struct SceneModel {std::vector<GpuBatch> batches;glm::vec3 center{0},size{0};float bottom=0;size_t triangles=0;bool goddess=false;std::vector<glm::vec3> pickTriangles;};
@@ -49,6 +54,8 @@ glm::vec3 target=scene_layout::mainTarget;
 bool leftDown=false,rightDown=false;double lastX=0,lastY=0;
 LayoutEditor layoutEditor;
 size_t caozhiItem=0,luoshenItem=0;
+// 角色动画的当前位置，供 3 号镜头与调试读取（每帧由统一动画时间更新）。
+glm::vec3 narrativeGoddess=scene_layout::luoshenPosition;
 
 GLuint loadMaterialTexture(const SceneMaterial& mat) {
     if(mat.colorMap.empty())return 0;
@@ -134,6 +141,8 @@ SceneModel loadModel(const std::string& relative,bool pickable=false,
             for(const auto& vertex:batch.vertices)gpu.center+=vertex.position;
             gpu.center/=static_cast<float>(gpu.count);
         }
+        // 披帛由独立的 CPU 变形模块逐帧写入，保留静止顶点作为变形基准。
+        if(pibo_motion::ownsKind(gpu.kind))gpu.rest=batch.vertices;
         sceneBindBuffer(SCENE_ARRAY_BUFFER,gpu.buffer);
         sceneBufferData(SCENE_ARRAY_BUFFER,std::ptrdiff_t(batch.vertices.size()*sizeof(SceneVertex)),batch.vertices.data(),SCENE_STATIC_DRAW);
         sceneBindBuffer(SCENE_ARRAY_BUFFER,0);model.batches.push_back(gpu);
@@ -160,7 +169,10 @@ void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,
         const bool previewEnabled=(b.kind>=clothPreviewMin&&b.kind<=clothPreviewMax)
             ||(clothPreviewMin==10&&(b.kind==13||b.kind==16))||(clothPreviewMax==9&&b.kind==14)
             ||(clothPreviewMin==11&&b.kind==15);
-        pUniform1i(clothMotionLocation,b.kind<8||b.kind==19||b.kind>=20||previewEnabled?1:0);
+        // 披帛（kind 8/9/26-29）改由 pibo_motion.h 的独立模块做顶点变形，
+        // 关闭着色器里的同族位移，避免两层摆幅叠加。
+        const bool piboOwned=pibo_motion::ownsKind(b.kind);
+        pUniform1i(clothMotionLocation,piboOwned?0:(b.kind<8||b.kind==19||b.kind>=20||previewEnabled?1:0));
         material(b.color*tint,b.kind,b.texture);sceneBindBuffer(SCENE_ARRAY_BUFFER,b.buffer);
         glVertexPointer(3,GL_FLOAT,sizeof(SceneVertex),reinterpret_cast<const void*>(offsetof(SceneVertex,position)));
         glNormalPointer(GL_FLOAT,sizeof(SceneVertex),reinterpret_cast<const void*>(offsetof(SceneVertex,normal)));
@@ -184,6 +196,22 @@ void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,
     sceneBindBuffer(SCENE_ARRAY_BUFFER,0);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);glDisableClientState(GL_NORMAL_ARRAY);glDisableClientState(GL_VERTEX_ARRAY);
     pUniform1i(goddessDrawLocation,0);
+}
+// 把披帛的静止顶点按当前时间变形后写回 VBO。阴影、倒影与正片共用同一份数据，
+// 因此三处姿态天然一致；暂停时时间不变，VBO 内容也不变。
+void updatePiboDeformation(SceneModel& model,double seconds,float strength){
+    std::vector<SceneVertex> deformed;
+    for(auto& batch:model.batches){
+        if(batch.rest.empty())continue;
+        deformed=batch.rest;
+        for(auto& vertex:deformed)
+            vertex.position+=pibo_motion::displacement(batch.kind,vertex.position,vertex.uv,seconds,strength);
+        const auto bytes=std::ptrdiff_t(deformed.size()*sizeof(SceneVertex));
+        sceneBindBuffer(SCENE_ARRAY_BUFFER,batch.buffer);
+        if(sceneBufferSubData)sceneBufferSubData(SCENE_ARRAY_BUFFER,0,bytes,deformed.data());
+        else sceneBufferData(SCENE_ARRAY_BUFFER,bytes,deformed.data(),SCENE_STATIC_DRAW);
+    }
+    sceneBindBuffer(SCENE_ARRAY_BUFFER,0);
 }
 float rockReach(float z){return glm::smoothstep(-45.f,-36.f,z)*(1.f-glm::smoothstep(-9.f,-6.f,z));}
 float bank(float z){
@@ -352,7 +380,7 @@ void keyboard(GLFWwindow* w,int key,int,int action,int mods){
     if(key==GLFW_KEY_F9)captureRequested=true;
     if(key==GLFW_KEY_1)resetView();
     if(key==GLFW_KEY_2){yaw=48;pitch=29;distanceToTarget=23;target=glm::vec3(-1,1,-3);}
-    if(key==GLFW_KEY_3){yaw=4;pitch=10;distanceToTarget=6;target=layoutEditor.items[luoshenItem].pose.position+glm::vec3(0,1.4f,0);}
+    if(key==GLFW_KEY_3){yaw=4;pitch=10;distanceToTarget=6;target=narrativeGoddess+glm::vec3(0,1.4f,0);}
     if(key==GLFW_KEY_4){yaw=48;pitch=11;distanceToTarget=4.2f;target=layoutEditor.items[caozhiItem].pose.position+glm::vec3(0,1.2f,0);}
 }
 void saveFrame(const std::filesystem::path& path,int w,int h){
@@ -387,8 +415,19 @@ int wmain(int argc,wchar_t** argv){
         const bool armCapture=argc>1&&std::wstring(argv[1])==L"--capture-arms";
         const bool spiritCapture=argc>1&&std::wstring(argv[1])==L"--capture-spirit";
         const bool spiritSmoke=argc>1&&std::wstring(argv[1])==L"--smoke-spirit";
+        // 角色叙事动画的分段截图：固定时间点渲染，供报告和验收使用。
+        const bool farewellCapture=argc>1&&std::wstring(argv[1])==L"--capture-farewell";
+        // 同一时间点的静止披帛对照图，用来单独检查披帛变形。
+        const bool farewellStill=argc>1&&std::wstring(argv[1])==L"--capture-farewell-still";
+        // 小舟与披帛的独立特写，便于分别检查贴水、穿岸和肩边固定。
+        const bool boatCapture=argc>1&&std::wstring(argv[1])==L"--capture-boat";
+        const bool piboCapture=argc>1&&std::wstring(argv[1])==L"--capture-pibo";
+        // 45 秒 @30fps 的连续帧，供 ffmpeg 合成演示视频。
+        const bool farewellVideo=argc>1&&std::wstring(argv[1])==L"--capture-farewell-video";
+        const int videoFrames=farewellVideo&&argc>2?std::max(1,std::stoi(argv[2])):1350;
         const float spiritEnabled=spiritCapture&&argc>2&&std::wstring(argv[2])==L"off"?0.f:1.f;
-        capture=capture||noShadows||clothCapture||wakeCapture||portraitCapture||armCapture||spiritCapture;
+        capture=capture||noShadows||clothCapture||wakeCapture||portraitCapture||armCapture||spiritCapture
+               ||farewellCapture||farewellStill||boatCapture||piboCapture||farewellVideo;
         const int bankRounds=capture&&argc==4&&std::wstring(argv[2])==L"--bank-round"
             ?std::clamp(std::stoi(argv[3]),0,scene_layout::leftBankRounds):scene_layout::leftBankRounds;
         bool smoke=argc>1&&std::wstring(argv[1])==L"--smoke";
@@ -410,6 +449,7 @@ int wmain(int argc,wchar_t** argv){
         sceneGenBuffers=reinterpret_cast<GenBuffersFn>(glfwGetProcAddress("glGenBuffers"));
         sceneBindBuffer=reinterpret_cast<BindBufferFn>(glfwGetProcAddress("glBindBuffer"));
         sceneBufferData=reinterpret_cast<BufferDataFn>(glfwGetProcAddress("glBufferData"));
+        sceneBufferSubData=reinterpret_cast<BufferSubDataFn>(glfwGetProcAddress("glBufferSubData"));
         sceneDeleteBuffers=reinterpret_cast<DeleteBuffersFn>(glfwGetProcAddress("glDeleteBuffers"));
         sceneActiveTexture=reinterpret_cast<ActiveTextureFn>(glfwGetProcAddress("glActiveTexture"));
         if(!sceneGenBuffers||!sceneBindBuffer||!sceneBufferData||!sceneDeleteBuffers)throw std::runtime_error("Vertex buffers unavailable");
@@ -520,6 +560,23 @@ int wmain(int argc,wchar_t** argv){
         if(capture&&argc==4&&std::wstring(argv[2])==L"--layout")
             layoutEditor.path=std::filesystem::path(argv[3]);
         layoutEditor.load();
+        // 叙事动画自检：起点必须与布局中的静态站位重合，45 秒后必须稳定停在终点。
+        {
+            const auto startPose=scene_motion::farewell(0.0);
+            if(glm::length(startPose.position-layoutEditor.items[luoshenItem].pose.position)>1e-4f)
+                throw std::runtime_error("Farewell start must align with static stance");
+            if(glm::length(scene_motion::farewell(45.0).position-scene_motion::farewell(90.0).position)>1e-6f)
+                throw std::runtime_error("Farewell must hold the endpoint");
+            const auto boatRest=scene_motion::boatMotion(0.0);
+            if(std::abs(boatRest.heave)>1e-6f||std::abs(boatRest.roll)>1e-6f||
+               std::abs(boatRest.pitch)>1e-6f||std::abs(boatRest.yaw)>1e-6f)
+                throw std::runtime_error("Boat motion must start at rest");
+            const auto ribbonRoot=pibo_motion::displacement(8,glm::vec3(-.033f,1.0f,0),glm::vec2(0),12.0,1.f);
+            const auto ribbonTip=pibo_motion::displacement(8,glm::vec3(-1.13f,1.0f,0),glm::vec2(0),12.0,1.f);
+            if(glm::length(ribbonRoot)>1e-6f||glm::length(ribbonTip)<=glm::length(ribbonRoot))
+                throw std::runtime_error("Pibo deformation must pin the root and free the tip");
+            std::cout<<"Narrative pose: start aligned, endpoint held, boat at rest, pibo root pinned PASS\n";
+        }
         SceneMaterial groundMat;groundMat.colorMap=assetRoot/"ground/color.png";groundColor=loadMaterialTexture(groundMat);
         groundMat.colorMap=assetRoot/"ground/normal.png";groundNormal=loadMaterialTexture(groundMat);
         sceneActiveTexture(0x84C1);glBindTexture(GL_TEXTURE_2D,groundNormal);sceneActiveTexture(0x84C0);
@@ -555,6 +612,16 @@ int wmain(int argc,wchar_t** argv){
         }
         std::cout<<"Control callbacks: orbit, zoom, pause, reset PASS\n";
         if(environmentDemo){yaw=-4.f;pitch=14.f;distanceToTarget=10.f;target=glm::vec3(-1.1f,1.2f,-3.4f);}
+        if(boatCapture){
+            // 从水面一侧贴近小舟，检查船底贴水与微动幅度。
+            yaw=72.f;pitch=10.f;distanceToTarget=4.4f;
+            target=layoutEditor.items[boatItem].pose.position+glm::vec3(0,.55f,0);
+        }
+        if(piboCapture){
+            // 洛神左前方近景，披帛与飘带完整入画。
+            yaw=-52.f;pitch=8.f;distanceToTarget=4.8f;
+            target=layoutEditor.items[luoshenItem].pose.position+glm::vec3(0,1.45f,0);
+        }
         if(clothView==L"side"){
             yaw=-50.f;pitch=11.f;distanceToTarget=5.2f;
             target=layoutEditor.items[luoshenItem].pose.position+glm::vec3(0,1.55f,0);
@@ -574,6 +641,25 @@ int wmain(int argc,wchar_t** argv){
             if(spiritCapture)spiritClock=frame*.25;
             else if(animationPlaying)spiritClock+=spiritDelta;
             if(spiritCapture||spiritSmoke){animationTime=0.0;clothTime=0.0;}
+            if(farewellCapture||farewellStill){
+                // 0 静立、4 起步、8/13/18/23/28/33 行进、36/40/45 终点停留。
+                static constexpr double sampleTimes[]={0.0,4.0,8.0,13.0,18.0,23.0,28.0,33.0,36.0,40.0,45.0};
+                animationTime=sampleTimes[std::min(frame,10)];
+                animationPlaying=false;
+            }else if(boatCapture){
+                // 覆盖升沉、横摇、纵摇各自的峰值时刻。
+                static constexpr double sampleTimes[]={0.0,1.0,2.2,3.4,4.6,5.8,7.0,8.2};
+                animationTime=sampleTimes[std::min(frame,7)];
+                animationPlaying=false;
+            }else if(piboCapture){
+                static constexpr double sampleTimes[]={0.0,2.0,4.0,6.0,8.0,10.0,12.0};
+                animationTime=sampleTimes[std::min(frame,6)];
+                animationPlaying=false;
+            }else if(farewellVideo){
+                // 固定 30fps 采样，动画时间只由帧号决定，保证视频稳定可复现。
+                animationTime=frame/30.0;
+                animationPlaying=false;
+            }
             float speed=dt*distanceToTarget*.15f;
             if(!layoutEditor.active){
             if(glfwGetKey(window,GLFW_KEY_A)==GLFW_PRESS)target.x-=speed;
@@ -600,11 +686,28 @@ int wmain(int argc,wchar_t** argv){
                 layoutEditor.items[luoshenItem].pose.position=wakeGoddessStart+glm::vec3(-shift,0,0);
                 layoutEditor.items[boatItem].pose.position=glm::vec3(2.6f,wakeBoatStart.y,-5.0f+shift*1.8f);
             }
-            auto goddess=layoutEditor.items[luoshenItem].pose.position;
+            // 统一时钟驱动的叙事姿态：洛神离去 + 小舟微动 + 披帛风场。
+            const bool narrativeActive=!layoutEditor.active&&!wakeCapture;
+            // 特写模式只动被检查的对象，避免人物移动把主体带出画面。
+            const bool luoshenMotion=narrativeActive&&!boatCapture&&!piboCapture;
+            const bool boatMotionActive=narrativeActive&&!piboCapture;
+            const auto farewell=scene_motion::farewell(animationTime);
+            const auto boatMotion=scene_motion::boatMotion(animationTime);
+            narrativeGoddess=luoshenMotion?farewell.position:layoutEditor.items[luoshenItem].pose.position;
+            const float piboWind=((luoshenMotion&&!farewellStill)||piboCapture)?scene_motion::windEnvelope(animationTime)*clothStrength:0.f;
+            updatePiboDeformation(luoshen,animationTime,piboWind);
+            auto goddess=narrativeGoddess;
             auto drawEditable=[&](size_t i,const glm::mat4& cameraView,bool veil=false){
                 const auto& item=layoutEditor.items[i];
                 const auto& entry=editableModels[i];
-                drawModel(*entry.model,cameraView,item.pose.position,item.pose.yaw,item.pose.scale,glm::vec3(1),entry.stretch,glm::vec2(0),veil);
+                glm::vec3 position=item.pose.position;
+                float yaw=item.pose.yaw;
+                glm::vec2 tilt(0);
+                if(narrativeActive){
+                    if(i==luoshenItem&&luoshenMotion){position=goddess;yaw=farewell.yaw;}
+                    else if(i==boatItem&&boatMotionActive){position.y+=boatMotion.heave;yaw+=boatMotion.yaw;tilt={boatMotion.pitch,boatMotion.roll};}
+                }
+                drawModel(*entry.model,cameraView,position,yaw,item.pose.scale,glm::vec3(1),entry.stretch,tilt,veil);
             };
             auto drawCasters=[&](const glm::mat4& view){
             for(size_t i=0;i<firstMeadowItem;++i){
@@ -718,6 +821,32 @@ int wmain(int argc,wchar_t** argv){
                     std::cout<<"Spirit elapsed="<<now-spiritRunStart<<" clock="<<spiritClock
                              <<" fillRange="<<spiritMin<<","<<spiritMax<<'\n';break;
                 }
+            }else if(farewellVideo){
+                auto folder=exe/"captures"/"farewell-video";
+                std::filesystem::create_directories(folder);
+                char name[32];std::snprintf(name,sizeof name,"frame-%04d.bmp",frame);
+                saveFrame(folder/name,w,h);
+                if(frame%150==0)std::cout<<"Video frame "<<frame<<"/"<<videoFrames<<'\n';
+                if(++frame>=videoFrames){checkGL("Farewell video rendered");std::cout<<"Farewell video frames rendered\n";break;}
+            }else if(boatCapture||piboCapture){
+                auto folder=exe/"captures"/(boatCapture?"boat":"pibo");
+                std::filesystem::create_directories(folder);
+                const std::string index=std::to_string(100+frame).substr(1);
+                saveFrame(folder/("frame-"+index+".bmp"),w,h);
+                std::cout<<"Close-up frame "<<frame<<" t="<<animationTime<<'\n';
+                checkGL("Close-up rendered");
+                if(++frame>=(boatCapture?8:7))break;
+            }else if(farewellCapture||farewellStill){
+                auto folder=exe/"captures"/(farewellStill?"farewell-still":"farewell");
+                std::filesystem::create_directories(folder);
+                const std::string index=std::to_string(100+frame).substr(1);
+                saveFrame(folder/("frame-"+index+".bmp"),w,h);
+                const auto pose=scene_motion::farewell(animationTime);
+                std::cout<<"Farewell frame "<<frame<<" t="<<animationTime
+                         <<" pos=("<<pose.position.x<<", "<<pose.position.z<<")"
+                         <<" yaw="<<pose.yaw<<" phase="<<pose.phase<<'\n';
+                checkGL("Farewell frame rendered");
+                if(++frame>=11)break;
             }else if(wakeCapture){
                 auto folder=exe/"captures"/"wakes";std::filesystem::create_directories(folder);
                 if(frame%15==0)saveFrame(folder/("frame-"+std::to_string(frame)+".bmp"),w,h);

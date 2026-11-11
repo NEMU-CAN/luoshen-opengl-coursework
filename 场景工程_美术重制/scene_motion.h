@@ -19,17 +19,20 @@ inline constexpr double kStillEnd = 4.0;       // 起步前的停顿
 inline constexpr double kTravelEnd = 34.0;     // 到达终点
 inline constexpr double kHoldEnd = 45.0;       // 结尾停留到 45 秒
 
-// 三次 Bézier 控制点。起点与 scene_layout::luoshenPosition 完全一致，
-// 终点落在右前方开阔水面，不越过右岸，也不进入中央叙事留白。
+// 三次 Bézier 控制点。起点与 scene_layout::luoshenPosition 完全一致。
+// 路线沿主镜头的屏幕右方展开、只略微向纵深后退：这样位移在画面上是
+// 可见的横向移动，而不是"原地转身、只剩缩小"的观感。终点仍在开阔水面内，
+// 不越过右岸，也不进入中央叙事留白。
 inline constexpr glm::vec3 kP0(1.000f, .045f, -1.200f);
-inline constexpr glm::vec3 kP1(1.550f, .045f, -2.250f);
-inline constexpr glm::vec3 kP2(2.900f, .045f, -4.900f);
-inline constexpr glm::vec3 kP3(4.050f, .045f, -6.100f);
+inline constexpr glm::vec3 kP1(2.300f, .045f, -1.700f);
+inline constexpr glm::vec3 kP2(3.400f, .045f, -2.450f);
+inline constexpr glm::vec3 kP3(4.450f, .045f, -2.800f);
 
 // 朝向（度，绕 Y 轴）。模型默认面向 +Z；起点使用静态站位的 -25°，
-// 离去时缓慢转向路线切线方向，观众先看到回望，再看到背影远去。
+// 离去时与曲线参数同步转到路线末端的切线方向（约 108°），
+// 也就是"转身、朝右前方走去"，中途不会停在原地打转。
 inline constexpr float kStartYaw = -25.0f;
-inline constexpr float kEndYaw = 150.0f;
+inline constexpr float kEndYaw = 108.0f;
 
 // 小舟微动参数：都以 0 时刻为静止基准，保证重置后与布局一致。
 inline constexpr float kBoatHeave = .018f;      // 升沉幅度（米）

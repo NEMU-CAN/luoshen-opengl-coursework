@@ -802,7 +802,20 @@ int wmain(int argc,wchar_t** argv){
             shadows.begin();
             drawCasters(shadows.lightView);
             drawMountains(shadows.lightView);
+            // 水面波纹、脚点涟漪和尾迹由 shadow_map 按布局姿态取脚点。
+            // 这里在计算这些 uniform 之前临时写入本帧的叙事姿态，让水波跟着
+            // 洛神和小舟走；算完立即还原，布局数据和保存的布局都不受影响。
+            auto& luoshenPose=layoutEditor.items[luoshenItem].pose;
+            auto& boatPose=layoutEditor.items[boatItem].pose;
+            const glm::vec3 savedLuoshenPosition=luoshenPose.position;
+            const float savedLuoshenYaw=luoshenPose.yaw;
+            const glm::vec3 savedBoatPosition=boatPose.position;
+            const float savedBoatYaw=boatPose.yaw;
+            if(luoshenMotion){luoshenPose.position=goddess;luoshenPose.yaw=farewell.yaw;}
+            if(boatMotionActive){boatPose.position.y+=boatMotion.heave;boatPose.yaw+=boatMotion.yaw;}
             shadows.end(w,h,view,!noShadows);
+            luoshenPose.position=savedLuoshenPosition;luoshenPose.yaw=savedLuoshenYaw;
+            boatPose.position=savedBoatPosition;boatPose.yaw=savedBoatYaw;
             glMatrixMode(GL_PROJECTION);glLoadMatrixf(glm::value_ptr(projection));
             pUseProgram(program);uniform1f(timeLocation,static_cast<float>(animationTime));
             auto worldUp=glm::vec3(view*glm::vec4(0,1,0,0));pUniform3f(worldUpLocation,worldUp.x,worldUp.y,worldUp.z);uniform1f(cameraHeightLocation,eye.y);

@@ -15,7 +15,7 @@ void require(bool ok,const char* message) { if(!ok) throw std::runtime_error(mes
 int wmain(int argc,wchar_t** argv) {
     try {
         require(glm::length(farewellPosition(0)-glm::vec3(1,.045f,-1.2f))<1e-5f,"Bezier start");
-        require(glm::length(farewellPosition(45)-glm::vec3(4.05f,.045f,-6.1f))<1e-5f,"Bezier end");
+        require(glm::length(farewellPosition(45)-glm::vec3(4.45f,.045f,-2.8f))<1e-5f,"Bezier end");
         require(glm::length(farewellPosition(90)-farewellPosition(45))<1e-5f,"farewell must hold endpoint");
         require(glm::length(farewellPosition(-1)-farewellPosition(0))<1e-5f,"negative time clamps");
         require(farewellPosition(22.5).x>1.5f && farewellPosition(22.5).x<4,"Bezier midpoint advances");

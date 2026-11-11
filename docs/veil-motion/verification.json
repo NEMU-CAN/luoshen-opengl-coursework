@@ -1,0 +1,32 @@
+{
+  "veil_vertices": 325,
+  "phases_tested": 100,
+  "seconds_covered": 4.95,
+  "min_clearance_to_face_hair_neck": 0.00176,
+  "at_time_s": 0.0,
+  "brow_edge_max_displacement": 0.0,
+  "peak_lateral": 0.015,
+  "peak_outward_z": 0.013,
+  "head_window_motion": {
+    "min": 0.0,
+    "max": 3.031
+  },
+  "largest_frame_change": {
+    "mean_abs": 1.3109,
+    "frame": 11
+  },
+  "veil_screen_bbox": [
+    1105,
+    151,
+    1214,
+    261
+  ],
+  "veil_region_motion": {
+    "min": 0.0,
+    "max": 6.59
+  },
+  "control_region_motion": {
+    "min": 0.0,
+    "max": 0.0
+  }
+}

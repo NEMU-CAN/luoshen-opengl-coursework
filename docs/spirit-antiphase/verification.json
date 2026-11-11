@@ -1,0 +1,39 @@
+{
+  "mask_pixels": 57231,
+  "mask_bbox": [
+    730,
+    44,
+    1368,
+    898
+  ],
+  "effect_area_ratio": 0.158975,
+  "luma_mean": 168.5577656830193,
+  "luma_flatness_pct": 4.055084166032877,
+  "chroma_R_minus_B_range": [
+    13.833481854239835,
+    14.57842777515682
+  ],
+  "chroma_amplitude": 0.37247296045849243,
+  "yang_frame5_lit_mean": 204.29734755455758,
+  "yin_frame15_lit_mean": 193.5838537646481,
+  "yang_frame5_shadow_mean": 139.85902746353858,
+  "yin_frame15_shadow_mean": 136.8715583556685,
+  "far_region_max_diff": {
+    "sky_top_left": 0.0,
+    "sky_top_right": 0.14093333333333333,
+    "far_left_water": 0.0
+  },
+  "five_second_closure_error": 6.944444444444445e-07,
+  "live": [
+    "Spirit elapsed=10.0034 clock=10.0034 warmRange=0.255001,0.344985 coolRange=0.255015,0.344999"
+  ],
+  "analytic_warm_range": [
+    0.255,
+    0.345
+  ],
+  "analytic_sum_range": [
+    0.5999999999999999,
+    0.6000000000000001
+  ],
+  "ribbon_lead_seconds": 0.7
+}

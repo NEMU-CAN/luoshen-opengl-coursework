@@ -640,19 +640,34 @@ void main(){
     }
     if(sleeve)color.rgb*=vec3(.88,.96,1.10);
     if(materialKind==1){
+        // Real clock: cloudParams.x is written every frame and is never zeroed.
+        float wt=cloudParams.x;
         vec2 flow=textureCoord*10.0;
+        // Two sheets travel at different speeds and headings; the pattern scrolls
+        // instead of sitting still, which is what makes the river read as flowing.
+        vec2 uvA=flow-vec2(.052,.132)*wt;
+        vec2 uvB=flow-vec2(.128,-.041)*wt;
         float away=smoothstep(2.0,-10.0,flow.y);
         color.rgb=mix(vec3(.45,.584,.61),vec3(.53,.654,.66),away);
-        vec2 fromSun=flow-vec2(-1.1,-2.4);
-        float ripplePhase=flow.y*20.0+5.5*noise(vec2(flow.x*.72,flow.y*2.1))
-            +1.35*sin(flow.y*5.7)+1.05*sin(flow.x*2.3+flow.y*1.4);
+        float ripplePhase=uvA.y*20.0+5.5*noise(vec2(uvA.x*.72,uvA.y*2.1))
+            +1.35*sin(uvA.y*5.7)+1.05*sin(uvA.x*2.3+uvA.y*1.4);
         float rippleWidth=max(fwidth(ripplePhase),.05);
         float ripple=smoothstep(.42-rippleWidth,.82+rippleWidth,sin(ripplePhase));
-        float fragments=smoothstep(.32,.65,noise(vec2(flow.x*5.5,flow.y*8.2)));
+        float fragments=smoothstep(.32,.65,noise(vec2(uvB.x*5.5,uvB.y*8.2)));
         float streak=.20+.80*ripple*fragments;
+        vec2 fromSun=uvA-vec2(-1.1,-2.4);
         float spread=.95+.065*abs(fromSun.y);
         sunBand=exp(-fromSun.x*fromSun.x/(spread*spread)-fromSun.y*fromSun.y/40.0)*streak;
-        color.rgb*=.99+.025*noise(vec2(flow.x*.8,flow.y*7.0));
+        color.rgb*=.99+.025*noise(vec2(uvB.x*.8,uvB.y*7.0));
+        // Two travelling waves; their analytic slope tilts the normal, so the
+        // sun streak drifts across the surface instead of staying painted on.
+        float a1=uvA.x*.85+uvA.y*2.30-wt*1.45;
+        float a2=uvB.x*4.70-uvB.y*1.90-wt*2.60;
+        vec2 fgrad=vec2(.85*cos(a1)+4.70*cos(a2),2.30*cos(a1)-1.90*cos(a2))*.020;
+        vec3 fX=vec3(camRight.x,camUp.x,camBack.x);
+        vec3 fZ=vec3(camRight.z,camUp.z,camBack.z);
+        N=normalize(N-fX*fgrad.x-fZ*fgrad.y);
+        color.rgb+=vec3(.09,.12,.13)*dot(fgrad,fgrad)*6.0;
 )"
 R"(
         // Quiet travelling ripples at the actual foot contact, with a soft local envelope.

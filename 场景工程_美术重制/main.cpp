@@ -110,7 +110,8 @@ SceneModel loadModel(const std::string& relative,bool pickable=false,
         else if(mat.name=="Costume_pattern_near_wide_sleeve"||
                 mat.name=="Costume_pattern_far_wide_sleeve"||
                 mat.name=="Wind_CuffLining")gpu.kind=17;
-        else if(mat.name=="Luoshen_PaleGold"||mat.name=="Costume_gold_metal")gpu.kind=18;
+        else if(mat.name=="Luoshen_PaleGold")gpu.kind=39;
+        else if(mat.name=="Costume_gold_metal")gpu.kind=18;
         else if(mat.name=="Luoshen_FaceGauze")gpu.kind=19;
         else if(mat.name=="Airy_JadeSleeveA")gpu.kind=20;
         else if(mat.name=="Airy_JadeSleeveB")gpu.kind=21;
@@ -124,12 +125,14 @@ SceneModel loadModel(const std::string& relative,bool pickable=false,
         else if(mat.name=="Drape_IvorySilkMid")gpu.kind=29;
         // 36 is free: hair gets its own response so it stops reading as one dark mass.
         else if(mat.name=="Ink_brown_hair")gpu.kind=36;
+        else if(mat.name=="Luoshen_MistJade"||mat.name=="Luoshen_Pearl")gpu.kind=37;
         if(mat.name=="Final_FaceSkin")gpu.kind=34;
         if(mat.name=="Final_CaoEyes")gpu.kind=35;
         // Artistic palettes identify props without changing shared texture assets.
         if(relative.find("03_shore_rock_")!=std::string::npos || relative.find("03_left_bank_platform_steps.obj")!=std::string::npos)gpu.kind=31;
         else if(relative.find("05_covered_wooden_boat.obj")!=std::string::npos)gpu.kind=32;
         else if(relative.find("07_left_layered_shore.obj")!=std::string::npos)gpu.kind=33;
+        else if(relative.find("06_shore_reeds_")!=std::string::npos)gpu.kind=38;
         sceneGenBuffers(1,&gpu.buffer);if(!gpu.buffer)throw std::runtime_error("Geometry buffer allocation failed");
         gpu.count=static_cast<GLsizei>(batch.vertices.size());
         if(isVeilKind(gpu.kind)){
@@ -731,7 +734,7 @@ int wmain(int argc,wchar_t** argv){
             drawCasters(view);
             glLoadMatrixf(glm::value_ptr(view));
             environment_effects::drawWaterPetals(animationTime,goddess,layoutEditor.items[boatItem].pose.position,view,petals);
-            environment_effects::drawFallingPetals(animationTime,layoutEditor.items[blossomItem].pose.position,view,petals);
+            environment_effects::drawFallingPetals(animationTime,layoutEditor.items[blossomItem].pose.position,goddess,view,petals);
             if(!environmentDemo){
                 // Render translucent cloth after opaque geometry, with depth testing but no depth writes.
                 glEnable(GL_BLEND);glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);

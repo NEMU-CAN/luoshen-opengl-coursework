@@ -149,6 +149,7 @@ uniform int reflectionPass;
 uniform vec3 worldUpEye;
 uniform float cameraHeight;
 uniform mat4 shadowFromEye;
+varying vec3 modelPos;
 
 // Analytic basis and slope for the biquartic displacement patch.
 void trainBasis(float t,out float b[5],out float d[5]){
@@ -160,6 +161,7 @@ void trainBasis(float t,out float b[5],out float d[5]){
 void main()
 {
     vec4 local=gl_Vertex;
+    modelPos=gl_Vertex.xyz;
     trainDu=vec3(0.0);trainDv=vec3(0.0);
     if(materialKind==3){
         local.x+=.025*sin(local.y*4.0+sceneTime*1.1)*sin(local.z*3.0);
@@ -356,6 +358,7 @@ uniform vec3 camRight;
 uniform vec3 camUp;
 uniform vec3 camBack;
 uniform vec3 cloudCameraWorld;
+varying vec3 modelPos;
 varying vec3 eyePosition;
 varying vec3 eyeNormal;
 varying vec3 clothRestPosition;
@@ -691,7 +694,7 @@ R"(
         color.rgb=mix(color.rgb,vec3(color.r*.96,color.g*.66,color.b*.76),leaf*.72);
     }
     if(materialKind==5)color.rgb=mix(color.rgb,vec3(color.r*.92,color.g*.64,color.b*.72),.6);
-    if(materialKind==0 && useTexture==0){
+    if((materialKind==0||materialKind==36) && useTexture==0){
         float peak=max(color.r,color.g);
         float lift=smoothstep(.22,.30,peak)*(1.0-smoothstep(.42,.70,peak));
         color.rgb=mix(color.rgb,color.rgb*.5+vec3(.46,.44,.39),lift);
@@ -820,7 +823,7 @@ R"(
     }else if(materialKind==2){
         float shaped=diffuse*.7+fold*.3;
         lit=color.rgb*(vec3(.50,.48,.46)+vec3(.46,.44,.42)*shaped*visibility);
-    }else if(materialKind==0 && useTexture==0){
+    }else if((materialKind==0||materialKind==36) && useTexture==0){
         float peak=max(color.r,color.g);
         float ink=1.0-smoothstep(.16,.26,peak);
         float wrap=clamp(diffuse*.7+.22,0.0,1.0);
@@ -844,10 +847,13 @@ R"(
         float sky=pow(max(dot(reflect(-V,N),skyFill),0.0),9.0);
         float key=pow(max(dot(R,V),0.0),64.0)*sqrt(diffuse)*visibility;
         float broad=pow(max(dot(R,V),0.0),14.0)*visibility;
+        // Pin-point glint on top of the broad band: this is what makes the small
+        // hairpins and beads read as polished metal rather than painted gold.
+        float hot=pow(max(dot(R,V),0.0),220.0)*visibility;
         vec3 gold=vec3(.78,.55,.25);
-        lit=gold*(.36+.48*diffuse*visibility+.18*rim)
-            +vec3(.86,.76,.52)*(.34*sky+.16*broad)
-            +vec3(1.0,.94,.73)*key*.92;
+        lit=gold*(.34+.50*diffuse*visibility+.20*rim)
+            +vec3(.86,.76,.52)*(.34*sky+.20*broad)
+            +vec3(1.0,.94,.73)*(key*.92+hot*1.05);
     }else if(drape){
         float back=max(-dot(N,L),0.0);
         // Thin silk has broad diffuse transmission, without a padded specular ridge.
@@ -864,6 +870,7 @@ R"(
         float sheen=pow(max(dot(R,V),0.0),12.0)*diffuse;
         vec2 trim=gauzeTrim(textureCoord);
         vec3 ivory=color.rgb*(.92+.12*diffuse+.10*back)+vec3(.08,.07,.05)*sheen;
+        ivory+=color.rgb*vec3(1.0,.94,.84)*pow(back,1.4)*.55;
         float gilding=clamp(.94*trim.x+.31*trim.y,0.0,1.0);
         lit=mix(ivory,vec3(.91,.68,.38)*(1.0+.13*sheen),gilding);
     }
@@ -905,6 +912,14 @@ R"(
             lit=mix(vec3(.28,.20,.14),vec3(.61,.46,.30),.30+.70*fold)*(.85+.15*visibility);
         }
     }
+    if(materialKind==36){
+        // The mass stays black and keeps its weight. Only a few fine strand edges
+        // catch the sunset, so the silhouette reads as hair rather than as a shape.
+        float thinEdge=pow(1.0-clamp(dot(N,V),0.0,1.0),3.6);
+        float strands=noise(modelPos.xz*26.0+vec2(modelPos.y*11.0,modelPos.x*3.0));
+        float sparse=smoothstep(.52,.86,strands);
+        lit+=vec3(1.0,.84,.60)*thinEdge*(.16+.46*sparse);
+    }
     // Preserve the authored rock face roles with an illustration palette.
     if(materialKind==0 && useTexture==0){
         vec3 facePalette=vec3(0.0);
@@ -926,18 +941,74 @@ R"(
     float specStrength=materialKind==1?.006:(materialKind==7?.035:.010);
     vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
     if(!silk)lit+=specColor*specular*visibility*specStrength;
-    // One local cyan-white fill: five-second period, +/-15% intensity.
-    if(goddessDraw==1 && reflectionPass==0){
+    // 神光离合: warm and cool fills run in antiphase, so the lit side and the
+    // shadow side trade emphasis while the figure keeps a steady overall value.
+    // Both lights swing +/-15% of their own base; nothing blooms or outlines.
+    if(reflectionPass==0){
+        float phase=sin(1.2566370614*spiritTime);
         vec3 toFill=goddessLightEye-eyePosition;
         float distance2=dot(toFill,toFill);
         float reach=1.0-smoothstep(1.0,6.25,distance2);
-        vec3 fillDir=toFill*inversesqrt(max(distance2,.0001));
-        float wrap=.45+.55*max(dot(N,fillDir),0.0);
-        float pulse=1.0+.15*sin(1.2566370614*spiritTime);
-        lit+=spiritEnabled*color.rgb*vec3(.76,.94,1.0)*(.14*pulse*reach*wrap);
+        if(reach>0.002){
+            vec3 fillDir=toFill*inversesqrt(max(distance2,.0001));
+            float wrap=.45+.55*max(dot(N,fillDir),0.0);
+            // Sunset warmth rides the key-facing side; jade coolness lifts the rest.
+            float keySide=clamp(dot(N,L),0.0,1.0);
+            float warm=.08*(1.0+.15*phase);
+            float cool=.08*(1.0-.15*phase);
+            float share=(goddessDraw==1?1.0:.34)*reach;
+            vec3 albedo=mix(color.rgb,vec3(dot(color.rgb,vec3(.30,.55,.15))),.30);
+            lit+=spiritEnabled*share*albedo*wrap*(vec3(1.0,.95,.86)*warm+vec3(.76,.94,1.0)*cool);
+            // The handover redistributes light already on the figure. It must cover
+            // her whole body: gating it by distance left the skirt almost static.
+            float bodyShare=goddessDraw==1?1.0:reach*.34;
+            lit*=1.0+spiritEnabled*bodyShare*.12*phase*(2.0*keySide-1.0);
+        }
     }
     float fog=1.0-exp(-max(length(eyePosition)-22.0,0.0)*(materialKind==4?.004:(materialKind==1?.003:.004)));
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;
+    // Contact shadow: a soft disc of darker water under her, so she stands in the
+    // river instead of floating above it. Fades out well before the reflection.
+    if(materialKind==1){
+        vec2 contactXZ=textureCoord*10.0-footPosition.xz;
+        lit*=mix(.58,1.0,smoothstep(.05,.95,length(contactXZ)));
+    }
+    if(goddessDraw==1){
+        vec3 mp=modelPos;
+        // ---- Contact shadows, authored in rest-pose coordinates --------------
+        // Each is thin and local; the sum is capped so nothing turns to soot.
+        float occl=0.0;
+        // chin meeting neck
+        float chin=smoothstep(1.335,1.395,mp.y)*(1.0-smoothstep(1.430,1.495,mp.y));
+        occl+=.44*chin*(1.0-smoothstep(.050,.135,length(vec2(mp.x-.062,mp.z-.052))));
+        // nape and the shaded side of the neck under the hair
+        float nape=smoothstep(1.270,1.345,mp.y)*(1.0-smoothstep(1.430,1.520,mp.y));
+        occl+=.30*nape*smoothstep(.055,-.055,mp.z);
+        // temple and ear, where hair and veil touch the cheek
+        float temple=smoothstep(1.415,1.470,mp.y)*(1.0-smoothstep(1.525,1.575,mp.y));
+        occl+=.24*temple*smoothstep(.052,.112,abs(mp.x));
+        // thin line under the waist sash
+        float belt=smoothstep(.950,1.028,mp.y)*(1.0-smoothstep(1.020,1.072,mp.y));
+        occl+=.36*belt;
+        // sleeve swallowing the wrist
+        occl+=.40*(1.0-smoothstep(.050,.140,length(vec3(mp.x-.243,mp.y-.985,mp.z-.357))));
+        // pleat hollows and stacked layers
+        occl+=.24*valley+.16*overlap;
+        if(materialKind==15||materialKind==25)occl+=.12;
+        // hem gathering weight at the waterline
+        occl+=.26*(1.0-smoothstep(.015,.200,mp.y));
+        occl=clamp(occl,0.0,.78);
+        // Cool grey, so shadows read as sky-filled shade rather than soot.
+        lit*=mix(vec3(.70,.74,.80),vec3(1.0),1.0-occl*.90);
+        // Raise the darks and trim contrast so the cloth reads airy, not carved.
+        // Gold and the face keep their own authored response.
+        if(materialKind!=18 && materialKind!=34 && materialKind!=36){
+            float tl=dot(lit,vec3(.299,.587,.114));
+            lit+=vec3(.085,.090,.105)*(1.0-smoothstep(.04,.42,tl));
+            lit=mix(vec3(tl),lit,.94);
+            lit+=color.rgb*.035;
+        }
+    }
     vec3 fogColor=materialKind==1?vec3(.58,.66,.72):(materialKind==4?vec3(.62,.70,.76):vec3(.78,.70,.62));
     lit=mix(lit,fogColor,clamp(fog,0.0,.02));
     if(ridge>.5){
@@ -945,6 +1016,25 @@ R"(
         float base=1.0-smoothstep(.0,.46,mesh.y);
         float aerial=smoothstep(28.0,105.0,length(eyePosition));
         lit=mix(lit,mix(vec3(.40,.49,.50),vec3(.70,.71,.67),aerial),base*.32);
+    }
+    // ---- Low cloud gathered at her feet -------------------------------------
+    // A thin, drifting mist layer hugging the waterline around her. The hem of the
+    // skirt dissolves into it, which is what makes the figure read as not quite
+    // standing on the water. Height falloff keeps her head and shoulders clear.
+    if(reflectionPass==0){
+        vec3 worldPos=(gl_ModelViewMatrixInverse*vec4(eyePosition,1.0)).xyz;
+        vec2 fromHer=worldPos.xz-goddessPosition.xz;
+        float dist=length(fromHer);
+        float pool=1.0-smoothstep(.30,3.10,dist);
+        // Rises past the skirt hem so the cloth actually dissolves, not just the water.
+        float shaft=exp(-max(worldPos.y,0.0)*.95);
+        // Two drifting octaves give strands instead of a flat glow.
+        float wisp=noise(worldPos.xz*2.60+vec2(spiritTime*.22,-spiritTime*.14));
+        float wisp2=noise(worldPos.xz*6.10-vec2(spiritTime*.31,spiritTime*.09));
+        float body=.42+.58*smoothstep(.30,.86,wisp*.72+wisp2*.38);
+        float breathe=.86+.14*sin(spiritTime*.47+dist*1.1);
+        float density=clamp(pool*shaft*body*breathe,0.0,1.0)*.86;
+        lit=mix(lit,vec3(.86,.90,.94),density);
     }
     float opacity=materialKind==1?.80:1.0;
     if(reflectionPass==1){

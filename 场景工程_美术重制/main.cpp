@@ -23,7 +23,7 @@ BindBufferFn sceneBindBuffer=nullptr;
 BufferDataFn sceneBufferData=nullptr;
 DeleteBuffersFn sceneDeleteBuffers=nullptr;
 const GLenum SCENE_ARRAY_BUFFER=0x8892,SCENE_STATIC_DRAW=0x88E4;
-struct SceneModel {std::vector<GpuBatch> batches;glm::vec3 center{0},size{0};float bottom=0;size_t triangles=0;std::vector<glm::vec3> pickTriangles;};
+struct SceneModel {std::vector<GpuBatch> batches;glm::vec3 center{0},size{0};float bottom=0;size_t triangles=0;bool goddess=false;std::vector<glm::vec3> pickTriangles;};
 GLuint program=0;
 GLint colorLocation=-1,textureLocation=-1,kindLocation=-1,timeLocation=-1,lightLocation=-1;
 GLint reflectionLocation=-1,goddessLocation=-1,worldUpLocation=-1,cameraHeightLocation=-1;
@@ -35,6 +35,7 @@ double animationTime=0.0,clothTime=0.0;
 bool clothPlaying=true;
 float clothStrength=1.f;
 GLint clothTimeLocation=-1,clothStrengthLocation=-1;
+GLint spiritTimeLocation=-1,spiritEnabledLocation=-1,goddessDrawLocation=-1,goddessLightLocation=-1;
 int clothPreviewMin=8,clothPreviewMax=16;
 GLint veilPassLocation=-1,clothMotionLocation=-1;
 bool isVeilKind(int kind){return kind==9||kind==16||kind==19||(kind>=20&&kind<=29);}
@@ -82,7 +83,7 @@ GLuint loadMaterialTexture(const SceneMaterial& mat) {
 SceneModel loadModel(const std::string& relative,bool pickable=false,
                      std::optional<glm::vec3> localOrigin=std::nullopt){
     auto mesh=readSceneObj(assetRoot/std::filesystem::u8path(relative));
-    SceneModel model;model.center=(mesh.minimum+mesh.maximum)*.5f;model.size=mesh.maximum-mesh.minimum;model.bottom=mesh.minimum.y;model.triangles=mesh.triangles;
+    SceneModel model;model.goddess=relative.find("luoshen/luoshen.obj")!=std::string::npos;model.center=(mesh.minimum+mesh.maximum)*.5f;model.size=mesh.maximum-mesh.minimum;model.bottom=mesh.minimum.y;model.triangles=mesh.triangles;
     if(localOrigin){
         model.center.x=localOrigin->x;
         model.bottom=localOrigin->y;
@@ -149,6 +150,7 @@ void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,
     m=glm::rotate(m,glm::radians(tilt.x),glm::vec3(1,0,0));
     m=glm::rotate(m,glm::radians(tilt.y),glm::vec3(0,0,1));m=glm::scale(m,stretch*scale);
     m=glm::translate(m,glm::vec3(-model.center.x,-model.bottom,-model.center.z));
+    pUniform1i(goddessDrawLocation,model.goddess?1:0);
     auto mv=view*m;glMatrixMode(GL_MODELVIEW);glLoadMatrixf(glm::value_ptr(mv));
     glEnableClientState(GL_VERTEX_ARRAY);glEnableClientState(GL_NORMAL_ARRAY);glEnableClientState(GL_TEXTURE_COORD_ARRAY);
     auto drawBatch=[&](const GpuBatch& b){
@@ -178,6 +180,7 @@ void drawModel(const SceneModel& model,const glm::mat4& view,glm::vec3 position,
     }
     sceneBindBuffer(SCENE_ARRAY_BUFFER,0);
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);glDisableClientState(GL_NORMAL_ARRAY);glDisableClientState(GL_VERTEX_ARRAY);
+    pUniform1i(goddessDrawLocation,0);
 }
 float rockReach(float z){return glm::smoothstep(-45.f,-36.f,z)*(1.f-glm::smoothstep(-9.f,-6.f,z));}
 float bank(float z){
@@ -377,7 +380,10 @@ int wmain(int argc,wchar_t** argv){
         if(clothView==L"sleeve")clothPreviewMin=clothPreviewMax=10;
         if(clothView==L"skirt"){clothPreviewMin=11;clothPreviewMax=12;}
         const bool wakeCapture=argc>1&&std::wstring(argv[1])==L"--capture-wakes";
-        capture=capture||noShadows||clothCapture||wakeCapture;
+        const bool spiritCapture=argc>1&&std::wstring(argv[1])==L"--capture-spirit";
+        const bool spiritSmoke=argc>1&&std::wstring(argv[1])==L"--smoke-spirit";
+        const float spiritEnabled=spiritCapture&&argc>2&&std::wstring(argv[2])==L"off"?0.f:1.f;
+        capture=capture||noShadows||clothCapture||wakeCapture||spiritCapture;
         const int bankRounds=capture&&argc==4&&std::wstring(argv[2])==L"--bank-round"
             ?std::clamp(std::stoi(argv[3]),0,scene_layout::leftBankRounds):scene_layout::leftBankRounds;
         bool smoke=argc>1&&std::wstring(argv[1])==L"--smoke";
@@ -387,7 +393,7 @@ int wmain(int argc,wchar_t** argv){
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,2);glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,1);
         glfwWindowHint(GLFW_SAMPLES,4);
         glfwWindowHint(GLFW_STENCIL_BITS,8);
-        if(capture||smoke)glfwWindowHint(GLFW_VISIBLE,GLFW_FALSE);
+        if(capture||smoke||spiritSmoke)glfwWindowHint(GLFW_VISIBLE,GLFW_FALSE);
         auto window=glfwCreateWindow(1600,900,"Luoshen | 1/2/3/4 views | P cloth pause | 0 rest | [ ] wind | H text | F9",nullptr,nullptr);
         if(!window)throw std::runtime_error("Window creation failed");
         glfwMakeContextCurrent(window);glfwSwapInterval(capture?0:1);
@@ -413,6 +419,9 @@ int wmain(int argc,wchar_t** argv){
         pUseProgram(program);pUniform1i(uniform("texture0"),0);
         pUniform1i(uniform("normalMap"),1);
         clothTimeLocation=uniform("clothTime");clothStrengthLocation=uniform("clothStrength");
+        spiritTimeLocation=uniform("spiritTime");spiritEnabledLocation=uniform("spiritEnabled");
+        goddessDrawLocation=uniform("goddessDraw");goddessLightLocation=uniform("goddessLightEye");
+        uniform1f(spiritEnabledLocation,spiritEnabled);pUniform1i(goddessDrawLocation,0);
         veilPassLocation=uniform("veilPass");clothMotionLocation=uniform("clothMotionEnabled");
         pUniform1i(veilPassLocation,0);
         pUniform1i(uniform("veilProbe"),clothView==L"veil-probe"?1:0);
@@ -546,6 +555,8 @@ int wmain(int argc,wchar_t** argv){
             target=layoutEditor.items[luoshenItem].pose.position+glm::vec3(0,1.55f,0);
         }
         double previous=glfwGetTime(),start=previous;int frame=0;size_t frames=0;double fpsStart=previous;
+        double spiritClock=0.0,spiritPrevious=previous,spiritRunStart=previous;
+        int spiritSample=0;double spiritMin=2.0,spiritMax=0.0;
         const auto wakeGoddessStart=layoutEditor.items[luoshenItem].pose.position;
         const auto wakeBoatStart=layoutEditor.items[boatItem].pose.position;
         while(!glfwWindowShouldClose(window)){
@@ -553,6 +564,11 @@ int wmain(int argc,wchar_t** argv){
             if(animationPlaying&&!clothCapture)animationTime+=dt;
             if(clothCapture)clothTime=frame*.20;
             else if(animationPlaying&&clothPlaying)clothTime+=dt;
+            // Separate wall clock: no .05s frame clamp, so 5 seconds stays 5 seconds at low FPS.
+            double spiritDelta=now-spiritPrevious;spiritPrevious=now;
+            if(spiritCapture)spiritClock=frame*.25;
+            else if(animationPlaying)spiritClock+=spiritDelta;
+            if(spiritCapture||spiritSmoke){animationTime=0.0;clothTime=0.0;}
             float speed=dt*distanceToTarget*.15f;
             if(!layoutEditor.active){
             if(glfwGetKey(window,GLFW_KEY_A)==GLFW_PRESS)target.x-=speed;
@@ -619,6 +635,7 @@ int wmain(int argc,wchar_t** argv){
                 drawLeftBankRidges(2);
             };
             pUseProgram(program);
+            uniform1f(spiritTimeLocation,static_cast<float>(spiritClock));
             uniform1f(clothTimeLocation,static_cast<float>(clothTime));
             uniform1f(clothStrengthLocation,clothStrength);
             uniform1f(timeLocation,static_cast<float>(animationTime));
@@ -631,6 +648,8 @@ int wmain(int argc,wchar_t** argv){
             auto worldUp=glm::vec3(view*glm::vec4(0,1,0,0));pUniform3f(worldUpLocation,worldUp.x,worldUp.y,worldUp.z);uniform1f(cameraHeightLocation,eye.y);
             glm::vec3 light=glm::vec3(view*glm::vec4(-12,16,9,1));pUniform3f(lightLocation,light.x,light.y,light.z);
 
+            auto fillEye=glm::vec3(view*glm::vec4(goddess+glm::vec3(0,1.65f,1.05f),1));
+            pUniform3f(goddessLightLocation,fillEye.x,fillEye.y,fillEye.z);
             pUniform3f(goddessLocation,goddess.x,goddess.y,goddess.z);
             glMatrixMode(GL_MODELVIEW);glLoadMatrixf(glm::value_ptr(view));
             // Stencil confines planar reflected geometry to the river's screen area.
@@ -671,7 +690,22 @@ int wmain(int argc,wchar_t** argv){
             int windowWidth,windowHeight;
             glfwGetWindowSize(window,&windowWidth,&windowHeight);
             layoutEditor.draw(projection*view,windowWidth,windowHeight);
-            if(wakeCapture){
+            if(spiritCapture||spiritSmoke){
+                auto folder=exe/"captures"/(spiritSmoke?"spirit-live":(spiritEnabled>0?"spirit":"spirit-off"));
+                std::filesystem::create_directories(folder);
+                double pulse=1.0+.15*std::sin(1.2566370614*spiritClock);
+                spiritMin=std::min(spiritMin,pulse);spiritMax=std::max(spiritMax,pulse);
+                if(spiritCapture||spiritClock>=spiritSample*.25){
+                    saveFrame(folder/("frame-"+std::to_string(spiritSample)+".bmp"),w,h);
+                    std::cout<<"Spirit sample "<<spiritSample<<" time="<<spiritClock<<" fill="<<pulse<<'\n';
+                    ++spiritSample;
+                }
+                if((spiritCapture&&++frame>=41)||(spiritSmoke&&now-spiritRunStart>=10.0)){
+                    checkGL("Spirit 10-second run");
+                    std::cout<<"Spirit elapsed="<<now-spiritRunStart<<" clock="<<spiritClock
+                             <<" fillRange="<<spiritMin<<","<<spiritMax<<'\n';break;
+                }
+            }else if(wakeCapture){
                 auto folder=exe/"captures"/"wakes";std::filesystem::create_directories(folder);
                 if(frame%15==0)saveFrame(folder/("frame-"+std::to_string(frame)+".bmp"),w,h);
                 if(++frame>120){checkGL("Wake sequence rendered");break;}

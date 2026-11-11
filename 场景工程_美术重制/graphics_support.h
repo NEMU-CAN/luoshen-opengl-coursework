@@ -141,6 +141,8 @@ uniform int materialKind;
 uniform float sceneTime;
 uniform vec3 cloudParams;
 uniform float clothTime;
+uniform float spiritTime;
+uniform float spiritEnabled;
 uniform float clothStrength;
 uniform int clothMotionEnabled;
 uniform int reflectionPass;
@@ -164,11 +166,15 @@ void main()
         local.z+=.035*sin(local.y*3.0-sceneTime*.8);
     }
     if(materialKind==5)local.x+=.04*sin(sceneTime*.8+local.z*.9+local.x)*clamp(gl_MultiTexCoord0.y,0.0,1.0);
-    if(materialKind==1){
-        float anim=sceneTime>0.0?sceneTime:cloudParams.x;
-        local.y+=.03*sin(local.x*.05+anim*.35)+.02*sin(local.z*.04-anim*.22);
-    }
-    if(clothMotionEnabled==1 && materialKind>=26 && materialKind<=29){
+    // Keep water on its authored plane; small ripples are shading-only.
+    if(materialKind==8 || materialKind==9){
+        float along=clamp((.88-gl_MultiTexCoord0.y)/.75,0.0,1.0);
+        // Red ribbon has one fixed end. Gold pibo is a loop with two fixed seams.
+        float pin=materialKind==8?along*along:pow(sin(3.14159265*along),2.0);
+        float phase=1.2566370614*spiritTime;
+        float amplitude=materialKind==8?.022:.012;
+        local.xyz+=spiritEnabled*pin*amplitude*vec3(0.0,sin(phase),.55*sin(phase));
+    }else if(clothMotionEnabled==1 && materialKind>=26 && materialKind<=29){
         float t=clamp((.88-gl_MultiTexCoord0.y)/.75,0.0,1.0);
         float u=clamp((gl_MultiTexCoord0.x-.18)/.64,0.0,1.0);
         float phase=.73*clothTime-5.4*t+.32*float(materialKind-26);
@@ -319,6 +325,10 @@ uniform int reflectionPass;
 uniform vec3 worldUpEye;
 uniform float cameraHeight;
 uniform vec3 lightPositionEye;
+uniform vec3 goddessLightEye;
+uniform int goddessDraw;
+uniform float spiritTime;
+uniform float spiritEnabled;
 uniform vec3 baseColor;
 uniform int useTexture;
 uniform int materialKind;
@@ -613,6 +623,17 @@ void main(){
         float spread=.95+.065*abs(fromSun.y);
         sunBand=exp(-fromSun.x*fromSun.x/(spread*spread)-fromSun.y*fromSun.y/40.0)*streak;
         color.rgb*=.99+.025*noise(vec2(flow.x*.8,flow.y*7.0));
+        // Quiet travelling ripples at the actual foot contact, with a soft local envelope.
+        vec2 rippleOffset=flow-footPosition.xz;
+        float radius=length(rippleOffset);
+        float envelope=(1.0-smoothstep(.25,2.1,radius))*smoothstep(.06,.24,radius);
+        float phase=18.0*radius-1.2566370614*spiritTime;
+        vec2 slope=spiritEnabled*.010*envelope*cos(phase)*rippleOffset/max(radius,.06);
+        vec3 axisX=vec3(camRight.x,camUp.x,camBack.x);
+        vec3 axisZ=vec3(camRight.z,camUp.z,camBack.z);
+        N=normalize(N-axisX*slope.x-axisZ*slope.y);
+        color.rgb+=spiritEnabled*envelope*vec3(.010,.013,.014)*sin(phase);
+        color.rgb+=vec3(.35,.42,.44)*dot(slope,slope)*10.0;
 
     }
 )"
@@ -867,6 +888,15 @@ R"(
     float specStrength=materialKind==1?.006:(materialKind==7?.035:.010);
     vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
     if(!silk)lit+=specColor*specular*visibility*specStrength;
+    // A diffuse cyan-white fill belongs only to Luoshen's draw calls. No bloom/rim.
+    if(goddessDraw==1 && reflectionPass==0){
+        vec3 toFill=goddessLightEye-eyePosition;
+        float distance2=dot(toFill,toFill);
+        float wrap=.45+.55*max(dot(N,toFill/max(sqrt(distance2),.001)),0.0);
+        float attenuation=1.0-smoothstep(1.0,20.25,distance2);
+        float pulse=1.0+.15*sin(1.2566370614*spiritTime);
+        lit+=spiritEnabled*color.rgb*vec3(.76,.94,1.0)*(.22*pulse*attenuation*wrap);
+    }
     float fog=1.0-exp(-max(length(eyePosition)-22.0,0.0)*(materialKind==4?.004:(materialKind==1?.003:.004)));
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;
     vec3 fogColor=materialKind==1?vec3(.58,.66,.72):(materialKind==4?vec3(.62,.70,.76):vec3(.78,.70,.62));

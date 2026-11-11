@@ -561,7 +561,7 @@ int wmain(int argc,wchar_t** argv){
         }
         double previous=glfwGetTime(),start=previous;int frame=0;size_t frames=0;double fpsStart=previous;
         double spiritClock=0.0,spiritPrevious=previous,spiritRunStart=previous;
-        int spiritSample=0;double spiritMin=2.0,spiritMax=0.0;
+        int spiritSample=0;double spiritMin=2.0,spiritMax=0.0,coolMin=2.0,coolMax=0.0;
         const auto wakeGoddessStart=layoutEditor.items[luoshenItem].pose.position;
         const auto wakeBoatStart=layoutEditor.items[boatItem].pose.position;
         while(!glfwWindowShouldClose(window)){
@@ -706,17 +706,21 @@ int wmain(int argc,wchar_t** argv){
             if(spiritCapture||spiritSmoke){
                 auto folder=exe/"captures"/(spiritSmoke?"spirit-live":(spiritEnabled>0?"spirit":"spirit-off"));
                 std::filesystem::create_directories(folder);
-                double pulse=1.0+.15*std::sin(1.2566370614*spiritClock);
-                spiritMin=std::min(spiritMin,pulse);spiritMax=std::max(spiritMax,pulse);
+                double phase=std::sin(1.2566370614*spiritClock);
+                double warm=.30*(1.0+.15*phase),cool=.30*(1.0-.15*phase);
+                spiritMin=std::min(spiritMin,warm);spiritMax=std::max(spiritMax,warm);
+                coolMin=std::min(coolMin,cool);coolMax=std::max(coolMax,cool);
                 if(spiritCapture||spiritClock>=spiritSample*.25){
                     saveFrame(folder/("frame-"+std::to_string(spiritSample)+".bmp"),w,h);
-                    std::cout<<"Spirit sample "<<spiritSample<<" time="<<spiritClock<<" fill="<<pulse<<'\n';
+                    std::cout<<"Spirit sample "<<spiritSample<<" time="<<spiritClock
+                             <<" warm="<<warm<<" cool="<<cool<<" sum="<<warm+cool<<'\n';
                     ++spiritSample;
                 }
                 if((spiritCapture&&++frame>=41)||(spiritSmoke&&now-spiritRunStart>=10.0)){
                     checkGL("Spirit 10-second run");
                     std::cout<<"Spirit elapsed="<<now-spiritRunStart<<" clock="<<spiritClock
-                             <<" fillRange="<<spiritMin<<","<<spiritMax<<'\n';break;
+                             <<" warmRange="<<spiritMin<<","<<spiritMax
+                             <<" coolRange="<<coolMin<<","<<coolMax<<'\n';break;
                 }
             }else if(wakeCapture){
                 auto folder=exe/"captures"/"wakes";std::filesystem::create_directories(folder);

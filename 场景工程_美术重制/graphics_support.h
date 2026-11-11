@@ -171,7 +171,8 @@ void main()
         float along=clamp((.88-gl_MultiTexCoord0.y)/.75,0.0,1.0);
         // Red ribbon has one fixed end. Gold pibo is a loop with two fixed seams.
         float pin=materialKind==8?along*along:pow(sin(3.14159265*along),2.0);
-        float phase=1.2566370614*spiritTime;
+        // The silk leads the radiance by 0.7 s: cloth moves, light follows.
+        float phase=1.2566370614*(spiritTime+.7);
         float amplitude=materialKind==8?.022:.012;
         local.xyz+=spiritEnabled*pin*amplitude*vec3(0.0,sin(phase),.55*sin(phase));
     }else if(clothMotionEnabled==1 && materialKind>=26 && materialKind<=29){
@@ -193,12 +194,21 @@ void main()
             .032*sin(phase)+.013*sin(phase*.71+u*3.14),
             .045*sin(phase+1.2)+.018*(2.0*u-1.0)*sin(phase-.5));
     }else if(clothMotionEnabled==1 && materialKind==19){
+        // The gauze is fastened along uv.y=0 only. Sides are free, so the hem can
+        // drift while the brow edge stays welded to the hair. Motion is biased
+        // outward (+z), away from the face, and never crosses it.
         vec2 uv=gl_MultiTexCoord0.xy;
-        float pin=sin(3.14159265*uv.x)*uv.y*uv.y;
-        float wave=1.07*clothTime-3.25*uv.y+1.4*uv.x;
+        float drop=clamp(uv.y,0.0,1.0);
+        float pin=smoothstep(0.0,.30,drop);pin*=pin;
         float wind=min(clothStrength,1.6)*smoothstep(0.0,.9,clothTime);
-        local.xyz+=pin*wind*vec3(.004*sin(wave-.55),.006*sin(wave+.7),
-                                  .011*sin(wave)+.004*sin(.68*clothTime+2.2*uv.x));
+        float phase=1.2566370614*clothTime;              // 5 s at 60 fps
+        float across=6.2831853*uv.x;
+        float slow=sin(phase-2.6*drop+across);
+        float echo=sin(phase*1.37+3.1*drop-across*.6);
+        float sway=pin*wind;
+        local.x+=sway*(.011*slow+.004*echo);
+        local.y+=sway*(.004*sin(phase-.8+2.0*drop));
+        local.z+=sway*(.006+.004*echo+.003*slow);
     }else if(clothMotionEnabled==1 && materialKind==12){
         vec2 uv=gl_MultiTexCoord0.xy;
         float across=clamp((uv.x-.18)/.64,0.0,1.0);
@@ -910,14 +920,28 @@ R"(
     float specStrength=materialKind==1?.006:(materialKind==7?.035:.010);
     vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
     if(!silk)lit+=specColor*specular*visibility*specStrength;
-    // A diffuse cyan-white fill belongs only to Luoshen's draw calls. No bloom/rim.
-    if(goddessDraw==1 && reflectionPass==0){
+    // 神光离合: warm and cool fills run in antiphase, so the lit side and the
+    // shadow side trade emphasis while the figure keeps a steady overall value.
+    // Both lights swing +/-15% of their own base; nothing blooms or outlines.
+    if(reflectionPass==0){
+        float phase=sin(1.2566370614*spiritTime);
         vec3 toFill=goddessLightEye-eyePosition;
         float distance2=dot(toFill,toFill);
-        float wrap=.45+.55*max(dot(N,toFill/max(sqrt(distance2),.001)),0.0);
-        float attenuation=1.0-smoothstep(1.0,20.25,distance2);
-        float pulse=1.0+.15*sin(1.2566370614*spiritTime);
-        lit+=spiritEnabled*color.rgb*vec3(.76,.94,1.0)*(.22*pulse*attenuation*wrap);
+        float reach=1.0-smoothstep(1.0,6.25,distance2);
+        if(reach>0.002){
+            vec3 fillDir=toFill*inversesqrt(max(distance2,.0001));
+            float wrap=.45+.55*max(dot(N,fillDir),0.0);
+            // Sunset warmth rides the key-facing side; jade coolness lifts the rest.
+            float keySide=clamp(dot(N,L),0.0,1.0);
+            float warm=.05*(1.0+.15*phase);
+            float cool=.05*(1.0-.15*phase);
+            float share=(goddessDraw==1?1.0:.34)*reach;
+            vec3 albedo=mix(color.rgb,vec3(dot(color.rgb,vec3(.30,.55,.15))),.30);
+            lit+=spiritEnabled*share*albedo*wrap*(vec3(1.0,.95,.86)*warm+vec3(.76,.94,1.0)*cool);
+            // The handover itself redistributes light already on the figure, so the
+            // total value stays put while lit and shadow sides trade emphasis.
+            lit*=1.0+spiritEnabled*share*.055*phase*(2.0*keySide-1.0);
+        }
     }
     float fog=1.0-exp(-max(length(eyePosition)-22.0,0.0)*(materialKind==4?.004:(materialKind==1?.003:.004)));
     float worldHeight=dot(eyePosition,worldUpEye)+cameraHeight;

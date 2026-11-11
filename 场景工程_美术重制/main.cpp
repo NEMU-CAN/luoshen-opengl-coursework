@@ -122,6 +122,8 @@ SceneModel loadModel(const std::string& relative,bool pickable=false,
         else if(mat.name=="Drape_IvorySilk")gpu.kind=27;
         else if(mat.name=="Drape_IvorySilkBack")gpu.kind=28;
         else if(mat.name=="Drape_IvorySilkMid")gpu.kind=29;
+        // 36 is free: hair gets its own response so it stops reading as one dark mass.
+        else if(mat.name=="Ink_brown_hair")gpu.kind=36;
         if(mat.name=="Final_FaceSkin")gpu.kind=34;
         if(mat.name=="Final_CaoEyes")gpu.kind=35;
         // Artistic palettes identify props without changing shared texture assets.

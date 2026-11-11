@@ -689,7 +689,7 @@ R"(
         color.rgb=mix(color.rgb,vec3(color.r*.96,color.g*.66,color.b*.76),leaf*.72);
     }
     if(materialKind==5)color.rgb=mix(color.rgb,vec3(color.r*.92,color.g*.64,color.b*.72),.6);
-    if(materialKind==0 && useTexture==0){
+    if((materialKind==0||materialKind==36) && useTexture==0){
         float peak=max(color.r,color.g);
         float lift=smoothstep(.22,.30,peak)*(1.0-smoothstep(.42,.70,peak));
         color.rgb=mix(color.rgb,color.rgb*.5+vec3(.46,.44,.39),lift);
@@ -812,7 +812,7 @@ R"(
     }else if(materialKind==2){
         float shaped=diffuse*.7+fold*.3;
         lit=color.rgb*(vec3(.50,.48,.46)+vec3(.46,.44,.42)*shaped*visibility);
-    }else if(materialKind==0 && useTexture==0){
+    }else if((materialKind==0||materialKind==36) && useTexture==0){
         float peak=max(color.r,color.g);
         float ink=1.0-smoothstep(.16,.26,peak);
         float wrap=clamp(diffuse*.7+.22,0.0,1.0);
@@ -836,10 +836,13 @@ R"(
         float sky=pow(max(dot(reflect(-V,N),skyFill),0.0),9.0);
         float key=pow(max(dot(R,V),0.0),64.0)*sqrt(diffuse)*visibility;
         float broad=pow(max(dot(R,V),0.0),14.0)*visibility;
+        // Pin-point glint on top of the broad band: this is what makes the small
+        // hairpins and beads read as polished metal rather than painted gold.
+        float hot=pow(max(dot(R,V),0.0),220.0)*visibility;
         vec3 gold=vec3(.78,.55,.25);
-        lit=gold*(.36+.48*diffuse*visibility+.18*rim)
-            +vec3(.86,.76,.52)*(.34*sky+.16*broad)
-            +vec3(1.0,.94,.73)*key*.92;
+        lit=gold*(.34+.50*diffuse*visibility+.20*rim)
+            +vec3(.86,.76,.52)*(.34*sky+.20*broad)
+            +vec3(1.0,.94,.73)*(key*.92+hot*1.05);
     }else if(drape){
         float back=max(-dot(N,L),0.0);
         // Thin silk has broad diffuse transmission, without a padded specular ridge.
@@ -856,6 +859,7 @@ R"(
         float sheen=pow(max(dot(R,V),0.0),12.0)*diffuse;
         vec2 trim=gauzeTrim(textureCoord);
         vec3 ivory=color.rgb*(.92+.12*diffuse+.10*back)+vec3(.08,.07,.05)*sheen;
+        ivory+=color.rgb*vec3(1.0,.94,.84)*pow(back,1.4)*.55;
         float gilding=clamp(.94*trim.x+.31*trim.y,0.0,1.0);
         lit=mix(ivory,vec3(.91,.68,.38)*(1.0+.13*sheen),gilding);
     }
@@ -901,6 +905,14 @@ R"(
         }else{
             lit=mix(vec3(.28,.20,.14),vec3(.61,.46,.30),.30+.70*fold)*(.85+.15*visibility);
         }
+    }
+    if(materialKind==36){
+        // The mass stays black and keeps its weight. Only a few fine strand edges
+        // catch the sunset, so the silhouette reads as hair rather than as a shape.
+        float thinEdge=pow(1.0-clamp(dot(N,V),0.0,1.0),3.6);
+        float strands=noise(modelPos.xz*26.0+vec2(modelPos.y*11.0,modelPos.x*3.0));
+        float sparse=smoothstep(.52,.86,strands);
+        lit+=vec3(1.0,.84,.60)*thinEdge*(.16+.46*sparse);
     }
     // Preserve the authored rock face roles with an illustration palette.
     if(materialKind==0 && useTexture==0){
@@ -982,6 +994,14 @@ R"(
         occl=clamp(occl,0.0,.78);
         // Cool grey, so shadows read as sky-filled shade rather than soot.
         lit*=mix(vec3(.70,.74,.80),vec3(1.0),1.0-occl*.90);
+        // Raise the darks and trim contrast so the cloth reads airy, not carved.
+        // Gold and the face keep their own authored response.
+        if(materialKind!=18 && materialKind!=34 && materialKind!=36){
+            float tl=dot(lit,vec3(.299,.587,.114));
+            lit+=vec3(.085,.090,.105)*(1.0-smoothstep(.04,.42,tl));
+            lit=mix(vec3(tl),lit,.94);
+            lit+=color.rgb*.035;
+        }
     }
     vec3 fogColor=materialKind==1?vec3(.58,.66,.72):(materialKind==4?vec3(.62,.70,.76):vec3(.78,.70,.62));
     lit=mix(lit,fogColor,clamp(fog,0.0,.02));
@@ -990,6 +1010,25 @@ R"(
         float base=1.0-smoothstep(.0,.46,mesh.y);
         float aerial=smoothstep(28.0,105.0,length(eyePosition));
         lit=mix(lit,mix(vec3(.40,.49,.50),vec3(.70,.71,.67),aerial),base*.32);
+    }
+    // ---- Low cloud gathered at her feet -------------------------------------
+    // A thin, drifting mist layer hugging the waterline around her. The hem of the
+    // skirt dissolves into it, which is what makes the figure read as not quite
+    // standing on the water. Height falloff keeps her head and shoulders clear.
+    if(reflectionPass==0){
+        vec3 worldPos=(gl_ModelViewMatrixInverse*vec4(eyePosition,1.0)).xyz;
+        vec2 fromHer=worldPos.xz-goddessPosition.xz;
+        float dist=length(fromHer);
+        float pool=1.0-smoothstep(.30,3.10,dist);
+        // Rises past the skirt hem so the cloth actually dissolves, not just the water.
+        float shaft=exp(-max(worldPos.y,0.0)*.95);
+        // Two drifting octaves give strands instead of a flat glow.
+        float wisp=noise(worldPos.xz*2.60+vec2(spiritTime*.22,-spiritTime*.14));
+        float wisp2=noise(worldPos.xz*6.10-vec2(spiritTime*.31,spiritTime*.09));
+        float body=.42+.58*smoothstep(.30,.86,wisp*.72+wisp2*.38);
+        float breathe=.86+.14*sin(spiritTime*.47+dist*1.1);
+        float density=clamp(pool*shaft*body*breathe,0.0,1.0)*.86;
+        lit=mix(lit,vec3(.86,.90,.94),density);
     }
     float opacity=materialKind==1?.80:1.0;
     if(reflectionPass==1){

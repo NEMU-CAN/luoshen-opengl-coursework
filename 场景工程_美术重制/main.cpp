@@ -122,6 +122,8 @@ SceneModel loadModel(const std::string& relative,bool pickable=false,
         else if(mat.name=="Drape_IvorySilk")gpu.kind=27;
         else if(mat.name=="Drape_IvorySilkBack")gpu.kind=28;
         else if(mat.name=="Drape_IvorySilkMid")gpu.kind=29;
+        if(mat.name=="Final_FaceSkin")gpu.kind=34;
+        if(mat.name=="Final_CaoEyes")gpu.kind=35;
         // Artistic palettes identify props without changing shared texture assets.
         if(relative.find("03_shore_rock_")!=std::string::npos || relative.find("03_left_bank_platform_steps.obj")!=std::string::npos)gpu.kind=31;
         else if(relative.find("05_covered_wooden_boat.obj")!=std::string::npos)gpu.kind=32;
@@ -381,10 +383,12 @@ int wmain(int argc,wchar_t** argv){
         if(clothView==L"sleeve")clothPreviewMin=clothPreviewMax=10;
         if(clothView==L"skirt"){clothPreviewMin=11;clothPreviewMax=12;}
         const bool wakeCapture=argc>1&&std::wstring(argv[1])==L"--capture-wakes";
+        const bool portraitCapture=argc>1&&std::wstring(argv[1])==L"--capture-portrait";
+        const bool armCapture=argc>1&&std::wstring(argv[1])==L"--capture-arms";
         const bool spiritCapture=argc>1&&std::wstring(argv[1])==L"--capture-spirit";
         const bool spiritSmoke=argc>1&&std::wstring(argv[1])==L"--smoke-spirit";
         const float spiritEnabled=spiritCapture&&argc>2&&std::wstring(argv[2])==L"off"?0.f:1.f;
-        capture=capture||noShadows||clothCapture||wakeCapture||spiritCapture;
+        capture=capture||noShadows||clothCapture||wakeCapture||portraitCapture||armCapture||spiritCapture;
         const int bankRounds=capture&&argc==4&&std::wstring(argv[2])==L"--bank-round"
             ?std::clamp(std::stoi(argv[3]),0,scene_layout::leftBankRounds):scene_layout::leftBankRounds;
         bool smoke=argc>1&&std::wstring(argv[1])==L"--smoke";
@@ -580,6 +584,14 @@ int wmain(int argc,wchar_t** argv){
             int w,h;glfwGetFramebufferSize(window,&w,&h);if(w==0||h==0){glfwWaitEvents();continue;}
             glViewport(0,0,w,h);glStencilMask(0xff);glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT|GL_STENCIL_BUFFER_BIT);sky(w,h);
             auto projection=glm::perspective(glm::radians(45.0f),float(w)/h,.1f,160.0f);
+            if(portraitCapture||armCapture){
+                const auto& pose=layoutEditor.items[luoshenItem].pose;
+                const auto& model=*editableModels[luoshenItem].model;
+                glm::vec3 local=(glm::vec3(.015f,armCapture?1.18f:1.40f,.13f)-glm::vec3(model.center.x,model.bottom,model.center.z))*pose.scale*editableModels[luoshenItem].stretch;
+                target=pose.position+glm::vec3(glm::rotate(glm::mat4(1),glm::radians(pose.yaw),glm::vec3(0,1,0))*glm::vec4(local,0));
+                yaw=pose.yaw+float(frame-1)*20.f;pitch=0;distanceToTarget=1.55f;
+                if(armCapture){const float angles[]={-70.f,70.f,130.f,-130.f};yaw=pose.yaw+angles[frame];pitch=18;distanceToTarget=2.05f;}
+            }
             float a=glm::radians(yaw),b=glm::radians(pitch);
             glm::vec3 eye=target+distanceToTarget*glm::vec3(std::sin(a)*std::cos(b),std::sin(b),std::cos(a)*std::cos(b));
             auto view=glm::lookAt(eye,target,glm::vec3(0,1,0));

@@ -473,7 +473,7 @@ void main(){
         disc*=cut;
         float halo=(1.0-smoothstep(.040,.055,ang))*step(below,.014);
         sky=mix(sky,vec3(.99,.80,.64),halo*.12);
-        sky=mix(sky,vec3(.99,.90,.80),disc*.82);
+        sky=mix(sky,vec3(.99,.85,.56),disc*.82);
         sky=throughValleyCloud(sky,rd,160.0);
         gl_FragColor=vec4(sky,1.0);
         return;
@@ -491,10 +491,10 @@ void main(){
         if(drape){
             float edgeFade=smoothstep(0.0,.20,min(u,1.0-u));
             float t=clamp((.88-textureCoord.y)/.75,0.0,1.0);
-            float panel=materialKind==26?.82:.86;
+            float panel=materialKind==26?.76:(materialKind==27?.80:(materialKind==28?.69:.74));
             float falloff=smoothstep(.55,.98,t);
             float hemTurn=sin(6.2831853*(u+.13*float(materialKind-26)));
-            float bodyAlpha=mix(panel,.68,falloff*(.42+.18*hemTurn));
+            float bodyAlpha=mix(panel,panel*.74,falloff*(.42+.18*hemTurn));
             float clothCoverage=mix(.58,.96,edgeFade);
             veilAlpha=bodyAlpha*clothCoverage;
             vec2 yarn=textureCoord*vec2(82.0,118.0);
@@ -522,7 +522,7 @@ void main(){
             vec2 resolve=1.0-smoothstep(vec2(.13),vec2(.47),fwidth(weave));
             float thread=dot(sin(6.2831853*weave)*resolve,vec2(.009));
             vec2 trim=gauzeTrim(uv);
-            veilAlpha=mix(.37,.67,fade)+thread*fade+.43*trim.x+.10*trim.y;
+            veilAlpha=mix(.46,.86,fade)+thread*fade+.35*trim.x+.08*trim.y;
         }else{
             float fringe=clamp((textureCoord.x-.82)/.13,0.0,1.0);
             veilAlpha=mix(.64,.28,smoothstep(.08,1.0,fringe));
@@ -788,8 +788,10 @@ R"(
         vec3 mountainNormal=normalize(camRight*N.x+camUp*N.y+camBack*N.z);
         float shaped=smoothstep(-.35,.80,dot(mountainNormal,normalize(vec3(.85,.32,.25))));
         ridgeShade=1.0-shaped;
-        vec3 rockBase=vec3(.53,.61,.64);
-        lit=mix(vec3(.28,.40,.46),vec3(.61,.67,.65),shaped);
+        float aerial=smoothstep(28.0,105.0,length(eyePosition));
+        vec3 nearShade=vec3(.34,.43,.46),nearLight=vec3(.53,.60,.60);
+        vec3 farShade=vec3(.59,.63,.63),farLight=vec3(.72,.72,.68);
+        lit=mix(mix(nearShade,nearLight,shaped),mix(farShade,farLight,shaped),aerial);
     }else if(materialKind==4){
         float shaped=clamp(diffuse*.85+.1,0.0,1.0);
         shaped=shaped*.7+smoothstep(.05,.8,diffuse)*.3;
@@ -819,14 +821,18 @@ R"(
         // Warm reflected light on the metal, with a broad sky band and a tight key glint.
         float rim=pow(1.0-clamp(dot(N,V),0.0,1.0),4.0);
         float sky=pow(max(dot(reflect(-V,N),skyFill),0.0),9.0);
-        float key=pow(max(dot(R,V),0.0),38.0)*sqrt(diffuse)*visibility;
-        lit=color.rgb*(.48+.45*diffuse*visibility+.29*rim)
-            +vec3(1.0,.89,.63)*(.61*sky+.64*key);
+        float key=pow(max(dot(R,V),0.0),64.0)*sqrt(diffuse)*visibility;
+        float broad=pow(max(dot(R,V),0.0),14.0)*visibility;
+        vec3 gold=vec3(.78,.55,.25);
+        lit=gold*(.36+.48*diffuse*visibility+.18*rim)
+            +vec3(.86,.76,.52)*(.34*sky+.16*broad)
+            +vec3(1.0,.94,.73)*key*.92;
     }else if(drape){
         float back=max(-dot(N,L),0.0);
         // Thin silk has broad diffuse transmission, without a padded specular ridge.
-        vec3 soft=color.rgb*(.51+.33*diffuse*visibility+.16*back);
-        lit=mix(lit,soft,.46);
+        vec3 layerTint=materialKind==26?vec3(.93,1.0,.98):(materialKind==28?vec3(.92,.96,1.0):vec3(1.0,.98,.92));
+        vec3 soft=color.rgb*layerTint*(.48+.32*diffuse*visibility+.19*back);
+        lit=mix(lit,soft,.68);
     }else if(airy){
         float back=max(-dot(N,L),0.0);
         float rim=pow(1.0-abs(dot(N,V)),2.0);
@@ -852,6 +858,14 @@ R"(
         lit=mix(lit,vec3(.38,.40,.34),held*.78);
         float cream=smoothstep(.55,.78,color.r)*smoothstep(.02,.10,color.g-color.b)*smoothstep(.55,.75,color.g/max(color.r,.001));
         lit=mix(lit,vec3(.94,.86,.76),cream*.7);
+    }
+    if(materialKind==35){
+        lit=color.rgb*(.86+.14*clamp(dot(N,L)*.5+.5,0.0,1.0))*(.96+.04*visibility);
+    }
+    if(materialKind==34){
+        float faceLight=smoothstep(-.25,.85,dot(N,L));
+        vec3 faceTint=mix(vec3(.84,.80,.81),vec3(1.0,.95,.88),faceLight);
+        lit=color.rgb*faceTint*(.73+.27*faceLight)*(.93+.07*visibility);
     }
     if(materialKind==33){
         float top=smoothstep(.50,.93,dot(N,normalize(worldUpEye)));
@@ -912,7 +926,8 @@ R"(
     if(ridge>.5){
         vec3 mesh=(gl_ModelViewMatrixInverse*vec4(eyePosition,1.0)).xyz;
         float base=1.0-smoothstep(.0,.46,mesh.y);
-        lit=mix(lit,vec3(.22,.30,.34),base*.55);
+        float aerial=smoothstep(28.0,105.0,length(eyePosition));
+        lit=mix(lit,mix(vec3(.40,.49,.50),vec3(.70,.71,.67),aerial),base*.32);
     }
     float opacity=materialKind==1?.80:1.0;
     if(reflectionPass==1){

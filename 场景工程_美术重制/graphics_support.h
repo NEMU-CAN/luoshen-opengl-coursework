@@ -309,6 +309,21 @@ void main()
         local.xyz+=offset*mix(vec3(1.0),gain,freeEnd)*pin*pin*breeze
                     *1.25*clothStrength*smoothstep(0.0,.9,clothTime);
     }
+    if(materialKind==38){
+        // Shore reeds: the base stays planted while the tips sway in the breeze.
+        float h=clamp(local.y/.55,0.0,1.0);
+        float ph=sceneTime*1.15+local.x*2.6+local.z*1.9;
+        local.x+=.022*h*sin(ph);
+        local.z+=.014*h*sin(ph+1.7);
+    }else if(materialKind==37||materialKind==39){
+        // Hanging ornaments: higher parts stay closer to the head/body, the lower
+        // ends (earrings, jade pendants, waist pearls) drift gently.
+        float root=clamp((1.55-local.y)/.85,0.0,1.0);
+        root=.15+.85*root;
+        float ph=sceneTime*.95+local.x*4.0+local.z*3.0;
+        local.x+=.010*root*sin(ph);
+        local.z+=.007*root*sin(ph+1.6);
+    }
     vec4 position = gl_ModelViewMatrix * local;
     if(reflectionPass==1){
         float depth=max(-(dot(position.xyz,worldUpEye)+cameraHeight),0.0);
@@ -841,7 +856,7 @@ R"(
         float rim=pow(1.0-max(dot(N,V),0.0),2.4);
         lit+=vec3(.11,.09,.07)*rim*(.22+.78*shaped);
     }
-    if(materialKind==18){
+    if(materialKind==18||materialKind==39){
         // Warm reflected light on the metal, with a broad sky band and a tight key glint.
         float rim=pow(1.0-clamp(dot(N,V),0.0,1.0),4.0);
         float sky=pow(max(dot(reflect(-V,N),skyFill),0.0),9.0);
@@ -874,7 +889,7 @@ R"(
         float gilding=clamp(.94*trim.x+.31*trim.y,0.0,1.0);
         lit=mix(ivory,vec3(.91,.68,.38)*(1.0+.13*sheen),gilding);
     }
-    if(useTexture==1 && materialKind==0){
+    if(useTexture==1 && (materialKind==0||materialKind==37||materialKind==38)){
         float sleeve=smoothstep(.02,.10,color.g-color.r)*smoothstep(.22,.48,color.g);
         if(ridge>=.2)sleeve=0.0;
         float worldY=dot(eyePosition,worldUpEye)+cameraHeight;
@@ -887,6 +902,8 @@ R"(
         float cream=smoothstep(.55,.78,color.r)*smoothstep(.02,.10,color.g-color.b)*smoothstep(.55,.75,color.g/max(color.r,.001));
         lit=mix(lit,vec3(.94,.86,.76),cream*.7);
     }
+)"
+R"(
     if(materialKind==35){
         lit=color.rgb*(.86+.14*clamp(dot(N,L)*.5+.5,0.0,1.0))*(.96+.04*visibility);
     }
@@ -1002,7 +1019,7 @@ R"(
         lit*=mix(vec3(.70,.74,.80),vec3(1.0),1.0-occl*.90);
         // Raise the darks and trim contrast so the cloth reads airy, not carved.
         // Gold and the face keep their own authored response.
-        if(materialKind!=18 && materialKind!=34 && materialKind!=36){
+        if(materialKind!=18 && materialKind!=34 && materialKind!=36 && materialKind!=39){
             float tl=dot(lit,vec3(.299,.587,.114));
             lit+=vec3(.085,.090,.105)*(1.0-smoothstep(.04,.42,tl));
             lit=mix(vec3(tl),lit,.94);
@@ -1025,16 +1042,18 @@ R"(
         vec3 worldPos=(gl_ModelViewMatrixInverse*vec4(eyePosition,1.0)).xyz;
         vec2 fromHer=worldPos.xz-goddessPosition.xz;
         float dist=length(fromHer);
-        float pool=1.0-smoothstep(.30,3.10,dist);
-        // Rises past the skirt hem so the cloth actually dissolves, not just the water.
-        float shaft=exp(-max(worldPos.y,0.0)*.95);
-        // Two drifting octaves give strands instead of a flat glow.
+        float pool=1.0-smoothstep(.30,3.90,dist);
+        // A low band hugs the waterline while a taller veil wraps her skirt and waist;
+        // the head and shoulders stay clear.
+        float shaft=exp(-max(worldPos.y,0.0)*.78);
+        float lower=exp(-max(worldPos.y,0.0)*2.7);
         float wisp=noise(worldPos.xz*2.60+vec2(spiritTime*.22,-spiritTime*.14));
         float wisp2=noise(worldPos.xz*6.10-vec2(spiritTime*.31,spiritTime*.09));
-        float body=.42+.58*smoothstep(.30,.86,wisp*.72+wisp2*.38);
-        float breathe=.86+.14*sin(spiritTime*.47+dist*1.1);
-        float density=clamp(pool*shaft*body*breathe,0.0,1.0)*.86;
-        lit=mix(lit,vec3(.86,.90,.94),density);
+        float wisp3=noise(worldPos.xz*1.45+vec2(-spiritTime*.10,spiritTime*.16));
+        float body=.40+.60*smoothstep(.30,.90,wisp*.52+wisp2*.34+wisp3*.34);
+        float breathe=.84+.16*sin(spiritTime*.40+dist*1.1);
+        float density=clamp(pool*(shaft*.80+lower*.42)*body*breathe,0.0,1.0)*.96;
+        lit=mix(lit,vec3(.87,.91,.95),density);
     }
     float opacity=materialKind==1?.80:1.0;
     if(reflectionPass==1){

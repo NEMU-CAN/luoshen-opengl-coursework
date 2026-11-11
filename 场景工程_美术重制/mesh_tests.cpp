@@ -29,7 +29,15 @@ int wmain(int argc,wchar_t** argv) {
         require(glm::length(waterStart.position-environment_effects::waterPetalPose(5,0.0).position)<1e-7f,"water petals must be deterministic");
         require(glm::length(waterStart.position-environment_effects::waterPetalPose(5,2.0).position)>.001f,"water petals must move with shared time");
         for(int i=0;i<environment_effects::fallingPetalCount;++i){
-            const auto pose=environment_effects::fallingPetalPose(i,12.0,blossom);
+            const auto pose=environment_effects::fallingPetalPose(i,12.0,blossom,goddess);
+            const bool front=i>=environment_effects::canopyPetalCount+environment_effects::downwindPetalCount
+                +environment_effects::farPetalCount+environment_effects::foregroundPetalCount;
+            if(front){
+                require(pose.position.y>=goddess.y+.25f && pose.position.y<=goddess.y+3.30f,"front petals keep a low fall");
+                require(pose.position.z>goddess.z+.55f,"front petals must fall in front of Luoshen");
+                require(std::abs(pose.position.x-goddess.x)<2.1f,"front petals must stay near Luoshen");
+                continue;
+            }
             require(pose.position.y>=blossom.y+.11f && pose.position.y<=blossom.y+3.96f,"falling petal height range");
             const float downwind=pose.position.x-blossom.x;
             if(i<environment_effects::canopyPetalCount)

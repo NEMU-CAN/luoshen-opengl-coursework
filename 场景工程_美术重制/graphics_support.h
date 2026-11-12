@@ -183,8 +183,8 @@ void main()
         float phase=.73*clothTime-5.4*t+.32*float(materialKind-26);
         float free=t*t*smoothstep(0.0,.9,clothTime)*clothStrength*mix(1.0,2.1,smoothstep(.23,.95,t));
         // The fitted seam stays pinned; free tips lift and turn across the wind.
-        local.xyz+=free*1.35*vec3(.014*sin(phase-.5),.030*sin(phase)+.012*(u-.5)*sin(phase-.8),
-                            .034*sin(phase+1.1)+.018*(u-.5)*sin(phase));
+        local.xyz+=free*3.10*vec3(.023*sin(phase-.5),.050*sin(phase)+.020*(u-.5)*sin(phase-.8),
+                            .058*sin(phase+1.1)+.030*(u-.5)*sin(phase));
     }else if(clothMotionEnabled==1 && materialKind>=20 && materialKind<=25){
         vec2 uv=gl_MultiTexCoord0.xy;
         float t=clamp((.88-uv.y)/.75,0.0,1.0);
@@ -192,9 +192,9 @@ void main()
         float free=t*t*smoothstep(0.0,.9,clothTime)*clothStrength*mix(1.0,2.1,smoothstep(.23,.95,t));
         float phase=.73*clothTime-5.4*t+float(materialKind-20)*.41;
         // All free layers share a travelling wind, with small delays in depth.
-        local.xyz+=free*1.35*vec3(-.016*sin(phase-.4),
-            .032*sin(phase)+.013*sin(phase*.71+u*3.14),
-            .045*sin(phase+1.2)+.018*(2.0*u-1.0)*sin(phase-.5));
+        local.xyz+=free*3.30*vec3(-.027*sin(phase-.4),
+            .054*sin(phase)+.022*sin(phase*.71+u*3.14),
+            .104*sin(phase+1.2)+.042*(2.0*u-1.0)*sin(phase-.5));
     }else if(clothMotionEnabled==1 && materialKind==19){
         // The gauze is fastened along uv.y=0 only. Sides are free, so the hem can
         // drift while the brow edge stays welded to the hair. Motion is biased
@@ -235,9 +235,9 @@ void main()
             }
         }
         float wind=clothStrength*smoothstep(0.0,.9,clothTime);
-        local.xyz+=offset*wind*1.3;
-        trainDu=mat3(gl_ModelViewMatrix)*dAcross*(wind*1.3/.64);
-        trainDv=mat3(gl_ModelViewMatrix)*dAlong*(-wind*1.3/.75);
+        local.xyz+=offset*wind*3.0;
+        trainDu=mat3(gl_ModelViewMatrix)*dAcross*(wind*3.0/.64);
+        trainDv=mat3(gl_ModelViewMatrix)*dAlong*(-wind*3.0/.75);
     }else if(clothMotionEnabled==1 && materialKind>=8 && materialKind<=16){
         // Ribbon and gold edging share the same displacement field.
         float s;
@@ -246,23 +246,23 @@ void main()
             s=clamp((-local.x-.08)/1.06,0.0,1.0);
             float phase=.86*clothTime-6.15*s;
             float echo=.57*clothTime-3.8*s+.6;
-            offset=vec3(.010*sin(phase+.55),.036*sin(phase)+.010*sin(echo),
-                        .031*sin(phase+1.24)+.011*sin(echo+1.6));
+            offset=vec3(.023*sin(phase+.55),.080*sin(phase)+.023*sin(echo),
+                        .075*sin(phase+1.24)+.026*sin(echo+1.6));
         }else if(materialKind==9){
             // The loop attaches near the shoulder and returns toward the waist.
             float along=clamp((.88-gl_MultiTexCoord0.y)/.75,0.0,1.0);
             s=sin(3.14159265*along);
             float phase=.63*clothTime-6.0*along;
-            offset=vec3(.025*sin(phase-.55),.032*sin(phase),.048*sin(phase+1.38));
+            offset=vec3(.058*sin(phase-.55),.075*sin(phase),.120*sin(phase+1.38));
         }else if(materialKind==15){
             // Only the lower inner skirt breathes; upper layers stay anchored.
             s=clamp((.60-local.y)/.59,0.0,1.0);
             float phase=.64*clothTime-2.1*s+7.5*local.x+5.4*local.z;
-            offset=vec3(.013*sin(phase+.65),.009+.008*sin(phase),.013*sin(phase+1.25));
+            offset=vec3(.021*sin(phase+.65),.014+.013*sin(phase),.021*sin(phase+1.25));
         }else if(materialKind==14){
             s=clamp((1.055-local.y)/.19,0.0,1.0);
             float phase=.91*clothTime-3.0*s+1.7;
-            offset=vec3(.012*sin(phase),.005*sin(phase+.7),.016*sin(phase+1.1));
+            offset=vec3(.019*sin(phase),.008*sin(phase+.7),.026*sin(phase+1.1));
         }else{
             // The folded shells use V as a shared root-to-tip coordinate on both sides.
             s=clamp((.88-gl_MultiTexCoord0.y)/.75,0.0,1.0);
@@ -307,7 +307,7 @@ void main()
         else if(materialKind==13)gain=vec3(2.19,2.77,2.63);
         else if(materialKind==8||materialKind==9)gain=vec3(2.28,2.81,2.70);
         local.xyz+=offset*mix(vec3(1.0),gain,freeEnd)*pin*pin*breeze
-                    *2.05*clothStrength*smoothstep(0.0,.9,clothTime);
+                    *5.20*clothStrength*smoothstep(0.0,.9,clothTime);
     }
     if(materialKind==38){
         // Shore reeds: the base stays planted while the tips sway in the breeze.

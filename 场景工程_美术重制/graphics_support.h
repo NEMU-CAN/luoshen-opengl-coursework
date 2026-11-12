@@ -411,13 +411,17 @@ float valleyCloud(vec3 ray,float surfaceDistance){
             // Grid depends on the full cloud box, never on the occluding mesh.
             float stepLength=(end-begin)/64.0;
             float stop=min(end,surfaceDistance);
+            float ct=spiritTime;
             for(int sampleIndex=0;sampleIndex<64;++sampleIndex){
                 float cell=begin+float(sampleIndex)*stepLength;
                 if(cell>=stop)break;
                 float covered=min(stepLength,stop-cell);
                 vec3 p=cloudCameraWorld+ray*(cell+.5*stepLength);
-                float broad=noise(vec2(p.x*.37+k*3.1,p.z*.17));
-                float detail=noise(vec2(p.x*1.05-k*2.3,p.z*.39));
+                // Slow drift on every octave, plus a fine strand field that breaks the
+                // edges into moving wisps instead of a solid slab.
+                float broad=noise(vec2(p.x*.37+k*3.1+ct*.03,p.z*.17-ct*.02));
+                float detail=noise(vec2(p.x*1.05-k*2.3-ct*.12,p.z*.39+ct*.075));
+                float wisp=noise(vec2(p.x*2.9+k*1.7+ct*.36,p.z*1.2-ct*.25));
                 float x=p.x;
                 float crest;
                 if(layer==0){
@@ -446,7 +450,11 @@ float valleyCloud(vec3 ray,float surfaceDistance){
                 float sides=taper;
                 float along=1.0-smoothstep(halfDepth*.4,halfDepth,abs(p.z-centerZ));
                 float folds=.40+.60*broad;
-                opticalDepth+=top*foot*sides*along*folds*covered*1.5;
+                // Per-layer slow fade so each bank of cloud swells and thins on its own
+                // rhythm; the strand field softens the rim as it goes.
+                float fade=smoothstep(.25,.95,.5+.5*sin(ct*.37+float(layer)*2.1+detail*1.3));
+                float strands=.5+.5*wisp;
+                opticalDepth+=top*foot*sides*along*folds*strands*fade*covered*1.5;
             }
         }
     }
@@ -908,10 +916,11 @@ R"(
         lit=color.rgb*(.86+.14*clamp(dot(N,L)*.5+.5,0.0,1.0))*(.96+.04*visibility);
     }
     if(materialKind==33){
-        float top=smoothstep(.50,.93,dot(N,normalize(worldUpEye)));
-        vec3 side=color.rgb*vec3(.84,1.02,1.10)+vec3(.025,.035,.045);
-        vec3 soil=color.rgb*vec3(1.08,1.02,.95);
-        lit=mix(side,soil,top)*(.90+.10*visibility)*(.94+.06*fold);
+        // Darker, more natural stone: cool greenish shadow, warm tan top, no blue lift.
+        float top=smoothstep(.48,.92,dot(N,normalize(worldUpEye)));
+        vec3 side=color.rgb*vec3(.66,.68,.60);
+        vec3 soil=color.rgb*vec3(.72,.66,.52);
+        lit=mix(side,soil,top)*(.90+.10*visibility)*(.90+.10*fold);
     }
     if(materialKind==31){
         float up=dot(N,normalize(worldUpEye));
@@ -957,7 +966,7 @@ R"(
     }
     float specStrength=materialKind==1?.006:(materialKind==7?.035:.010);
     vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
-    if(!silk)lit+=specColor*specular*visibility*specStrength;
+    if(!silk && materialKind!=33)lit+=specColor*specular*visibility*specStrength;
     // 神光离合: warm and cool fills run in antiphase, so the lit side and the
     // shadow side trade emphasis while the figure keeps a steady overall value.
     // Both lights swing +/-15% of their own base; nothing blooms or outlines.
@@ -1045,8 +1054,8 @@ R"(
         float pool=1.0-smoothstep(.30,3.90,dist);
         // A low band hugs the waterline while a taller veil wraps her skirt and waist;
         // the head and shoulders stay clear.
-        float shaft=exp(-max(worldPos.y,0.0)*.78);
-        float lower=exp(-max(worldPos.y,0.0)*2.7);
+        float shaft=exp(-max(worldPos.y,0.0)*.55)*(1.0-smoothstep(1.75,2.5,worldPos.y));
+        float lower=exp(-max(worldPos.y,0.0)*2.2);
         float wisp=noise(worldPos.xz*2.60+vec2(spiritTime*.22,-spiritTime*.14));
         float wisp2=noise(worldPos.xz*6.10-vec2(spiritTime*.31,spiritTime*.09));
         float wisp3=noise(worldPos.xz*1.45+vec2(-spiritTime*.10,spiritTime*.16));

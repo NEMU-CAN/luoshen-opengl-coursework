@@ -4,14 +4,8 @@
 
 namespace environment_effects {
 inline constexpr int waterPetalCount=134;
-inline constexpr int canopyPetalCount=48;
-inline constexpr int downwindPetalCount=23;
-inline constexpr int farPetalCount=5;
-inline constexpr int foregroundPetalCount=6;
-// Extra petals that drift through the air in front of Luoshen.
-inline constexpr int frontPetalCount=22;
-inline constexpr int fallingPetalCount=canopyPetalCount+downwindPetalCount+farPetalCount
-    +foregroundPetalCount+frontPetalCount;
+// Airborne petals are all shed at the canopy; the plume thins away from the tree.
+inline constexpr int fallingPetalCount=96;
 
 struct PetalPose {
     glm::vec3 position{0};
@@ -69,41 +63,21 @@ inline PetalPose fallingPetalPose(int index,double seconds,const glm::vec3& blos
     if(elapsed<0)elapsed+=duration;
     const float t=elapsed/duration;
     const float sway=std::sin(t*9.424778f+seed);
-    // Spread the release points along the canopy and carry petals toward open water.
-    const float branch=1.44f*noise(seed+11.f)-.62f;
+    // Every petal leaves the canopy, then falls while drifting toward the water and
+    // Luoshen. Reach grows with index, so the plume is dense under the tree and thins
+    // with distance — reading as petals shed by the blossom tree.
+    const float band=static_cast<float>(index)/static_cast<float>(fallingPetalCount);
+    const float reach=band*4.4f+.08f*noise(seed+11.f);
+    const glm::vec2 dir=glm::normalize(glm::vec2(goddess.x-blossom.x,goddess.z-blossom.z));
+    const float spread=(noise(seed+17.f)-.5f)*.7f;
+    const float cs=std::cos(spread),sn=std::sin(spread);
+    const glm::vec2 drift=reach*glm::vec2(cs*dir.x-sn*dir.y,sn*dir.x+cs*dir.y);
+    const float canopyTop=2.85f+.20f*noise(seed+31.f);
+    const float fall=canopyTop-.30f;
     PetalPose pose;
-    pose.position=blossom+glm::vec3(
-        branch+.72f*t+.17f*sway,
-        .20f+3.75f*(1.f-t),
-        -.94f+1.65f*noise(seed+17.f)-.76f*t+.20f*std::sin(t*12.56637f+seed*.7f));
-    // Fewer petals reach each successive band of the breeze.
-    if(index>=canopyPetalCount+downwindPetalCount+farPetalCount+foregroundPetalCount){
-        // Petals carried across the open water in front of Luoshen herself.
-        pose.position=goddess+glm::vec3(
-            -1.00f+2.60f*noise(seed+11.f)+.30f*t+.09f*sway,
-            .30f+2.95f*(1.f-t),
-            .62f+2.05f*noise(seed+17.f)+.30f*t);
-    }else if(index>=canopyPetalCount+downwindPetalCount+farPetalCount){
-        pose.position=blossom+glm::vec3(
-            .48f+.76f*noise(seed+11.f)+.32f*t+.09f*sway,
-            .12f+1.42f*(1.f-t),
-            1.16f+1.18f*noise(seed+17.f)+.22f*t);
-    }else if(index>=canopyPetalCount+downwindPetalCount){
-        pose.position=blossom+glm::vec3(
-            2.68f+1.04f*noise(seed+11.f)+.47f*t+.12f*sway,
-            .13f+1.62f*(1.f-t),
-            -3.65f-1.20f*noise(seed+17.f)-.55f*t);
-    }else if(index>=canopyPetalCount){
-        pose.position=blossom+glm::vec3(
-            1.18f+1.45f*noise(seed+11.f)+.52f*t+.16f*sway,
-            .17f+2.55f*(1.f-t),
-            -1.48f-2.46f*noise(seed+17.f)-.84f*t);
-    }
+    pose.position=blossom+glm::vec3(drift.x*t+.16f*sway,canopyTop-fall*t,drift.y*t);
     pose.yaw=noise(seed+23.f)*360.f+time*16.f*(noise(seed+25.f)>.5f?1.f:-1.f);
     pose.scale=.45f+.46f*noise(seed+29.f);
-    if(index>=canopyPetalCount+downwindPetalCount+farPetalCount+foregroundPetalCount)pose.scale*=1.18f;
-    else if(index>=canopyPetalCount+downwindPetalCount+farPetalCount)pose.scale*=1.22f;
-    else if(index>=canopyPetalCount)pose.scale*=.83f;
     pose.tilt={28.f+46.f*noise(seed+31.f),24.f*std::sin(t*12.56637f+seed)};
     return pose;
 }

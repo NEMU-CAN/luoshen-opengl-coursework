@@ -192,7 +192,8 @@ void main()
         float free=t*t*smoothstep(0.0,.9,clothTime)*clothStrength*mix(1.0,2.1,smoothstep(.23,.95,t));
         float phase=.73*clothTime-5.4*t+float(materialKind-20)*.41;
         // All free layers share a travelling wind, with small delays in depth.
-        local.xyz+=free*3.30*vec3(-.027*sin(phase-.4),
+        float sleeveScale=(materialKind==20||materialKind==21)?.18:1.0;
+        local.xyz+=free*3.30*sleeveScale*vec3(-.027*sin(phase-.4),
             .054*sin(phase)+.022*sin(phase*.71+u*3.14),
             .104*sin(phase+1.2)+.042*(2.0*u-1.0)*sin(phase-.5));
     }else if(clothMotionEnabled==1 && materialKind==19){
@@ -298,6 +299,8 @@ void main()
             }
         }
         float pin=smoothstep(.04,1.0,s);
+        // 袖子的模型接缝经不起大位移，单独压回来，避免露馅。
+        float sleeveScale=(materialKind==10||materialKind==13||materialKind==16)?.22:1.0;
         float breeze=materialKind==15?1.0:1.38;
         // Keep the cuffs and tucked seams steady. Amplify only the parts in the wind.
         float freeEnd=smoothstep(.23,.95,s);
@@ -306,7 +309,7 @@ void main()
         else if(materialKind==11)gain=vec3(2.18,2.85,2.63);
         else if(materialKind==13)gain=vec3(2.19,2.77,2.63);
         else if(materialKind==8||materialKind==9)gain=vec3(2.28,2.81,2.70);
-        local.xyz+=offset*mix(vec3(1.0),gain,freeEnd)*pin*pin*breeze
+        local.xyz+=offset*mix(vec3(1.0),gain,freeEnd)*pin*pin*breeze*sleeveScale
                     *5.20*clothStrength*smoothstep(0.0,.9,clothTime);
     }
     if(materialKind==38){

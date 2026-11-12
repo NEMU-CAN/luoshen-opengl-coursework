@@ -247,14 +247,14 @@ void main()
             s=clamp((-local.x-.08)/1.06,0.0,1.0);
             float phase=.86*clothTime-6.15*s;
             float echo=.57*clothTime-3.8*s+.6;
-            offset=vec3(.023*sin(phase+.55),.080*sin(phase)+.023*sin(echo),
-                        .075*sin(phase+1.24)+.026*sin(echo+1.6));
+            offset=vec3(.036*sin(phase+.55),.124*sin(phase)+.036*sin(echo),
+                        .116*sin(phase+1.24)+.040*sin(echo+1.6));
         }else if(materialKind==9){
             // The loop attaches near the shoulder and returns toward the waist.
             float along=clamp((.88-gl_MultiTexCoord0.y)/.75,0.0,1.0);
             s=sin(3.14159265*along);
             float phase=.63*clothTime-6.0*along;
-            offset=vec3(.058*sin(phase-.55),.075*sin(phase),.120*sin(phase+1.38));
+            offset=vec3(.082*sin(phase-.55),.106*sin(phase),.170*sin(phase+1.38));
         }else if(materialKind==15){
             // Only the lower inner skirt breathes; upper layers stay anchored.
             s=clamp((.60-local.y)/.59,0.0,1.0);
@@ -324,8 +324,9 @@ void main()
         float root=clamp((1.55-local.y)/.85,0.0,1.0);
         root=.15+.85*root;
         float ph=sceneTime*.95+local.x*4.0+local.z*3.0;
-        local.x+=.034*root*sin(ph);
-        local.z+=.023*root*sin(ph+1.6);
+        local.x+=.060*root*sin(ph);
+        local.y+=.016*root*sin(ph*.83+1.1);
+        local.z+=.042*root*sin(ph+1.6);
     }
     vec4 position = gl_ModelViewMatrix * local;
     if(reflectionPass==1){

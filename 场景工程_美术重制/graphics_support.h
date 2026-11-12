@@ -183,8 +183,8 @@ void main()
         float phase=.73*clothTime-5.4*t+.32*float(materialKind-26);
         float free=t*t*smoothstep(0.0,.9,clothTime)*clothStrength*mix(1.0,2.1,smoothstep(.23,.95,t));
         // The fitted seam stays pinned; free tips lift and turn across the wind.
-        local.xyz+=free*1.35*vec3(.014*sin(phase-.5),.030*sin(phase)+.012*(u-.5)*sin(phase-.8),
-                            .034*sin(phase+1.1)+.018*(u-.5)*sin(phase));
+        local.xyz+=free*3.10*vec3(.023*sin(phase-.5),.050*sin(phase)+.020*(u-.5)*sin(phase-.8),
+                            .058*sin(phase+1.1)+.030*(u-.5)*sin(phase));
     }else if(clothMotionEnabled==1 && materialKind>=20 && materialKind<=25){
         vec2 uv=gl_MultiTexCoord0.xy;
         float t=clamp((.88-uv.y)/.75,0.0,1.0);
@@ -192,9 +192,10 @@ void main()
         float free=t*t*smoothstep(0.0,.9,clothTime)*clothStrength*mix(1.0,2.1,smoothstep(.23,.95,t));
         float phase=.73*clothTime-5.4*t+float(materialKind-20)*.41;
         // All free layers share a travelling wind, with small delays in depth.
-        local.xyz+=free*1.35*vec3(-.016*sin(phase-.4),
-            .032*sin(phase)+.013*sin(phase*.71+u*3.14),
-            .045*sin(phase+1.2)+.018*(2.0*u-1.0)*sin(phase-.5));
+        float sleeveScale=(materialKind==20||materialKind==21)?.18:1.0;
+        local.xyz+=free*3.30*sleeveScale*vec3(-.027*sin(phase-.4),
+            .054*sin(phase)+.022*sin(phase*.71+u*3.14),
+            .104*sin(phase+1.2)+.042*(2.0*u-1.0)*sin(phase-.5));
     }else if(clothMotionEnabled==1 && materialKind==19){
         // The gauze is fastened along uv.y=0 only. Sides are free, so the hem can
         // drift while the brow edge stays welded to the hair. Motion is biased
@@ -235,9 +236,9 @@ void main()
             }
         }
         float wind=clothStrength*smoothstep(0.0,.9,clothTime);
-        local.xyz+=offset*wind*1.3;
-        trainDu=mat3(gl_ModelViewMatrix)*dAcross*(wind*1.3/.64);
-        trainDv=mat3(gl_ModelViewMatrix)*dAlong*(-wind*1.3/.75);
+        local.xyz+=offset*wind*3.0;
+        trainDu=mat3(gl_ModelViewMatrix)*dAcross*(wind*3.0/.64);
+        trainDv=mat3(gl_ModelViewMatrix)*dAlong*(-wind*3.0/.75);
     }else if(clothMotionEnabled==1 && materialKind>=8 && materialKind<=16){
         // Ribbon and gold edging share the same displacement field.
         float s;
@@ -246,23 +247,23 @@ void main()
             s=clamp((-local.x-.08)/1.06,0.0,1.0);
             float phase=.86*clothTime-6.15*s;
             float echo=.57*clothTime-3.8*s+.6;
-            offset=vec3(.010*sin(phase+.55),.036*sin(phase)+.010*sin(echo),
-                        .031*sin(phase+1.24)+.011*sin(echo+1.6));
+            offset=vec3(.036*sin(phase+.55),.124*sin(phase)+.036*sin(echo),
+                        .116*sin(phase+1.24)+.040*sin(echo+1.6));
         }else if(materialKind==9){
             // The loop attaches near the shoulder and returns toward the waist.
             float along=clamp((.88-gl_MultiTexCoord0.y)/.75,0.0,1.0);
             s=sin(3.14159265*along);
             float phase=.63*clothTime-6.0*along;
-            offset=vec3(.025*sin(phase-.55),.032*sin(phase),.048*sin(phase+1.38));
+            offset=vec3(.082*sin(phase-.55),.106*sin(phase),.170*sin(phase+1.38));
         }else if(materialKind==15){
             // Only the lower inner skirt breathes; upper layers stay anchored.
             s=clamp((.60-local.y)/.59,0.0,1.0);
             float phase=.64*clothTime-2.1*s+7.5*local.x+5.4*local.z;
-            offset=vec3(.013*sin(phase+.65),.009+.008*sin(phase),.013*sin(phase+1.25));
+            offset=vec3(.021*sin(phase+.65),.014+.013*sin(phase),.021*sin(phase+1.25));
         }else if(materialKind==14){
             s=clamp((1.055-local.y)/.19,0.0,1.0);
             float phase=.91*clothTime-3.0*s+1.7;
-            offset=vec3(.012*sin(phase),.005*sin(phase+.7),.016*sin(phase+1.1));
+            offset=vec3(.019*sin(phase),.008*sin(phase+.7),.026*sin(phase+1.1));
         }else{
             // The folded shells use V as a shared root-to-tip coordinate on both sides.
             s=clamp((.88-gl_MultiTexCoord0.y)/.75,0.0,1.0);
@@ -298,6 +299,8 @@ void main()
             }
         }
         float pin=smoothstep(.04,1.0,s);
+        // 袖子的模型接缝经不起大位移，单独压回来，避免露馅。
+        float sleeveScale=(materialKind==10||materialKind==13||materialKind==16)?.22:1.0;
         float breeze=materialKind==15?1.0:1.38;
         // Keep the cuffs and tucked seams steady. Amplify only the parts in the wind.
         float freeEnd=smoothstep(.23,.95,s);
@@ -306,23 +309,24 @@ void main()
         else if(materialKind==11)gain=vec3(2.18,2.85,2.63);
         else if(materialKind==13)gain=vec3(2.19,2.77,2.63);
         else if(materialKind==8||materialKind==9)gain=vec3(2.28,2.81,2.70);
-        local.xyz+=offset*mix(vec3(1.0),gain,freeEnd)*pin*pin*breeze
-                    *1.25*clothStrength*smoothstep(0.0,.9,clothTime);
+        local.xyz+=offset*mix(vec3(1.0),gain,freeEnd)*pin*pin*breeze*sleeveScale
+                    *5.20*clothStrength*smoothstep(0.0,.9,clothTime);
     }
     if(materialKind==38){
         // Shore reeds: the base stays planted while the tips sway in the breeze.
         float h=clamp(local.y/.55,0.0,1.0);
         float ph=sceneTime*1.15+local.x*2.6+local.z*1.9;
-        local.x+=.022*h*sin(ph);
-        local.z+=.014*h*sin(ph+1.7);
+        local.x+=.062*h*sin(ph);
+        local.z+=.038*h*sin(ph+1.7);
     }else if(materialKind==37||materialKind==39){
         // Hanging ornaments: higher parts stay closer to the head/body, the lower
         // ends (earrings, jade pendants, waist pearls) drift gently.
         float root=clamp((1.55-local.y)/.85,0.0,1.0);
         root=.15+.85*root;
         float ph=sceneTime*.95+local.x*4.0+local.z*3.0;
-        local.x+=.010*root*sin(ph);
-        local.z+=.007*root*sin(ph+1.6);
+        local.x+=.060*root*sin(ph);
+        local.y+=.016*root*sin(ph*.83+1.1);
+        local.z+=.042*root*sin(ph+1.6);
     }
     vec4 position = gl_ModelViewMatrix * local;
     if(reflectionPass==1){
@@ -411,13 +415,17 @@ float valleyCloud(vec3 ray,float surfaceDistance){
             // Grid depends on the full cloud box, never on the occluding mesh.
             float stepLength=(end-begin)/64.0;
             float stop=min(end,surfaceDistance);
+            float ct=spiritTime;
             for(int sampleIndex=0;sampleIndex<64;++sampleIndex){
                 float cell=begin+float(sampleIndex)*stepLength;
                 if(cell>=stop)break;
                 float covered=min(stepLength,stop-cell);
                 vec3 p=cloudCameraWorld+ray*(cell+.5*stepLength);
-                float broad=noise(vec2(p.x*.37+k*3.1,p.z*.17));
-                float detail=noise(vec2(p.x*1.05-k*2.3,p.z*.39));
+                // Slow drift on every octave, plus a fine strand field that breaks the
+                // edges into moving wisps instead of a solid slab.
+                float broad=noise(vec2(p.x*.37+k*3.1+ct*.03,p.z*.17-ct*.02));
+                float detail=noise(vec2(p.x*1.05-k*2.3-ct*.12,p.z*.39+ct*.075));
+                float wisp=noise(vec2(p.x*2.9+k*1.7+ct*.36,p.z*1.2-ct*.25));
                 float x=p.x;
                 float crest;
                 if(layer==0){
@@ -446,7 +454,11 @@ float valleyCloud(vec3 ray,float surfaceDistance){
                 float sides=taper;
                 float along=1.0-smoothstep(halfDepth*.4,halfDepth,abs(p.z-centerZ));
                 float folds=.40+.60*broad;
-                opticalDepth+=top*foot*sides*along*folds*covered*1.5;
+                // Per-layer slow fade so each bank of cloud swells and thins on its own
+                // rhythm; the strand field softens the rim as it goes.
+                float fade=smoothstep(.25,.95,.5+.5*sin(ct*.37+float(layer)*2.1+detail*1.3));
+                float strands=.5+.5*wisp;
+                opticalDepth+=top*foot*sides*along*folds*strands*fade*covered*1.5;
             }
         }
     }
@@ -923,17 +935,19 @@ R"(
         lit=color.rgb*(.86+.14*clamp(dot(N,L)*.5+.5,0.0,1.0))*(.96+.04*visibility);
     }
     if(materialKind==33){
-        float top=smoothstep(.50,.93,dot(N,normalize(worldUpEye)));
-        vec3 side=color.rgb*vec3(.84,1.02,1.10)+vec3(.025,.035,.045);
-        vec3 soil=color.rgb*vec3(1.08,1.02,.95);
-        lit=mix(side,soil,top)*(.90+.10*visibility)*(.94+.06*fold);
+        // Darker, more natural stone: cool greenish shadow, warm tan top, no blue lift.
+        float top=smoothstep(.48,.92,dot(N,normalize(worldUpEye)));
+        vec3 side=color.rgb*vec3(.66,.68,.60);
+        vec3 soil=color.rgb*vec3(.72,.66,.52);
+        lit=mix(side,soil,top)*(.90+.10*visibility)*(.90+.10*fold);
     }
     if(materialKind==31){
         float up=dot(N,normalize(worldUpEye));
         float top=smoothstep(.62,.96,up);
-        vec3 side=mix(vec3(.31,.40,.44),vec3(.48,.55,.56),fold);
+        vec3 side=mix(vec3(.26,.33,.35),vec3(.39,.45,.44),fold);
         float value=dot(color.rgb,vec3(.25,.50,.25));
-        lit=mix(side,vec3(.68,.63,.54),top)*mix(.76,1.0,smoothstep(.18,.72,value))*(.84+.16*visibility);
+        // 顶面压暗偏土黄，避免左岸台地在暮色里泛白
+        lit=mix(side,vec3(.50,.44,.35),top)*mix(.72,1.0,smoothstep(.18,.72,value))*(.84+.16*visibility);
     }
     if(materialKind==32){
         bool canopy=textureCoord.x>.375&&textureCoord.x<.75&&textureCoord.y>.25&&textureCoord.y<.375;
@@ -972,7 +986,7 @@ R"(
     }
     float specStrength=materialKind==1?.006:(materialKind==7?.035:.010);
     vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
-    if(!silk)lit+=specColor*specular*visibility*specStrength;
+    if(!silk && materialKind!=33 && materialKind!=31)lit+=specColor*specular*visibility*specStrength;
     // 神光离合: warm and cool fills run in antiphase, so the lit side and the
     // shadow side trade emphasis while the figure keeps a steady overall value.
     // Both lights swing +/-15% of their own base; nothing blooms or outlines.
@@ -1057,17 +1071,17 @@ R"(
         vec3 worldPos=(gl_ModelViewMatrixInverse*vec4(eyePosition,1.0)).xyz;
         vec2 fromHer=worldPos.xz-goddessPosition.xz;
         float dist=length(fromHer);
-        float pool=1.0-smoothstep(.30,3.90,dist);
+        float pool=1.0-smoothstep(.25,2.30,dist);
         // A low band hugs the waterline while a taller veil wraps her skirt and waist;
         // the head and shoulders stay clear.
-        float shaft=exp(-max(worldPos.y,0.0)*.78);
-        float lower=exp(-max(worldPos.y,0.0)*2.7);
+        float shaft=exp(-max(worldPos.y,0.0)*.55)*(1.0-smoothstep(1.75,2.5,worldPos.y));
+        float lower=exp(-max(worldPos.y,0.0)*2.2);
         float wisp=noise(worldPos.xz*2.60+vec2(spiritTime*.22,-spiritTime*.14));
         float wisp2=noise(worldPos.xz*6.10-vec2(spiritTime*.31,spiritTime*.09));
         float wisp3=noise(worldPos.xz*1.45+vec2(-spiritTime*.10,spiritTime*.16));
         float body=.40+.60*smoothstep(.30,.90,wisp*.52+wisp2*.34+wisp3*.34);
         float breathe=.84+.16*sin(spiritTime*.40+dist*1.1);
-        float density=clamp(pool*(shaft*.80+lower*.42)*body*breathe,0.0,1.0)*.96;
+        float density=clamp(pool*(shaft*.78+lower*.30)*body*breathe,0.0,1.0)*.96;
         lit=mix(lit,vec3(.87,.91,.95),density);
     }
     float opacity=materialKind==1?.80:1.0;

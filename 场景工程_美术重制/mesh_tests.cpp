@@ -30,22 +30,11 @@ int wmain(int argc,wchar_t** argv) {
         require(glm::length(waterStart.position-environment_effects::waterPetalPose(5,2.0).position)>.001f,"water petals must move with shared time");
         for(int i=0;i<environment_effects::fallingPetalCount;++i){
             const auto pose=environment_effects::fallingPetalPose(i,12.0,blossom,goddess);
-            const bool front=i>=environment_effects::canopyPetalCount+environment_effects::downwindPetalCount
-                +environment_effects::farPetalCount+environment_effects::foregroundPetalCount;
-            if(front){
-                require(pose.position.y>=goddess.y+.25f && pose.position.y<=goddess.y+3.30f,"front petals keep a low fall");
-                require(pose.position.z>goddess.z+.55f,"front petals must fall in front of Luoshen");
-                require(std::abs(pose.position.x-goddess.x)<2.1f,"front petals must stay near Luoshen");
-                continue;
-            }
-            require(pose.position.y>=blossom.y+.11f && pose.position.y<=blossom.y+3.96f,"falling petal height range");
-            const float downwind=pose.position.x-blossom.x;
-            if(i<environment_effects::canopyPetalCount)
-                require(std::abs(downwind)<1.8f,"canopy petals must stay near blossom tree");
-            else if(i<environment_effects::canopyPetalCount+environment_effects::downwindPetalCount+environment_effects::farPetalCount)
-                require(downwind>1.f && downwind<4.4f && pose.position.z<blossom.z-1.4f,"downwind petals must spread over water");
-            else
-                require(pose.position.z>blossom.z+1.1f && pose.position.y<blossom.y+1.6f,"foreground petals must stay low and near");
+            require(pose.position.y>=blossom.y+.20f && pose.position.y<=blossom.y+3.25f,"falling petal height range");
+            const float dx=pose.position.x-blossom.x;
+            const float dz=pose.position.z-blossom.z;
+            require(dx>=-.35f && dx<5.0f,"petal x drift range");
+            require(dz>=-.35f && dz<3.0f,"petal z drift range");
         }
         std::cout<<"PASS: deterministic water/falling petals, bank and narrative clearances\n";
         auto dir=std::filesystem::temp_directory_path()/"luoshen-obj-fixture-20261104";

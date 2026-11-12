@@ -129,7 +129,7 @@ SceneModel loadModel(const std::string& relative,bool pickable=false,
         if(mat.name=="Final_FaceSkin")gpu.kind=34;
         if(mat.name=="Final_CaoEyes")gpu.kind=35;
         // Artistic palettes identify props without changing shared texture assets.
-        if(relative.find("03_shore_rock_")!=std::string::npos || relative.find("03_left_bank_platform_steps.obj")!=std::string::npos)gpu.kind=31;
+        if(relative.find("03_shore_rock_")!=std::string::npos || relative.find("03_left_bank_platform_steps.obj")!=std::string::npos || relative.find("03_left_bank_main_platform")!=std::string::npos)gpu.kind=31;
         else if(relative.find("05_covered_wooden_boat.obj")!=std::string::npos)gpu.kind=32;
         else if(relative.find("07_left_layered_shore.obj")!=std::string::npos)gpu.kind=33;
         else if(relative.find("06_shore_reeds_")!=std::string::npos)gpu.kind=38;
@@ -604,14 +604,14 @@ int wmain(int argc,wchar_t** argv){
             float a=glm::radians(yaw),b=glm::radians(pitch);
             glm::vec3 eye=target+distanceToTarget*glm::vec3(std::sin(a)*std::cos(b),std::sin(b),std::cos(a)*std::cos(b));
             auto view=glm::lookAt(eye,target,glm::vec3(0,1,0));
-            // One slow lap (45 s) around the open water: out to the right and away,
-            // a wide turn, then a shallow slide back to the start. The curve is
-            // closed, so the next lap continues without a jump.
+            // One slow lap (110 s) around the open water: out to the right and away,
+            // a wide turn, then back down the left channel. The route is a closed chain
+            // of cubic Bezier segments, so the lap repeats without a jump.
             if(!layoutEditor.active){
                 constexpr int routeCount=10;
                 constexpr float lapSeconds=110.f;
-                // A long lap that runs away from the opening view, up the river
-                // toward the far ridge, and returns down the left-hand channel.
+                // Control polygon; each span between two points becomes one cubic Bezier
+                // arc whose handles come from the neighbouring points (C1 continuous).
                 static const glm::vec2 route[routeCount]={
                     {-2.97f,-8.12f},{-2.30f,-10.20f},{-1.60f,-12.60f},{-1.00f,-15.40f},
                     {-0.60f,-18.20f},{-1.90f,-19.60f},{-3.05f,-17.40f},{-3.30f,-14.20f},
@@ -620,13 +620,16 @@ int wmain(int argc,wchar_t** argv){
                     u-=std::floor(u);
                     const float scaled=u*routeCount;
                     const int index=int(scaled)%routeCount;
-                    const float s=scaled-std::floor(scaled),s2=s*s,s3=s2*s;
-                    const glm::vec2& p0=route[(index+routeCount-1)%routeCount];
-                    const glm::vec2& p1=route[index];
-                    const glm::vec2& p2=route[(index+1)%routeCount];
-                    const glm::vec2& p3=route[(index+2)%routeCount];
-                    return 0.5f*((2.f*p1)+(-p0+p2)*s+(2.f*p0-5.f*p1+4.f*p2-p3)*s2
-                                +(-p0+3.f*p1-3.f*p2+p3)*s3);
+                    const float s=scaled-std::floor(scaled);
+                    const glm::vec2& prev=route[(index+routeCount-1)%routeCount];
+                    const glm::vec2& b0=route[index];
+                    const glm::vec2& b3=route[(index+1)%routeCount];
+                    const glm::vec2& next=route[(index+2)%routeCount];
+                    // Cubic Bezier handles: B1 = B0 + (B3-prev)/6, B2 = B3 - (next-B0)/6.
+                    const glm::vec2 b1=b0+(b3-prev)/6.f;
+                    const glm::vec2 b2=b3-(next-b0)/6.f;
+                    const float r=1.f-s;
+                    return r*r*r*b0+3.f*r*r*s*b1+3.f*r*s*s*b2+s*s*s*b3;
                 };
                 const float lap=static_cast<float>(spiritClock)/lapSeconds;
                 const glm::vec2 hull=routeAt(lap),ahead=routeAt(lap+.002f);

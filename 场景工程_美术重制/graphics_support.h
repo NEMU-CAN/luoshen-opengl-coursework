@@ -307,22 +307,22 @@ void main()
         else if(materialKind==13)gain=vec3(2.19,2.77,2.63);
         else if(materialKind==8||materialKind==9)gain=vec3(2.28,2.81,2.70);
         local.xyz+=offset*mix(vec3(1.0),gain,freeEnd)*pin*pin*breeze
-                    *1.25*clothStrength*smoothstep(0.0,.9,clothTime);
+                    *2.05*clothStrength*smoothstep(0.0,.9,clothTime);
     }
     if(materialKind==38){
         // Shore reeds: the base stays planted while the tips sway in the breeze.
         float h=clamp(local.y/.55,0.0,1.0);
         float ph=sceneTime*1.15+local.x*2.6+local.z*1.9;
-        local.x+=.022*h*sin(ph);
-        local.z+=.014*h*sin(ph+1.7);
+        local.x+=.062*h*sin(ph);
+        local.z+=.038*h*sin(ph+1.7);
     }else if(materialKind==37||materialKind==39){
         // Hanging ornaments: higher parts stay closer to the head/body, the lower
         // ends (earrings, jade pendants, waist pearls) drift gently.
         float root=clamp((1.55-local.y)/.85,0.0,1.0);
         root=.15+.85*root;
         float ph=sceneTime*.95+local.x*4.0+local.z*3.0;
-        local.x+=.010*root*sin(ph);
-        local.z+=.007*root*sin(ph+1.6);
+        local.x+=.034*root*sin(ph);
+        local.z+=.023*root*sin(ph+1.6);
     }
     vec4 position = gl_ModelViewMatrix * local;
     if(reflectionPass==1){
@@ -925,9 +925,10 @@ R"(
     if(materialKind==31){
         float up=dot(N,normalize(worldUpEye));
         float top=smoothstep(.62,.96,up);
-        vec3 side=mix(vec3(.31,.40,.44),vec3(.48,.55,.56),fold);
+        vec3 side=mix(vec3(.26,.33,.35),vec3(.39,.45,.44),fold);
         float value=dot(color.rgb,vec3(.25,.50,.25));
-        lit=mix(side,vec3(.68,.63,.54),top)*mix(.76,1.0,smoothstep(.18,.72,value))*(.84+.16*visibility);
+        // 顶面压暗偏土黄，避免左岸台地在暮色里泛白
+        lit=mix(side,vec3(.50,.44,.35),top)*mix(.72,1.0,smoothstep(.18,.72,value))*(.84+.16*visibility);
     }
     if(materialKind==32){
         bool canopy=textureCoord.x>.375&&textureCoord.x<.75&&textureCoord.y>.25&&textureCoord.y<.375;
@@ -966,7 +967,7 @@ R"(
     }
     float specStrength=materialKind==1?.006:(materialKind==7?.035:.010);
     vec3 specColor=materialKind==1?vec3(1.0,.94,.82):vec3(1.0,.88,.76);
-    if(!silk && materialKind!=33)lit+=specColor*specular*visibility*specStrength;
+    if(!silk && materialKind!=33 && materialKind!=31)lit+=specColor*specular*visibility*specStrength;
     // 神光离合: warm and cool fills run in antiphase, so the lit side and the
     // shadow side trade emphasis while the figure keeps a steady overall value.
     // Both lights swing +/-15% of their own base; nothing blooms or outlines.
@@ -1051,7 +1052,7 @@ R"(
         vec3 worldPos=(gl_ModelViewMatrixInverse*vec4(eyePosition,1.0)).xyz;
         vec2 fromHer=worldPos.xz-goddessPosition.xz;
         float dist=length(fromHer);
-        float pool=1.0-smoothstep(.30,3.90,dist);
+        float pool=1.0-smoothstep(.25,2.30,dist);
         // A low band hugs the waterline while a taller veil wraps her skirt and waist;
         // the head and shoulders stay clear.
         float shaft=exp(-max(worldPos.y,0.0)*.55)*(1.0-smoothstep(1.75,2.5,worldPos.y));
@@ -1061,7 +1062,7 @@ R"(
         float wisp3=noise(worldPos.xz*1.45+vec2(-spiritTime*.10,spiritTime*.16));
         float body=.40+.60*smoothstep(.30,.90,wisp*.52+wisp2*.34+wisp3*.34);
         float breathe=.84+.16*sin(spiritTime*.40+dist*1.1);
-        float density=clamp(pool*(shaft*.80+lower*.42)*body*breathe,0.0,1.0)*.96;
+        float density=clamp(pool*(shaft*.78+lower*.30)*body*breathe,0.0,1.0)*.96;
         lit=mix(lit,vec3(.87,.91,.95),density);
     }
     float opacity=materialKind==1?.80:1.0;

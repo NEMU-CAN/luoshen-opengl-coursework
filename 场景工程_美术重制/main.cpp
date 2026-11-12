@@ -129,7 +129,7 @@ SceneModel loadModel(const std::string& relative,bool pickable=false,
         if(mat.name=="Final_FaceSkin")gpu.kind=34;
         if(mat.name=="Final_CaoEyes")gpu.kind=35;
         // Artistic palettes identify props without changing shared texture assets.
-        if(relative.find("03_shore_rock_")!=std::string::npos || relative.find("03_left_bank_platform_steps.obj")!=std::string::npos)gpu.kind=31;
+        if(relative.find("03_shore_rock_")!=std::string::npos || relative.find("03_left_bank_platform_steps.obj")!=std::string::npos || relative.find("03_left_bank_main_platform")!=std::string::npos)gpu.kind=31;
         else if(relative.find("05_covered_wooden_boat.obj")!=std::string::npos)gpu.kind=32;
         else if(relative.find("07_left_layered_shore.obj")!=std::string::npos)gpu.kind=33;
         else if(relative.find("06_shore_reeds_")!=std::string::npos)gpu.kind=38;
